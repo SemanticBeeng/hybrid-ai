@@ -28,6 +28,11 @@ for p in "$HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STA
   esac
 done
 
+if [[ -x "$DETERMINATE_NIX_BIN" || -x "$NIX_WRAPPER_BIN" || -x "$FLOX_WRAPPER_BIN" ]]; then
+  [[ -r "$NIX_DAEMON_PROFILE_SCRIPT" ]] || fail "Missing nix-daemon profile script: $NIX_DAEMON_PROFILE_SCRIPT"
+  [[ -S "$NIX_DAEMON_SOCKET" ]] || fail "Missing nix-daemon socket: $NIX_DAEMON_SOCKET"
+fi
+
 for forbidden in "$PROJECT_ROOT/src/python/__pycache__" "$PROJECT_ROOT/src/swift/.build"; do
   [[ ! -e "$forbidden" ]] || fail "Forbidden byproduct detected: $forbidden"
 done

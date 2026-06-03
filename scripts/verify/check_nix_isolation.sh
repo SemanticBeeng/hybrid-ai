@@ -59,6 +59,21 @@ else
   echo "WARN: Determinate receipt missing at $NIX_MOUNT_POINT/receipt.json" >&2
 fi
 
+if [[ -r "$NIX_DAEMON_PROFILE_SCRIPT" ]]; then
+  echo "OK: nix-daemon profile script present at $NIX_DAEMON_PROFILE_SCRIPT"
+else
+  echo "ERROR: nix-daemon profile script missing or unreadable at $NIX_DAEMON_PROFILE_SCRIPT" >&2
+  exit 1
+fi
+
+if [[ -S "$NIX_DAEMON_SOCKET" ]]; then
+  echo "OK: nix-daemon socket present at $NIX_DAEMON_SOCKET"
+else
+  echo "ERROR: nix-daemon socket missing at $NIX_DAEMON_SOCKET" >&2
+  echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using normal-user Nix or Flox." >&2
+  exit 1
+fi
+
 if [[ -e "$NIX_MOUNT_POINT" && ! is_nix_bind_mounted_to_isolated_root ]]; then
   echo "ERROR: $NIX_MOUNT_POINT exists outside the expected bind mount." >&2
   exit 1
