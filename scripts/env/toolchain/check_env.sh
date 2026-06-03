@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 echo "PROJECT_ROOT=$PROJECT_ROOT"
 echo "NIX_ISOLATED_ROOT=$NIX_ISOLATED_ROOT"

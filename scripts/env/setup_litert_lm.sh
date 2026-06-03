@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 # Override if upstream organization/repo changes.
 LITERT_LM_GH_REPO="${LITERT_LM_GH_REPO:-google-ai-edge/LiteRT-LM}"

@@ -6,6 +6,6 @@ cmake.pkg-path = "cmake"
 
 [hook]
 on-activate = '''
-source scripts/env/common.sh
+source scripts/env/toolchain/common.sh
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-swift-dev}
 '''

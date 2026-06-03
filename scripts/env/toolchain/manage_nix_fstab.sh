@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 FSTAB_PATH="${FSTAB_PATH:-/etc/fstab}"
 FSTAB_ENTRY="$NIX_ISOLATED_ROOT $NIX_MOUNT_POINT none bind 0 0"
@@ -61,7 +61,7 @@ status_entry() {
 install_entry() {
   if [[ "${CONFIRM_WRITE_FSTAB:-}" != "YES" ]]; then
     echo "Refusing to modify $FSTAB_PATH without explicit confirmation." >&2
-    echo "Re-run with: CONFIRM_WRITE_FSTAB=YES scripts/env/manage_nix_fstab.sh install" >&2
+    echo "Re-run with: CONFIRM_WRITE_FSTAB=YES scripts/env/toolchain/manage_nix_fstab.sh install" >&2
     exit 1
   fi
 
@@ -86,7 +86,7 @@ install_entry() {
 remove_entry() {
   if [[ "${CONFIRM_REMOVE_FSTAB:-}" != "YES" ]]; then
     echo "Refusing to modify $FSTAB_PATH without explicit confirmation." >&2
-    echo "Re-run with: CONFIRM_REMOVE_FSTAB=YES scripts/env/manage_nix_fstab.sh remove" >&2
+    echo "Re-run with: CONFIRM_REMOVE_FSTAB=YES scripts/env/toolchain/manage_nix_fstab.sh remove" >&2
     exit 1
   fi
 

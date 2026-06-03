@@ -241,7 +241,7 @@ Verification requirements:
 Phase 0: Foundation and policy
 1. Create directory skeleton and placeholder files for all canonical writable paths.
 2. Add isolation policy doc and denylist checks.
-3. Add scripts/verify/doctor.sh that fails if disallowed paths are detected.
+3. Add scripts/env/toolchain/doctor.sh that fails if disallowed paths are detected.
 
 Deliverables:
 - Folder scaffold.
@@ -254,8 +254,8 @@ Phase 1: Host prerequisites and bootstrap
 4. Verify the root filesystem contains no persistent Nix payload outside the `/nix` mountpoint and related minimal config files.
 
 Deliverables:
-- scripts/env/bootstrap_host.sh
-- scripts/verify/check_nix_isolation.sh
+- scripts/env/toolchain/bootstrap_host.sh
+- scripts/env/toolchain/check_nix_isolation.sh
 
 Phase 2: Flox composition scaffolding
 1. Create env/base, env/python, env/swift, env/inference manifests.
@@ -343,18 +343,18 @@ Recommended immediate scaffold:
 - env/hybrid-ai/manifest.toml
 - nix/python/default.nix
 - nix/swift/default.nix
-- scripts/env/bootstrap_host.sh
+- scripts/env/toolchain/bootstrap_host.sh
 - scripts/env/enter.sh
 - scripts/env/run_python.sh
 - scripts/env/run_py_server.sh
 - scripts/env/run_swift.sh
 - scripts/env/run_inference_local.sh
 - scripts/env/run_inference_remote.sh
-- scripts/env/manage_nix_fstab.sh
-- scripts/env/test_determinate_cycle.sh
+- scripts/env/toolchain/manage_nix_fstab.sh
+- scripts/env/toolchain/test_determinate_cycle.sh
 - scripts/env/setup_litert_lm.sh
-- scripts/verify/doctor.sh
-- scripts/verify/check_env.sh
+- scripts/env/toolchain/doctor.sh
+- scripts/env/toolchain/check_env.sh
 - scripts/clean/reset_upper_layer.sh
 - .vscode/settings.json
 - .vscode/tasks.json
@@ -404,8 +404,8 @@ Implemented now:
 - Partial Phase 8 cleanup/reset scripts.
 
 Verified in this workspace:
-- scripts/verify/doctor.sh passes.
-- scripts/verify/check_env.sh confirms project-local HOME/XDG/cache paths.
+- scripts/env/toolchain/doctor.sh passes.
+- scripts/env/toolchain/check_env.sh confirms project-local HOME/XDG/cache paths.
 - Determinate Nix and Flox setup details are tracked in `docs/chat/determinate_nix_flox_setup.md`.
 
 Pending prerequisites before full execution:
@@ -427,7 +427,7 @@ Behavior:
 Python module setup (src/python):
 1. Run scripts/env/setup_litert_lm.sh.
 2. Freeze lock metadata (poetry lock) after verifying compatibility.
-3. Re-run scripts/verify/check_env.sh and python smoke tests.
+3. Re-run scripts/env/toolchain/check_env.sh and python smoke tests.
 
 Swift module setup (src/swift):
 1. Use the resolved tag in build/artifacts/litert-lm.version.
@@ -455,7 +455,7 @@ Current canonical state:
 - logical store path remains `/nix`, physically backed by `/opt/bin/dev/nix`
 - `nix-daemon` is expected to expose `/nix/var/nix/daemon-socket/socket`
 - normal-user wrappers source `nix-daemon.sh` and use `NIX_REMOTE=daemon`
-- `scripts/env/with_flox.sh`, `scripts/env/enter.sh`, and `scripts/env/init_flox_env.sh` run as the normal user once the daemon is available
+- `scripts/env/with_flox.sh`, `scripts/env/enter.sh`, and `scripts/env/toolchain/init_flox_env.sh` run as the normal user once the daemon is available
 
 Migration record for this workspace:
 
@@ -479,7 +479,7 @@ Current operating sequence:
 3. Use normal-user wrappers for development.
   - `scripts/env/with_flox.sh` sources the daemon profile and activates Flox as the current user.
   - `scripts/env/enter.sh` opens a normal-user shell inside the Flox environment.
-  - `scripts/env/init_flox_env.sh` syncs the managed Flox environment as the normal user and fails fast if stale root-owned state needs repair.
+  - `scripts/env/toolchain/init_flox_env.sh` syncs the managed Flox environment as the normal user and fails fast if stale root-owned state needs repair.
 
 4. Verify the environment after daemon availability is established.
   - `nix --version`
@@ -489,10 +489,10 @@ Current operating sequence:
   - confirm VS Code tools resolve Python and Swift without a root shell
 
 Repository implications now in force:
-- `scripts/env/install_nix_determinate.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.
+- `scripts/env/toolchain/install_nix_determinate.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.
 - `scripts/env/with_flox.sh` prefers user-mode activation with `NIX_REMOTE=daemon` and fails when the daemon socket is absent.
 - `scripts/env/enter.sh` is a normal-user interactive shell entrypoint.
-- `scripts/env/init_flox_env.sh` treats user-owned managed Flox state as the normal path and only asks for `sudo chown` when repairing stale ownership.
+- `scripts/env/toolchain/init_flox_env.sh` treats user-owned managed Flox state as the normal path and only asks for `sudo chown` when repairing stale ownership.
 
 Operational caveats:
 - This is still a daemon-capable multi-user install even though daemon startup is manual.

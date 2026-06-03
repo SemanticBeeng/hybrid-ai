@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 : "${REMOTE_INFERENCE_URL:?Set REMOTE_INFERENCE_URL in your project-local secret loader.}"
 : "${REMOTE_INFERENCE_TOKEN:?Set REMOTE_INFERENCE_TOKEN in your project-local secret loader.}"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 use_nix_daemon
 ensure_nix_bind_mount

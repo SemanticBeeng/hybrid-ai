@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 DETERMINATE_INSTALLER_URL="${DETERMINATE_INSTALLER_URL:-https://install.determinate.systems/nix}"
 
@@ -51,7 +51,7 @@ elif [[ -x "$NIX_INSTALLER_WRAPPER_BIN" ]]; then
   installer_bin="$NIX_INSTALLER_WRAPPER_BIN"
 fi
 
-"$PROJECT_ROOT/scripts/env/manage_nix_mount.sh" status
+"$PROJECT_ROOT/scripts/env/toolchain/manage_nix_mount.sh" status
 ensure_nix_bind_mount
 
 echo "NIX_MOUNT_POINT=$NIX_MOUNT_POINT"
@@ -87,7 +87,7 @@ else
   echo "WARN: installed Determinate installer not found; uninstall dry-run skipped." >&2
 fi
 
-reinstall_command="sh <downloaded-installer> install linux --init none --no-confirm --no-modify-profile --diagnostic-endpoint= --explain"
+reinstall_command="sh <downloaded-installer> install linux --no-confirm --no-modify-profile --diagnostic-endpoint= --no-start-daemon --explain"
 
 if [[ "$download_installer" == true ]]; then
   if [[ -n "$installer_bin" || -f "$NIX_MOUNT_POINT/receipt.json" ]]; then
@@ -100,7 +100,7 @@ if [[ "$download_installer" == true ]]; then
     echo "Downloading installer for install dry-run from: $DETERMINATE_INSTALLER_URL"
     curl --proto '=https' --tlsv1.2 -fsSL "$DETERMINATE_INSTALLER_URL" -o "$tmp_file"
     echo "Install dry-run via downloaded installer:"
-    run_as_root sh "$tmp_file" install linux --init none --no-confirm --no-modify-profile --diagnostic-endpoint= --explain
+    run_as_root sh "$tmp_file" install linux --no-confirm --no-modify-profile --diagnostic-endpoint= --no-start-daemon --explain
   fi
 else
   echo "Install dry-run skipped. Re-run with --download-installer to prepare an install preflight check."

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/common.sh"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 if [[ "${CONFIRM_REMOVE_ROOT_NIX:-}" != "YES" ]]; then
   echo "Refusing removal without explicit confirmation." >&2
-  echo "Re-run with: CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh" >&2
+  echo "Re-run with: CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/toolchain/remove_root_nix.sh" >&2
   exit 1
 fi
 
 if is_nix_mount_active && is_nix_bind_mounted_to_isolated_root; then
   echo "ERROR: $NIX_MOUNT_POINT is the configured bind mount for $NIX_ISOLATED_ROOT." >&2
-  echo "Use scripts/env/manage_nix_mount.sh unmount if you intend to dismantle the bind-mounted workflow." >&2
+  echo "Use scripts/env/toolchain/manage_nix_mount.sh unmount if you intend to dismantle the bind-mounted workflow." >&2
   exit 1
 fi
 
@@ -41,4 +41,4 @@ remove_path "/etc/bashrc.backup-before-nix"
 remove_path "/etc/zshrc.backup-before-nix"
 
 echo "Root nix cleanup complete."
-echo "Next: run scripts/env/bootstrap_host.sh and scripts/verify/check_nix_isolation.sh"
+echo "Next: run scripts/env/toolchain/bootstrap_host.sh and scripts/env/toolchain/check_nix_isolation.sh"

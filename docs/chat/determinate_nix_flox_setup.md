@@ -44,14 +44,14 @@ Important behavior:
 - either run them as `root`, use a host with passwordless sudo for the required commands, or refresh the sudo timestamp first with `sudo -v`
 
 If a stale or incompatible Nix install exists, use:
-- `CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh`
+- `CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/toolchain/remove_root_nix.sh`
 
 ### 3.2 Bootstrap the Bind-Mount Layout
 
 Run:
 
 ```bash
-scripts/env/bootstrap_host.sh
+scripts/env/toolchain/bootstrap_host.sh
 ```
 
 What it does:
@@ -65,7 +65,7 @@ What it does:
 Run:
 
 ```bash
-scripts/env/install_nix_determinate.sh
+scripts/env/toolchain/install_nix_determinate.sh
 ```
 
 What it does:
@@ -88,7 +88,7 @@ Installed paths of interest:
 Run:
 
 ```bash
-scripts/env/install_flox.sh
+scripts/env/toolchain/install_flox.sh
 ```
 
 What it does:
@@ -124,11 +124,12 @@ Notes:
 Run:
 
 ```bash
-scripts/env/init_flox_env.sh
+scripts/env/toolchain/init_flox_env.sh
 ```
 
 What it does:
 - requires the daemon socket and activates Flox as the current user
+- initializes and syncs any included module environments under `env/*` before syncing the composed top-level environment
 - initializes a managed Flox environment at `env/hybrid-ai/.flox` if it does not exist yet
 - syncs the repository manifest `env/hybrid-ai/manifest.toml` into the managed Flox environment
 - fails fast with ownership repair instructions if stale root-owned cache or `.flox` state is still present from older workflows
@@ -138,30 +139,31 @@ What it does:
 The combined workflow is:
 
 ```bash
-scripts/env/install_toolchain.sh
+scripts/env/toolchain/install_toolchain.sh
 ```
 
 Expectation:
-- this shortcut now assumes the daemon socket is already available before it reaches `scripts/env/init_flox_env.sh`
+- treat this as a convenience/resume helper, not as the primary onboarding path
+- this shortcut now assumes the daemon socket is already available before it reaches `scripts/env/toolchain/init_flox_env.sh`
 - if the socket is absent, the script stops and tells you to start `nix-daemon` first
-- on a fresh machine this usually means the first run gets through bootstrap, Determinate Nix install, and Flox install, then stops at the daemon-socket check; after starting `nix-daemon`, rerun `scripts/env/install_toolchain.sh` or continue with `scripts/env/init_flox_env.sh`
+- on a fresh machine this usually means the first run gets through bootstrap, Determinate Nix install, and Flox install, then stops at the daemon-socket check; after starting `nix-daemon`, rerun `scripts/env/toolchain/install_toolchain.sh` or continue with `scripts/env/toolchain/init_flox_env.sh`
 
 It runs, in order:
-1. `scripts/env/bootstrap_host.sh`
-2. `scripts/env/install_nix_determinate.sh`
-3. `scripts/env/install_flox.sh`
+1. `scripts/env/toolchain/bootstrap_host.sh`
+2. `scripts/env/toolchain/install_nix_determinate.sh`
+3. `scripts/env/toolchain/install_flox.sh`
 4. daemon socket availability check
-5. `scripts/env/init_flox_env.sh`
-6. `scripts/verify/check_nix_isolation.sh`
-7. `scripts/verify/doctor.sh`
+5. `scripts/env/toolchain/init_flox_env.sh`
+6. `scripts/env/toolchain/check_nix_isolation.sh`
+7. `scripts/env/toolchain/doctor.sh`
 
 ### 3.8 Verification
 
 Verification commands:
 
 ```bash
-scripts/verify/check_nix_isolation.sh
-scripts/verify/doctor.sh
+scripts/env/toolchain/check_nix_isolation.sh
+scripts/env/toolchain/doctor.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
 scripts/env/with_flox.sh python --version
 scripts/env/with_flox.sh swift --version
@@ -180,8 +182,8 @@ Expected outcomes:
 ### 4.1 Check or Print the Canonical fstab Entry
 
 ```bash
-scripts/env/manage_nix_fstab.sh status
-scripts/env/manage_nix_fstab.sh print
+scripts/env/toolchain/manage_nix_fstab.sh status
+scripts/env/toolchain/manage_nix_fstab.sh print
 ```
 
 Canonical entry:
@@ -193,7 +195,7 @@ Canonical entry:
 ### 4.2 Install the Entry
 
 ```bash
-CONFIRM_WRITE_FSTAB=YES scripts/env/manage_nix_fstab.sh install
+CONFIRM_WRITE_FSTAB=YES scripts/env/toolchain/manage_nix_fstab.sh install
 ```
 
 Behavior:
@@ -204,7 +206,7 @@ Behavior:
 ### 4.3 Remove the Entry
 
 ```bash
-CONFIRM_REMOVE_FSTAB=YES scripts/env/manage_nix_fstab.sh remove
+CONFIRM_REMOVE_FSTAB=YES scripts/env/toolchain/manage_nix_fstab.sh remove
 ```
 
 ## 5. Cleanup and Recovery
@@ -212,7 +214,7 @@ CONFIRM_REMOVE_FSTAB=YES scripts/env/manage_nix_fstab.sh remove
 ### 5.1 Remove Incompatible Root-Backed Nix Leftovers
 
 ```bash
-CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh
+CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/toolchain/remove_root_nix.sh
 ```
 
 Use this for:
@@ -223,14 +225,14 @@ Use this for:
 ### 5.2 Check Bind-Mount State
 
 ```bash
-scripts/env/manage_nix_mount.sh status
+scripts/env/toolchain/manage_nix_mount.sh status
 ```
 
 ### 5.3 Non-Destructive Uninstall/Reinstall Check
 
 ```bash
-scripts/env/test_determinate_cycle.sh
-scripts/env/test_determinate_cycle.sh --download-installer
+scripts/env/toolchain/test_determinate_cycle.sh
+scripts/env/toolchain/test_determinate_cycle.sh --download-installer
 ```
 
 Behavior:
@@ -289,15 +291,15 @@ scripts/env/run_inference_local.sh "healthcheck"
 
 - The repository no longer uses the daemonless `--init none` install.
 - Normal-user wrappers now depend on `/nix/var/nix/daemon-socket/socket` being present.
-- `scripts/env/with_flox.sh` and `scripts/env/init_flox_env.sh` fail fast when the socket is absent so they do not silently fall back to a root shell.
+- `scripts/env/with_flox.sh` and `scripts/env/toolchain/init_flox_env.sh` fail fast when the socket is absent so they do not silently fall back to a root shell.
 - If the daemon process exits or the host reboots without restarting it, normal-user Nix and Flox commands stop working until the socket is restored.
 
 #### Flox Managed Environments Need Initialization
 
 - Installing Flox alone is not enough.
-- `flox init` created a managed environment under `env/hybrid-ai/.flox`, and that managed environment had its own manifest.
-- The repository manifest had to be explicitly synced into the managed Flox environment.
-- This is now automated by `scripts/env/init_flox_env.sh`.
+- `flox init` created managed environments under `env/*/.flox`, including the module envs that are included by `env/hybrid-ai`.
+- The repository manifests had to be explicitly synced into those managed Flox environments before the composed top-level environment could be refreshed cleanly.
+- This is now automated by `scripts/env/toolchain/init_flox_env.sh`.
 
 #### Root-Owned Flox Cache State Causes Permission Errors
 
@@ -379,7 +381,7 @@ Safe workflow when changing the environment:
 $EDITOR env/hybrid-ai/manifest.toml
 
 # sync the managed environment from the manifest
-scripts/env/init_flox_env.sh
+scripts/env/toolchain/init_flox_env.sh
 
 # verify the tools you care about
 scripts/env/with_flox.sh python --version
@@ -394,12 +396,12 @@ Pitfall note:
 
 - The daemon-capable reinstall restored the base Determinate Nix profile but removed the Flox profile and convenience wrappers.
 - If `scripts/env/with_flox.sh` fails with `flox is required but not installed or not in PATH`, reinstall Flox before debugging the wrapper layer.
-- `scripts/env/install_flox.sh` now recreates the `nix` wrapper automatically when the base Nix binary exists but `/opt/bin/dev/nix/bin/nix` was removed during reinstall.
+- `scripts/env/toolchain/install_flox.sh` now recreates the `nix` wrapper automatically when the base Nix binary exists but `/opt/bin/dev/nix/bin/nix` was removed during reinstall.
 
 Recovery sequence:
 
 ```bash
-scripts/env/install_flox.sh
+scripts/env/toolchain/install_flox.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
 scripts/env/with_flox.sh python --version
 ```
@@ -407,7 +409,7 @@ scripts/env/with_flox.sh python --version
 #### fstab Persistence Should Be Explicit and Backed Up
 
 - Writing the bind-mount entry to `/etc/fstab` should never be implicit.
-- `scripts/env/manage_nix_fstab.sh` requires explicit confirmation and creates a timestamped backup before modification.
+- `scripts/env/toolchain/manage_nix_fstab.sh` requires explicit confirmation and creates a timestamped backup before modification.
 
 #### Stale Mounts Can Look Like Real Installs
 
@@ -442,13 +444,13 @@ rm -f build/home/.nix-profile
 
 ```bash
 sudo -v
-scripts/env/bootstrap_host.sh
-scripts/env/install_nix_determinate.sh
-scripts/env/install_flox.sh
+scripts/env/toolchain/bootstrap_host.sh
+scripts/env/toolchain/install_nix_determinate.sh
+scripts/env/toolchain/install_flox.sh
 sudo /nix/var/nix/profiles/default/bin/nix-daemon
-scripts/env/init_flox_env.sh
-scripts/verify/check_nix_isolation.sh
-scripts/verify/doctor.sh
+scripts/env/toolchain/init_flox_env.sh
+scripts/env/toolchain/check_nix_isolation.sh
+scripts/env/toolchain/doctor.sh
 scripts/env/with_flox.sh python --version
 scripts/env/with_flox.sh swift --version
 ```
@@ -456,9 +458,9 @@ scripts/env/with_flox.sh swift --version
 Optional persistence:
 
 ```bash
-CONFIRM_WRITE_FSTAB=YES scripts/env/manage_nix_fstab.sh install
+CONFIRM_WRITE_FSTAB=YES scripts/env/toolchain/manage_nix_fstab.sh install
 ```
 
 Fresh-machine note:
-- `scripts/env/install_toolchain.sh` is a convenience shortcut, but on a fresh machine the explicit step-by-step sequence above is the most predictable path
-- if you prefer the shortcut and it stops on a missing daemon socket, start `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/init_flox_env.sh` or the full shortcut
+- `scripts/env/toolchain/install_toolchain.sh` is a convenience shortcut, but on a fresh machine the explicit step-by-step sequence above is the most predictable path
+- if you prefer the shortcut and it stops on a missing daemon socket, start `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/toolchain/init_flox_env.sh` or the full shortcut
