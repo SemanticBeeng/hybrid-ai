@@ -304,7 +304,8 @@ scripts/env/start_vscode.sh --check
 
 Inside VS Code, the repository workspace settings and tasks continue to pin tool
 execution to the repository wrappers:
-- `.vscode/settings.json` pins Python and Swift tooling to `scripts/env/run_python.sh` and `scripts/env/run_swift.sh`
+- `.vscode/settings.json` points editor extensions at `python` and `swift` from the Flox-activated `PATH`
+- `.vscode/tasks.json` keeps task execution pinned to repository wrappers such as `scripts/env/run_python.sh` and `scripts/env/run_swift.sh`
 - `.vscode/tasks.json` exposes `vscode:print-env` to print the live editor toolchain and portable data roots after launch
 
 ### 6.2 Learnings and Pitfalls From This Session

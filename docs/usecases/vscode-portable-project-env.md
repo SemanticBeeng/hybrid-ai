@@ -98,7 +98,7 @@ In this repository:
 
 The intended split is:
 - user settings keep machine-specific editor preferences such as `remote.SSH.serverInstallPath`
-- workspace settings pin repository-specific execution paths such as `python.defaultInterpreterPath` and `swift.path`
+- workspace settings pin repository-specific tool resolution such as `python.defaultInterpreterPath` and `swift.path`
 
 This matters because the portable editor still needs its machine-level storage
 configuration, while the repository needs to override interpreter/toolchain
@@ -174,12 +174,12 @@ After the editor opens:
 ### 8.3 Verify Workspace-Level Tool Pinning
 
 Check these workspace settings:
-- `.vscode/settings.json` sets `python.defaultInterpreterPath` to `scripts/env/run_python.sh`
-- `.vscode/settings.json` sets `swift.path` to `scripts/env/run_swift.sh`
+- `.vscode/settings.json` sets `python.defaultInterpreterPath` to `python`
+- `.vscode/settings.json` sets `swift.path` to `swift`
 
 This means:
-- extension-launched Python actions use the repository wrapper path
-- extension-launched Swift actions use the repository wrapper path
+- extension-launched Python actions resolve to the Flox-managed Python interpreter from the activated editor `PATH`
+- extension-launched Swift actions resolve to the Flox-managed Swift binary from the activated editor `PATH`
 - Copilot-generated tasks remain aligned with repository scripts rather than host binaries
 
 ## 9. Expected Outcomes

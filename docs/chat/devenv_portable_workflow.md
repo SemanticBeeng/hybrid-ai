@@ -202,8 +202,8 @@ Policy:
 - Launch VS Code through `scripts/env/start_vscode.sh`, which activates the composed Flox environment before the editor process starts.
 - The launcher keeps the editor, extension host, Copilot, and language tools on the project Python and Swift toolchain while forcing the portable user-data and extensions directories.
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
-- Python extension interpreter path pinned to Flox-provided Python.
-- Swift extension tools pinned to Flox-provided Swift binaries.
+- Python extension interpreter path resolves to `python` from the Flox-activated `PATH`.
+- Swift extension tools resolve to `swift` from the Flox-activated `PATH`.
 
 Verification requirements:
 - Confirm `scripts/env/start_vscode.sh --print-env` reports Flox-provided `python` and `swift` binaries.

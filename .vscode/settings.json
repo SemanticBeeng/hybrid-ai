@@ -1,5 +1,5 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/scripts/env/run_python.sh",
+  "python.defaultInterpreterPath": "python",
   "python.terminal.activateEnvironment": false,
   "terminal.integrated.cwd": "${workspaceFolder}",
   "terminal.integrated.env.linux": {
@@ -18,5 +18,5 @@
     "XDG_STATE_HOME": "${workspaceFolder}/build/xdg/state",
     "HOME": "${workspaceFolder}/build/home"
   },
-  "swift.path": "${workspaceFolder}/scripts/env/run_swift.sh"
+  "swift.path": "swift"
 }

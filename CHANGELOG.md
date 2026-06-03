@@ -23,6 +23,8 @@
 ### VS Code workflow
 - added `scripts/env/start_vscode.sh` to launch portable VS Code through the composed Flox environment while preserving the portable user-data root
 - added a `vscode:print-env` task and documented the editor startup and verification flow
+- changed workspace editor settings to resolve `python` and `swift` from the Flox-activated `PATH` instead of pointing extensions at task wrapper scripts
+- observed that `scripts/env/start_vscode.sh` can still trigger early VS Code extension/toolchain startup errors, but Python and Swift ultimately resolve correctly for Copilot and the launched editor session once startup settles
 
 ### Use-case docs
 - added `docs/usecases/README.md` as the landing page for concrete development workflow documents
