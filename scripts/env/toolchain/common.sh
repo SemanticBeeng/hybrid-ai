@@ -31,14 +31,17 @@ export XDG_STATE_HOME="$PROJECT_ROOT/build/xdg/state"
 # Use an isolated HOME for tools that hardcode HOME lookups.
 export HOME="$PROJECT_ROOT/build/home"
 
+unset VIRTUAL_ENV
+unset VIRTUAL_ENV_PROMPT
+
 export PYTHON_DIR="$PROJECT_ROOT/src/python"
-export VIRTUAL_ENV="$PROJECT_ROOT/build/python/venv"
 export PIP_CACHE_DIR="$PROJECT_ROOT/build/python/cache/pip"
 export POETRY_CACHE_DIR="$PROJECT_ROOT/build/python/cache/poetry"
 export UV_CACHE_DIR="$PROJECT_ROOT/build/python/cache/uv"
 export PYTHONPYCACHEPREFIX="$PROJECT_ROOT/build/python/pycache"
 export PYTHONDONTWRITEBYTECODE=1
 export PIP_DISABLE_PIP_VERSION_CHECK=1
+export POETRY_VIRTUALENVS_IN_PROJECT=true
 
 export SWIFT_BUILD_PATH="$PROJECT_ROOT/build/swift"
 export CLANG_MODULE_CACHE_PATH="$PROJECT_ROOT/build/swift/clang-module-cache"
@@ -83,6 +86,49 @@ assert_under_project "$LITERT_LM_MODELS"
 have_command() {
   command -v "$1" >/dev/null 2>&1
 }
+
+prepend_env_path() {
+  local var_name="$1"
+  local value="$2"
+  local current_value="${!var_name:-}"
+
+  if [[ -z "$value" || ! -d "$value" ]]; then
+    return 0
+  fi
+
+  case ":$current_value:" in
+    *":$value:"*)
+      return 0
+      ;;
+  esac
+
+  if [[ -n "$current_value" ]]; then
+    printf -v "$var_name" '%s:%s' "$value" "$current_value"
+  else
+    printf -v "$var_name" '%s' "$value"
+  fi
+
+  export "$var_name"
+}
+
+configure_cpp_runtime() {
+  local libstdcpp_path=""
+  local runtime_dir=""
+
+  if ! have_command g++; then
+    return 0
+  fi
+
+  libstdcpp_path="$(g++ -print-file-name=libstdc++.so.6 2>/dev/null || true)"
+  if [[ -z "$libstdcpp_path" || "$libstdcpp_path" == "libstdc++.so.6" || ! -f "$libstdcpp_path" ]]; then
+    return 0
+  fi
+
+  runtime_dir="$(dirname "$libstdcpp_path")"
+  prepend_env_path LD_LIBRARY_PATH "$runtime_dir"
+}
+
+configure_cpp_runtime
 
 run_as_root() {
   if [[ "$(id -u)" -eq 0 ]]; then
@@ -129,28 +175,9 @@ is_nix_mount_active() {
   [[ -n "$(nix_mount_root)" ]]
 }
 
-is_nix_bind_mounted_to_isolated_root() {
-  local mount_stat root_stat
-
-  if [[ ! -e "$NIX_MOUNT_POINT" || ! -e "$NIX_ISOLATED_ROOT" ]]; then
-    return 1
-  fi
-
-  mount_stat="$(stat -Lc '%d:%i' "$NIX_MOUNT_POINT" 2>/dev/null || true)"
-  root_stat="$(stat -Lc '%d:%i' "$NIX_ISOLATED_ROOT" 2>/dev/null || true)"
-
-  [[ -n "$mount_stat" && "$mount_stat" == "$root_stat" ]]
-}
-
 ensure_nix_bind_mount() {
   if ! is_nix_mount_active; then
     echo "ERROR: $NIX_MOUNT_POINT is not mounted." >&2
-    return 1
-  fi
-
-  if ! is_nix_bind_mounted_to_isolated_root; then
-    echo "ERROR: $NIX_MOUNT_POINT is mounted, but not from $NIX_ISOLATED_ROOT." >&2
-    echo "Detected mount root: $(nix_mount_root)" >&2
     return 1
   fi
 }

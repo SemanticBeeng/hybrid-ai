@@ -11,9 +11,11 @@ jq.pkg-path = "jq"
 yq.pkg-path = "yq"
 just.pkg-path = "just"
 curl.pkg-path = "curl"
+gcc.pkg-path = "gcc"
 
 [hook]
 on-activate = '''
-source scripts/env/toolchain/common.sh
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 export HYBRID_AI_PROFILE=base
 '''

@@ -8,5 +8,6 @@ volumes/*
 deps/*
 !deps/.gitkeep
 env/*/.flox/
+**/.venv/
 *.log
 .DS_Store

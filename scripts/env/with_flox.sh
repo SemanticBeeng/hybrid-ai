@@ -20,6 +20,9 @@ if [[ -z "$FLOX_BIN" ]]; then
   exit 1
 fi
 
+unset VIRTUAL_ENV
+unset VIRTUAL_ENV_PROMPT
+
 FLOX_ENV_DIR="$PROJECT_ROOT/env/hybrid-ai"
 if [[ ! -f "$FLOX_ENV_DIR/manifest.toml" ]]; then
   echo "ERROR: expected Flox manifest at $FLOX_ENV_DIR/manifest.toml" >&2
@@ -33,4 +36,5 @@ else
   flox_cmd+=("$@")
 fi
 
+cd "$PROJECT_ROOT"
 exec "${flox_cmd[@]}"

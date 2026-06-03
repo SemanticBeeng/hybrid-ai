@@ -10,6 +10,7 @@ environments = [
 
 [hook]
 on-activate = '''
-source scripts/env/toolchain/common.sh
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-fullstack}
 '''
