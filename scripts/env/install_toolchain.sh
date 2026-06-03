@@ -7,6 +7,7 @@ source "$PROJECT_ROOT/scripts/env/common.sh"
 "$PROJECT_ROOT/scripts/env/bootstrap_host.sh"
 "$PROJECT_ROOT/scripts/env/install_nix_determinate.sh"
 "$PROJECT_ROOT/scripts/env/install_flox.sh"
+"$PROJECT_ROOT/scripts/env/init_flox_env.sh"
 "$PROJECT_ROOT/scripts/verify/check_nix_isolation.sh"
 "$PROJECT_ROOT/scripts/verify/doctor.sh"
 

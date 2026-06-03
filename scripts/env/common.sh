@@ -89,7 +89,7 @@ run_as_root() {
   fi
 
   if have_command sudo; then
-    sudo "$@"
+    sudo -n "$@"
     return
   fi
 
@@ -97,13 +97,25 @@ run_as_root() {
   return 1
 }
 
-nix_mount_root() {
+nix_mount_source() {
   if have_command findmnt; then
-    findmnt -n -o ROOT --target "$NIX_MOUNT_POINT" 2>/dev/null || true
+    findmnt -n -o SOURCE --target "$NIX_MOUNT_POINT" 2>/dev/null || true
     return
   fi
 
-  awk -v target="$NIX_MOUNT_POINT" '$5 == target { print $4 }' /proc/self/mountinfo | tail -n 1
+  awk -v target="$NIX_MOUNT_POINT" '$5 == target { print $10 }' /proc/self/mountinfo | tail -n 1
+}
+
+nix_mount_root() {
+  local source
+  source="$(nix_mount_source)"
+
+  if [[ "$source" == *'['*']'* ]]; then
+    source="${source#*[}"
+    source="${source%]}"
+  fi
+
+  printf '%s\n' "$source"
 }
 
 is_nix_mount_active() {
@@ -116,7 +128,16 @@ is_nix_mount_active() {
 }
 
 is_nix_bind_mounted_to_isolated_root() {
-  [[ "$(nix_mount_root)" == "$NIX_ISOLATED_ROOT" ]]
+  local mount_stat root_stat
+
+  if [[ ! -e "$NIX_MOUNT_POINT" || ! -e "$NIX_ISOLATED_ROOT" ]]; then
+    return 1
+  fi
+
+  mount_stat="$(stat -Lc '%d:%i' "$NIX_MOUNT_POINT" 2>/dev/null || true)"
+  root_stat="$(stat -Lc '%d:%i' "$NIX_ISOLATED_ROOT" 2>/dev/null || true)"
+
+  [[ -n "$mount_stat" && "$mount_stat" == "$root_stat" ]]
 }
 
 ensure_nix_bind_mount() {
