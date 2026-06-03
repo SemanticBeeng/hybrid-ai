@@ -199,15 +199,17 @@ Suggested Nix config (conceptual):
 Assumption: VS Code is already installed in portable mode.
 
 Policy:
-- Launch VS Code through project wrapper that sets XDG and HOME overrides before code starts.
-- VS Code server, extension storage, and Copilot extension state are redirected into project-local build/ or .vscode-managed paths where feasible.
+- Launch VS Code through `scripts/env/start_vscode.sh`, which activates the composed Flox environment before the editor process starts.
+- The launcher keeps the editor, extension host, Copilot, and language tools on the project Python and Swift toolchain while forcing the portable user-data and extensions directories.
+- Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
 - Python extension interpreter path pinned to Flox-provided Python.
 - Swift extension tools pinned to Flox-provided Swift binaries.
 
 Verification requirements:
+- Confirm `scripts/env/start_vscode.sh --print-env` reports Flox-provided `python` and `swift` binaries.
 - Confirm VS Code integrated terminal inherits Flox activation variables.
 - Confirm Copilot-generated run/debug tasks execute via wrapper scripts, not system Python/Swift.
-- Confirm extension installation location and cache directories are not under real user home.
+- Confirm the portable user-data and extensions directories resolve to the configured portable root.
 
 ## 6. Execution Scenarios to Validate
 
@@ -297,10 +299,11 @@ Deliverables:
 - Unified inference command surface for Gemma 4 and secondary engines.
 
 Phase 6: VS Code portable and Copilot integration
-1. Add .vscode/settings.json to pin interpreters/tools to Flox wrappers.
-2. Add .vscode/tasks.json and launch profiles using scripts/env wrappers only.
-3. Add .vscode/extensions.json with required extension list.
-4. Add verification script to print extension and server data paths and assert isolation.
+1. Add `scripts/env/start_vscode.sh` to launch the editor inside the Flox environment while preserving the portable VS Code data root.
+2. Add .vscode/settings.json to pin interpreters/tools to Flox wrappers.
+3. Add .vscode/tasks.json and launch profiles using scripts/env wrappers only.
+4. Add .vscode/extensions.json with required extension list.
+5. Add verification command to print extension and user-data paths and confirm the active Python and Swift toolchain.
 
 Deliverables:
 - Editor actions and terminal actions produce identical isolated execution.
@@ -343,6 +346,7 @@ Recommended immediate scaffold:
 - env/hybrid-ai/manifest.toml
 - scripts/env/toolchain/bootstrap_host.sh
 - scripts/env/enter.sh
+- scripts/env/start_vscode.sh
 - scripts/env/run_python.sh
 - scripts/env/run_py_server.sh
 - scripts/env/run_swift.sh
@@ -405,6 +409,7 @@ Verified in this workspace:
 - scripts/env/toolchain/doctor.sh passes.
 - scripts/env/toolchain/check_env.sh confirms project-local HOME/XDG/cache paths.
 - Determinate Nix and Flox setup details are tracked in `docs/chat/determinate_nix_flox_setup.md`.
+- `scripts/env/start_vscode.sh --print-env` reports the portable user-data root plus Flox-provided Python and Swift binaries for editor launch.
 
 Pending prerequisites before full execution:
 - Follow the runbook in `docs/chat/determinate_nix_flox_setup.md` for Determinate Nix, Flox, bind-mount persistence, and verification.

@@ -273,6 +273,40 @@ scripts/env/run_swift.sh ...
 scripts/env/run_inference_local.sh "healthcheck"
 ```
 
+Launch portable VS Code through the repository wrapper so the editor process,
+extension host, Copilot, Python extension, and Swift extension inherit the
+Flox-managed toolchain:
+
+```bash
+scripts/env/start_vscode.sh
+```
+
+If the portable editor binary is not on `PATH`, set it explicitly:
+
+```bash
+VSCODE_BIN=/absolute/path/to/code scripts/env/start_vscode.sh
+```
+
+Portable directory defaults used by the wrapper:
+- user data: `$HOST_HOME/appdata/.vscode/data`
+- extensions: `$HOST_HOME/appdata/.vscode/data/extensions`
+- portable settings file: `$HOST_HOME/appdata/.vscode/data/User/settings.json`
+
+Detailed workflow document:
+- `docs/usecases/vscode-portable-project-env.md`
+
+Verify the editor launch environment before opening the UI:
+
+```bash
+scripts/env/start_vscode.sh --print-env
+scripts/env/start_vscode.sh --check
+```
+
+Inside VS Code, the repository workspace settings and tasks continue to pin tool
+execution to the repository wrappers:
+- `.vscode/settings.json` pins Python and Swift tooling to `scripts/env/run_python.sh` and `scripts/env/run_swift.sh`
+- `.vscode/tasks.json` exposes `vscode:print-env` to print the live editor toolchain and portable data roots after launch
+
 ### 6.2 Learnings and Pitfalls From This Session
 
 #### Bind-Mount Validation

@@ -19,3 +19,13 @@
 ### Repository cleanup
 - removed the empty `scripts/build` shadow tree because the canonical writable tree is `build/`
 - kept `env/*/.flox` as managed runtime state and `env/*/manifest.toml` as the declarative source of truth
+
+### VS Code workflow
+- added `scripts/env/start_vscode.sh` to launch portable VS Code through the composed Flox environment while preserving the portable user-data root
+- added a `vscode:print-env` task and documented the editor startup and verification flow
+
+### Use-case docs
+- added `docs/usecases/README.md` as the landing page for concrete development workflow documents
+- added `docs/usecases/vscode-portable-project-env.md` with the full workflow for launching portable VS Code inside the repository environment
+- added `docs/usecases/python-cli-and-server.md` for Python CLI and server execution through repository wrappers
+- added `docs/usecases/swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path

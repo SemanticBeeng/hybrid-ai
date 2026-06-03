@@ -1,0 +1,255 @@
+# Use Case: Python CLI And Python Server Development
+
+Date: 2026-06-03
+Status: Implemented
+Primary scripts:
+- `scripts/env/run_python.sh`
+- `scripts/env/run_py_server.sh`
+
+## 1. Goal
+
+Run Python development workflows through the repository wrappers so the Python
+runtime, dependency resolution, caches, bytecode, and logs stay inside the
+repository-managed environment.
+
+This use case covers two closely related paths:
+- the Python CLI module entrypoint
+- the lightweight Python HTTP server entrypoint
+
+## 2. Why This Workflow Exists
+
+The repository does not treat the host Python installation as a valid runtime.
+
+Instead, Python execution is expected to flow through:
+- the Determinate Nix install under the bind-mounted `/nix`
+- the composed Flox environment under `env/hybrid-ai`
+- repository wrappers that pin the actual command path and runtime variables
+
+Without the wrappers, these failures become likely:
+- the wrong Python interpreter is used
+- package resolution drifts from the declared repository environment
+- caches and bytecode are written outside the repository
+- Copilot or task-generated commands run against the host interpreter instead of the project toolchain
+
+## 3. Scope And Assumptions
+
+This workflow assumes:
+- Determinate Nix and Flox are already installed according to the runbook
+- the nix daemon socket exists and normal-user Flox access is working
+- `env/hybrid-ai/.flox` has already been initialized and synced
+- the Python module source exists under `src/python`
+
+## 4. Files Involved
+
+Runtime wrappers:
+- `scripts/env/run_python.sh`
+- `scripts/env/run_py_server.sh`
+- `scripts/env/with_flox.sh`
+- `scripts/env/toolchain/common.sh`
+
+Python source:
+- `src/python/pyproject.toml`
+- `src/python/hybrid_ai/__init__.py`
+- `src/python/hybrid_ai/__main__.py`
+- `src/python/hybrid_ai/server.py`
+
+Repository-managed writable paths used by this workflow:
+- `build/home`
+- `build/python/cache/pip`
+- `build/python/cache/poetry`
+- `build/python/cache/uv`
+- `build/python/pycache`
+- `volumes/logs/python_server.log`
+
+## 5. Effective Runtime Behavior
+
+### 5.1 CLI Wrapper
+
+`scripts/env/run_python.sh` does the following:
+- defaults to `python -m hybrid_ai` when no explicit arguments are given
+- launches through `scripts/env/with_flox.sh`
+- inherits the repository path policy from `scripts/env/toolchain/common.sh`
+
+Current default behavior of the module entrypoint:
+- `src/python/hybrid_ai/__main__.py` imports `hello()` and prints its value
+- `src/python/hybrid_ai/__init__.py` currently returns `hybrid-ai python module ready`
+
+### 5.2 Server Wrapper
+
+`scripts/env/run_py_server.sh` does the following:
+- creates `volumes/logs` if needed
+- appends server output to `volumes/logs/python_server.log`
+- runs `python -m hybrid_ai.server` through `scripts/env/with_flox.sh`
+
+Current server behavior:
+- binds to `127.0.0.1:8080` by default
+- supports overrides via `HYBRID_AI_HOST` and `HYBRID_AI_PORT`
+- responds with JSON describing the service plus selected Python-related environment values
+
+## 6. How To Run The Workflow
+
+### 6.1 Python CLI Default Entry
+
+Run the default module entrypoint:
+
+```bash
+scripts/env/run_python.sh
+```
+
+Expected output today:
+
+```text
+hybrid-ai python module ready
+```
+
+### 6.2 Python CLI With Explicit Python Arguments
+
+Run arbitrary Python commands inside the repository environment:
+
+```bash
+scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
+scripts/env/run_python.sh -m hybrid_ai
+```
+
+### 6.3 Python Server
+
+Start the server with defaults:
+
+```bash
+scripts/env/run_py_server.sh
+```
+
+Override host and port when needed:
+
+```bash
+HYBRID_AI_HOST=0.0.0.0 HYBRID_AI_PORT=8090 scripts/env/run_py_server.sh
+```
+
+## 7. Verification Workflow
+
+### 7.1 Verify The Python Interpreter
+
+Use the wrapper to print the active interpreter path:
+
+```bash
+scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
+```
+
+Expected result:
+- the interpreter path should point into `env/hybrid-ai/.flox/run/.../bin/python`
+- it should not resolve to a host-global Python installation
+
+### 7.2 Verify Repository-Local Caches And Bytecode
+
+Print the key Python paths:
+
+```bash
+scripts/env/run_python.sh -c 'import os; print(os.environ["PIP_CACHE_DIR"]); print(os.environ["POETRY_CACHE_DIR"]); print(os.environ["UV_CACHE_DIR"]); print(os.environ["PYTHONPYCACHEPREFIX"])'
+```
+
+Expected result:
+- all paths should resolve under `build/`
+
+### 7.3 Verify The Default CLI Entry
+
+```bash
+scripts/env/run_python.sh
+```
+
+Expected result:
+- output should be `hybrid-ai python module ready`
+
+### 7.4 Verify The Server Response
+
+Start the server in one terminal:
+
+```bash
+scripts/env/run_py_server.sh
+```
+
+Then query it from another terminal:
+
+```bash
+curl -fsS http://127.0.0.1:8080/
+```
+
+Expected JSON payload fields:
+- `service`
+- `python`
+- `cache`
+
+Current expected service name:
+- `hybrid-ai-python-server`
+
+### 7.5 Verify The Server Log Path
+
+After running the server, confirm the log file exists:
+
+```bash
+ls -l volumes/logs/python_server.log
+```
+
+Expected result:
+- the file exists under `volumes/logs`
+- logs are not written to a host-global temp or home directory
+
+## 8. Expected Outcomes
+
+When this workflow is correct:
+- Python execution always goes through the Flox-managed environment
+- CLI behavior is reproducible from both shells and editor tasks
+- bytecode and caches are written under `build/`
+- server logs are written under `volumes/logs`
+- no host-global virtualenv or user-site state is required
+
+## 9. Failure Modes And Recovery
+
+### 9.1 Missing Nix Daemon Socket
+
+Symptom:
+- wrappers fail before Python starts
+
+Recovery:
+
+```bash
+sudo /nix/var/nix/profiles/default/bin/nix-daemon
+```
+
+### 9.2 Wrong Python Interpreter
+
+Symptom:
+- `sys.executable` does not point into `env/hybrid-ai/.flox/run/...`
+
+Recovery:
+- rerun through `scripts/env/run_python.sh`
+- avoid invoking `python` directly from the host shell
+- if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
+
+### 9.3 Server Does Not Start
+
+Symptom:
+- `scripts/env/run_py_server.sh` exits immediately
+
+Checks:
+- inspect `volumes/logs/python_server.log`
+- verify port conflicts on `127.0.0.1:8080`
+- verify the Flox environment is initialized and the daemon socket exists
+
+### 9.4 Logs Or Caches Outside The Repository
+
+Symptom:
+- Python writes appear under the real user home or another unexpected location
+
+Recovery:
+- inspect `scripts/env/toolchain/common.sh`
+- rerun `scripts/env/toolchain/check_env.sh`
+- make sure the command was started via the repository wrapper rather than host Python
+
+## 10. Relationship To Other Docs
+
+Use this document for the concrete Python CLI and server workflow.
+
+Related documents:
+- `docs/usecases/vscode-portable-project-env.md`: editor-side startup path for Python and Swift tooling
+- `docs/chat/determinate_nix_flox_setup.md`: operational runbook for Nix, Flox, wrappers, and recovery
+- `docs/chat/devenv_portable_workflow.md`: high-level architecture and workflow plan
