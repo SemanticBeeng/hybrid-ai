@@ -8,6 +8,8 @@ export NIX_MOUNT_POINT="${NIX_MOUNT_POINT:-/nix}"
 export NIX_CONF_DIR="${NIX_CONF_DIR:-/etc/nix}"
 export DETERMINATE_NIX_BIN="${DETERMINATE_NIX_BIN:-$NIX_MOUNT_POINT/var/nix/profiles/default/bin/nix}"
 export DETERMINATE_NIX_INSTALLER_BIN="${DETERMINATE_NIX_INSTALLER_BIN:-$NIX_MOUNT_POINT/nix-installer}"
+export NIX_DAEMON_PROFILE_SCRIPT="${NIX_DAEMON_PROFILE_SCRIPT:-$NIX_MOUNT_POINT/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
+export NIX_DAEMON_SOCKET="${NIX_DAEMON_SOCKET:-$NIX_MOUNT_POINT/var/nix/daemon-socket/socket}"
 export NIX_WRAPPER_BIN="${NIX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix}"
 export NIX_INSTALLER_WRAPPER_BIN="${NIX_INSTALLER_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix-installer}"
 export FLOX_WRAPPER_BIN="${FLOX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/flox}"
@@ -151,4 +153,29 @@ ensure_nix_bind_mount() {
     echo "Detected mount root: $(nix_mount_root)" >&2
     return 1
   fi
+}
+
+source_nix_daemon_profile() {
+  if [[ ! -r "$NIX_DAEMON_PROFILE_SCRIPT" ]]; then
+    echo "ERROR: Nix daemon profile script not found at $NIX_DAEMON_PROFILE_SCRIPT" >&2
+    return 1
+  fi
+
+  # shellcheck disable=SC1090
+  source "$NIX_DAEMON_PROFILE_SCRIPT"
+}
+
+use_nix_daemon() {
+  source_nix_daemon_profile
+  export NIX_REMOTE="${NIX_REMOTE:-daemon}"
+}
+
+require_nix_daemon_socket() {
+  if [[ -S "$NIX_DAEMON_SOCKET" ]]; then
+    return 0
+  fi
+
+  echo "ERROR: expected nix-daemon socket at $NIX_DAEMON_SOCKET" >&2
+  echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using non-root Nix or Flox." >&2
+  return 1
 }

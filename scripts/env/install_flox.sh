@@ -9,13 +9,24 @@ FLOX_FLAKE_REF="${FLOX_FLAKE_REF:-github:flox/flox/v1.12.2}"
 "$PROJECT_ROOT/scripts/env/manage_nix_mount.sh" mount
 ensure_nix_bind_mount
 
-if [[ ! -x "$NIX_WRAPPER_BIN" ]]; then
-  echo "ERROR: nix wrapper not found at $NIX_WRAPPER_BIN" >&2
-  echo "Run scripts/env/install_nix_determinate.sh first." >&2
-  exit 1
-fi
-
 run_as_root mkdir -p "$TARGET_BIN_DIR"
+
+if [[ ! -x "$NIX_WRAPPER_BIN" ]]; then
+  if [[ ! -x "$DETERMINATE_NIX_BIN" ]]; then
+    echo "ERROR: nix binary not found at $DETERMINATE_NIX_BIN" >&2
+    echo "Install Determinate Nix first." >&2
+    exit 1
+  fi
+
+  tmp_nix_wrapper="$(mktemp)"
+  cat >"$tmp_nix_wrapper" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+exec "$DETERMINATE_NIX_BIN" "\$@"
+EOF
+  run_as_root install -m 0755 "$tmp_nix_wrapper" "$NIX_WRAPPER_BIN"
+  rm -f "$tmp_nix_wrapper"
+fi
 
 if run_as_root test -x "$FLOX_PROFILE/bin/flox"; then
   echo "Flox already installed in profile $FLOX_PROFILE"

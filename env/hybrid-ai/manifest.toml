@@ -1,19 +1,12 @@
 version = 1
 
-# Composition note: keep module manifests separate for isolation and reviewability.
-# If your Flox version supports include/import syntax, add module composition here.
-
-[install]
-bash.pkg-path = "bash"
-coreutils.pkg-path = "coreutils"
-git.pkg-path = "git"
-ripgrep.pkg-path = "ripgrep"
-python.pkg-path = "python311"
-poetry.pkg-path = "poetry"
-uv.pkg-path = "uv"
-swift.pkg-path = "swift"
-curl.pkg-path = "curl"
-jq.pkg-path = "jq"
+[include]
+environments = [
+	{ dir = "../base" },
+	{ dir = "../python" },
+	{ dir = "../swift" },
+	{ dir = "../inference" },
+]
 
 [hook]
 on-activate = '''

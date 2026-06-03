@@ -1,7 +1,7 @@
 # hybrid-ai: Determinate Nix + Flox Setup Runbook
 
 Date: 2026-06-03
-Scope: Operational setup and maintenance runbook for the Linux daemonless Determinate Nix and Flox workflow used by `hybrid-ai`.
+Scope: Operational setup and maintenance runbook for the Linux manual-daemon Determinate Nix and Flox workflow used by `hybrid-ai`.
 
 ## 1. Purpose
 
@@ -21,12 +21,13 @@ The host model used by this repository is:
 - logical Nix path: `/nix`
 - physical backing path: `/opt/bin/dev/nix`
 - mount model: bind mount `/opt/bin/dev/nix` onto `/nix`
-- installer mode: Determinate Nix on Linux with `install linux --init none`
-- Flox model: Flox installed on top of the Determinate Nix install and used through repository wrappers
+- installer mode: Determinate Nix on Linux with `install linux --no-start-daemon`
+- daemon model: `nix-daemon` started manually when the socket is absent
+- Flox model: Flox installed on top of the Determinate Nix install and used through normal-user repository wrappers with `NIX_REMOTE=daemon`
 
 Key constraints:
 - persistent Nix store payload must not live on the root partition
-- daemonless Linux operation is root-oriented in practice
+- normal-user Nix and Flox commands depend on daemon socket availability
 - the default developer workflow must not use a chroot store
 
 ## 3. Canonical Procedure
@@ -65,7 +66,7 @@ scripts/env/install_nix_determinate.sh
 
 What it does:
 - downloads the installer from `https://install.determinate.systems/nix`
-- runs `install linux --init none --no-confirm --no-modify-profile --diagnostic-endpoint=""`
+- runs `install linux --no-confirm --no-modify-profile --diagnostic-endpoint="" --no-start-daemon`
 - installs the real Determinate installer at `/nix/nix-installer`
 - installs the Determinate Nix runtime under `/nix`
 - creates convenience wrappers under `/opt/bin/dev/nix/bin`
@@ -73,6 +74,8 @@ What it does:
 Installed paths of interest:
 - real installer: `/nix/nix-installer`
 - receipt: `/nix/receipt.json`
+- daemon profile script: `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh`
+- daemon socket: `/nix/var/nix/daemon-socket/socket`
 - repo wrapper for `nix`: `/opt/bin/dev/nix/bin/nix`
 - repo wrapper for `nix-installer`: `/opt/bin/dev/nix/bin/nix-installer`
 
@@ -88,8 +91,30 @@ What it does:
 - installs Flox via the Determinate-provided Nix command set
 - installs Flox into `/nix/var/nix/profiles/flox`
 - creates a convenience wrapper at `/opt/bin/dev/nix/bin/flox`
+- recreates the `nix` wrapper automatically if the reinstall removed it
 
-### 3.5 Initialize the Managed Flox Environment
+### 3.5 Start or Validate `nix-daemon`
+
+Before using any normal-user wrapper, make sure the daemon socket exists.
+
+Check:
+
+```bash
+test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
+```
+
+If the socket is absent, start the daemon as `root`:
+
+```bash
+sudo /nix/var/nix/profiles/default/bin/nix-daemon
+```
+
+Notes:
+- keep that process running while non-root Nix and Flox access is needed
+- the repository wrappers only require the socket; they do not require a specific service manager
+- on some hosts the socket may already exist because the daemon was started outside the repository workflow
+
+### 3.6 Initialize the Managed Flox Environment
 
 Run:
 
@@ -98,12 +123,12 @@ scripts/env/init_flox_env.sh
 ```
 
 What it does:
-- repairs Flox cache ownership in `build/xdg/*/flox` when prior root operations created root-owned cache files
+- requires the daemon socket and activates Flox as the current user
 - initializes a managed Flox environment at `env/hybrid-ai/.flox` if it does not exist yet
 - syncs the repository manifest `env/hybrid-ai/manifest.toml` into the managed Flox environment
-- realizes the environment as root, which is required for the daemonless Determinate setup
+- fails fast with ownership repair instructions if stale root-owned cache or `.flox` state is still present from older workflows
 
-### 3.6 Full One-Shot Install
+### 3.7 Repository Bootstrap Shortcut
 
 The combined workflow is:
 
@@ -111,21 +136,27 @@ The combined workflow is:
 scripts/env/install_toolchain.sh
 ```
 
+Expectation:
+- this shortcut now assumes the daemon socket is already available before it reaches `scripts/env/init_flox_env.sh`
+- if the socket is absent, the script stops and tells you to start `nix-daemon` first
+
 It runs, in order:
 1. `scripts/env/bootstrap_host.sh`
 2. `scripts/env/install_nix_determinate.sh`
 3. `scripts/env/install_flox.sh`
-4. `scripts/env/init_flox_env.sh`
-5. `scripts/verify/check_nix_isolation.sh`
-6. `scripts/verify/doctor.sh`
+4. daemon socket availability check
+5. `scripts/env/init_flox_env.sh`
+6. `scripts/verify/check_nix_isolation.sh`
+7. `scripts/verify/doctor.sh`
 
-### 3.7 Verification
+### 3.8 Verification
 
 Verification commands:
 
 ```bash
 scripts/verify/check_nix_isolation.sh
 scripts/verify/doctor.sh
+test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
 scripts/env/with_flox.sh python --version
 scripts/env/with_flox.sh swift --version
 ```
@@ -134,6 +165,7 @@ Expected outcomes:
 - `/nix` is bind-mounted from `/opt/bin/dev/nix`
 - `/nix/nix-installer` exists
 - `/nix/receipt.json` exists
+- the daemon socket is present
 - `python` resolves inside the Flox environment
 - `swift` resolves inside the Flox environment
 
@@ -211,6 +243,12 @@ Enter the environment:
 scripts/env/enter.sh
 ```
 
+If `scripts/env/enter.sh` or `scripts/env/with_flox.sh` reports a missing daemon socket, start or restore `nix-daemon` first:
+
+```bash
+sudo /nix/var/nix/profiles/default/bin/nix-daemon
+```
+
 Run one command inside the Flox environment:
 
 ```bash
@@ -241,11 +279,12 @@ scripts/env/run_inference_local.sh "healthcheck"
 - A completed Determinate install is indicated by `/nix/nix-installer` and `/nix/receipt.json`.
 - If those files are missing, treat the setup as incomplete even if `/nix` exists.
 
-#### Daemonless Determinate Nix Is Root-Oriented
+#### Manual-Daemon Determinate Nix Makes User Tooling Depend On The Socket
 
-- On Linux with `--init none`, environment realization and Nix store operations effectively need root privileges.
-- This impacts Flox environment realization, not just the initial Determinate install.
-- The helper scripts therefore use `sudo` for installation and activation-sensitive paths.
+- The repository no longer uses the daemonless `--init none` install.
+- Normal-user wrappers now depend on `/nix/var/nix/daemon-socket/socket` being present.
+- `scripts/env/with_flox.sh` and `scripts/env/init_flox_env.sh` fail fast when the socket is absent so they do not silently fall back to a root shell.
+- If the daemon process exits or the host reboots without restarting it, normal-user Nix and Flox commands stop working until the socket is restored.
 
 #### Flox Managed Environments Need Initialization
 
@@ -256,9 +295,9 @@ scripts/env/run_inference_local.sh "healthcheck"
 
 #### Root-Owned Flox Cache State Causes Permission Errors
 
-- Running Flox as root against project-local XDG paths created root-owned directories under `build/xdg/*/flox`.
-- Subsequent user-mode Flox commands failed with permission errors until ownership was repaired.
-- The initialization helper now repairs ownership before sync.
+- Older root-oriented revisions of this workflow created root-owned directories under `build/xdg/*/flox` and sometimes under `env/hybrid-ai/.flox`.
+- The current user-mode initialization path does not auto-`chown`; it stops and tells you exactly what to repair.
+- This keeps the normal path unprivileged while still allowing recovery from older state.
 
 Exact recovery steps:
 
@@ -342,8 +381,22 @@ scripts/env/with_flox.sh swift --version
 ```
 
 Pitfall note:
-- If you run Flox operations with `sudo` and do not normalize ownership afterward, both Git and user-mode Flox commands can fail on `.flox/env/manifest.lock` or related metadata.
+- If you still run Flox operations with `sudo` and do not normalize ownership afterward, both Git and user-mode Flox commands can fail on `.flox/env/manifest.lock` or related metadata.
 - If `git add .` or `git commit` reports permission errors inside `.flox`, treat that as a local state ownership problem, not as a project-file problem.
+
+#### Reinstalling Determinate Nix Removes Flox Until You Restore It
+
+- The daemon-capable reinstall restored the base Determinate Nix profile but removed the Flox profile and convenience wrappers.
+- If `scripts/env/with_flox.sh` fails with `flox is required but not installed or not in PATH`, reinstall Flox before debugging the wrapper layer.
+- `scripts/env/install_flox.sh` now recreates the `nix` wrapper automatically when the base Nix binary exists but `/opt/bin/dev/nix/bin/nix` was removed during reinstall.
+
+Recovery sequence:
+
+```bash
+scripts/env/install_flox.sh
+test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
+scripts/env/with_flox.sh python --version
+```
 
 #### fstab Persistence Should Be Explicit and Backed Up
 
@@ -357,6 +410,21 @@ Pitfall note:
   - `/nix/nix-installer`
   - `/nix/receipt.json`
   - `/opt/bin/dev/nix/bin/nix`
+
+#### Legacy nix-portable State Can Leave Read-Only Trees
+
+- Older revisions of this repository used `nix-portable` with `HOME` redirected to `build/home`.
+- That can leave behind `build/home/.nix-portable` and `build/home/.nix-profile` even after the repository switches to Determinate Nix.
+- The `nix-portable` store content may be user-owned but marked read-only like a Nix store, so plain `rm -rf` can fail with `Permission denied`.
+- If cleanup is needed, restore user write bits first and then remove the legacy tree.
+
+Example cleanup:
+
+```bash
+chmod -R u+w build/home/.nix-portable
+rm -rf build/home/.nix-portable
+rm -f build/home/.nix-profile
+```
 
 #### Installer Self-Test Warnings Do Not Always Mean Install Failure
 
@@ -380,3 +448,6 @@ Optional persistence:
 ```bash
 CONFIRM_WRITE_FSTAB=YES scripts/env/manage_nix_fstab.sh install
 ```
+
+Fresh-machine note:
+- if `scripts/env/install_toolchain.sh` stops on a missing daemon socket, start `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/init_flox_env.sh` or the full shortcut

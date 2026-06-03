@@ -159,6 +159,13 @@ Documented exceptions:
 - env/inference: LiteRT-LM integration, inference helper scripts, model path policy.
 - env/hybrid-ai: composed top-level environment importing base + python + swift + inference.
 
+Relationship to source modules:
+- env/python supports the Python source module under `src/python`.
+- env/swift supports the Swift source module under `src/swift`.
+- env/inference supports inference wrappers and runtime workflows that are currently script-driven rather than isolated in a dedicated `src/inference` tree.
+- env/base provides shared tooling and activation policy used across all source modules.
+- env/hybrid-ai is the top-level developer environment used when working across the whole repository.
+
 ## 4.2 Layering and store isolation
 - lower-store: read-only baseline toolchain snapshot.
 - upper-cactus: writable project-specific layer (resettable without deleting lower-store).
@@ -405,7 +412,7 @@ Pending prerequisites before full execution:
 - Follow the runbook in `docs/chat/determinate_nix_flox_setup.md` for Determinate Nix, Flox, bind-mount persistence, and verification.
 
 Important note:
-- The current env/hybrid-ai/manifest.toml is intentionally conservative and flat for compatibility. If your Flox version supports direct composition/import syntax for module manifests, replace flat install lists with explicit module composition references and keep hooks in module-local manifests.
+- The current env/hybrid-ai/manifest.toml composes the module manifests via Flox `[include]`. Keep project-specific overrides in the top-level manifest and keep shared toolchain logic in the module-local manifests.
 
 ## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
 
@@ -438,3 +445,57 @@ The full Determinate Nix and Flox host setup procedure, persistence helpers, cle
 - `docs/chat/determinate_nix_flox_setup.md`
 
 This portable workflow document intentionally stays focused on architecture, repository structure, isolation boundaries, and module-level design.
+
+### 14.1 Manual-Daemon Multi-User Host Model
+
+This repository now runs on a daemon-capable multi-user Determinate Nix install where `/nix` stays bind-mounted from `/opt/bin/dev/nix`, but daemon startup is left to the operator instead of being handled by a service manager.
+
+Current canonical state:
+- Determinate Nix installed in daemon-capable mode with `--no-start-daemon`
+- logical store path remains `/nix`, physically backed by `/opt/bin/dev/nix`
+- `nix-daemon` is expected to expose `/nix/var/nix/daemon-socket/socket`
+- normal-user wrappers source `nix-daemon.sh` and use `NIX_REMOTE=daemon`
+- `scripts/env/with_flox.sh`, `scripts/env/enter.sh`, and `scripts/env/init_flox_env.sh` run as the normal user once the daemon is available
+
+Migration record for this workspace:
+
+1. The `/nix -> /opt/bin/dev/nix` bind mount was preserved unchanged.
+2. Pre-migration state was captured in `build/artifacts/manual-daemon-migration-preflight.txt`.
+3. The old daemonless `install linux --init none` install was uninstalled while the bind mount remained active.
+4. Determinate Nix was reinstalled with `--no-start-daemon`, restoring `/nix/nix-installer`, `/nix/receipt.json`, and the default multi-user profile layout.
+5. Flox was reinstalled and the convenience wrappers under `/opt/bin/dev/nix/bin` were restored.
+6. The user-facing wrappers were switched to daemon mode and validated as a normal user.
+
+Current operating sequence:
+
+1. Keep the bind mount active.
+  - `/nix` remains the logical store root.
+  - `/opt/bin/dev/nix` remains the physical backing path.
+
+2. Ensure the daemon is reachable before using normal-user tooling.
+  - Preferred check: confirm `/nix/var/nix/daemon-socket/socket` exists.
+  - If it does not exist, start `/nix/var/nix/profiles/default/bin/nix-daemon` as `root`.
+
+3. Use normal-user wrappers for development.
+  - `scripts/env/with_flox.sh` sources the daemon profile and activates Flox as the current user.
+  - `scripts/env/enter.sh` opens a normal-user shell inside the Flox environment.
+  - `scripts/env/init_flox_env.sh` syncs the managed Flox environment as the normal user and fails fast if stale root-owned state needs repair.
+
+4. Verify the environment after daemon availability is established.
+  - `nix --version`
+  - `flox --version`
+  - `scripts/env/with_flox.sh python --version`
+  - `scripts/env/with_flox.sh swift --version`
+  - confirm VS Code tools resolve Python and Swift without a root shell
+
+Repository implications now in force:
+- `scripts/env/install_nix_determinate.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.
+- `scripts/env/with_flox.sh` prefers user-mode activation with `NIX_REMOTE=daemon` and fails when the daemon socket is absent.
+- `scripts/env/enter.sh` is a normal-user interactive shell entrypoint.
+- `scripts/env/init_flox_env.sh` treats user-owned managed Flox state as the normal path and only asks for `sudo chown` when repairing stale ownership.
+
+Operational caveats:
+- This is still a daemon-capable multi-user install even though daemon startup is manual.
+- If the daemon process exits, normal-user Nix and Flox access stops until the socket is restored.
+- Reboots may require an explicit daemon start before editors, shells, or tasks can rely on Nix.
+- This remains less robust than a real service-managed daemon and more operationally complex than a single-user non-daemon install.

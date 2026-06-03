@@ -26,10 +26,10 @@ else
   curl --proto '=https' --tlsv1.2 -fsSL "$DETERMINATE_INSTALLER_URL" -o "$tmp_file"
 
   run_as_root sh "$tmp_file" install linux \
-    --init none \
     --no-confirm \
     --no-modify-profile \
-    --diagnostic-endpoint=""
+    --diagnostic-endpoint="" \
+    --no-start-daemon
 fi
 
 tmp_nix_wrapper="$(mktemp)"
@@ -58,4 +58,6 @@ Logical root: $NIX_MOUNT_POINT
 Physical backing root: $NIX_ISOLATED_ROOT
 Nix wrapper: $NIX_WRAPPER_BIN
 Installer wrapper: $NIX_INSTALLER_WRAPPER_BIN
+Start nix-daemon as root if the daemon socket is not already available:
+  /nix/var/nix/profiles/default/bin/nix-daemon
 EOF
