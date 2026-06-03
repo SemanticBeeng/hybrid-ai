@@ -2,6 +2,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/common.sh"
 
 if [[ "${CONFIRM_REMOVE_ROOT_NIX:-}" != "YES" ]]; then
   echo "Refusing removal without explicit confirmation." >&2
@@ -9,27 +10,31 @@ if [[ "${CONFIRM_REMOVE_ROOT_NIX:-}" != "YES" ]]; then
   exit 1
 fi
 
-if [[ ! -d "/nix" ]]; then
-  echo "No root /nix directory found. Nothing to remove."
-  exit 0
+if is_nix_mount_active && is_nix_bind_mounted_to_isolated_root; then
+  echo "ERROR: $NIX_MOUNT_POINT is the configured bind mount for $NIX_ISOLATED_ROOT." >&2
+  echo "Use scripts/env/manage_nix_mount.sh unmount if you intend to dismantle the bind-mounted workflow." >&2
+  exit 1
+fi
+
+if is_nix_mount_active; then
+  echo "Unmounting legacy $NIX_MOUNT_POINT mount from $(nix_mount_root)"
+  run_as_root umount "$NIX_MOUNT_POINT"
 fi
 
 remove_path() {
   local p="$1"
   if [[ -e "$p" || -L "$p" ]]; then
-    if [[ -w "$p" ]] || [[ -w "$(dirname "$p")" ]]; then
-      rm -rf "$p"
-    elif command -v sudo >/dev/null 2>&1; then
-      sudo rm -rf "$p"
-    else
-      echo "ERROR: cannot remove $p without permissions or sudo." >&2
-      return 1
-    fi
+    run_as_root rm -rf "$p"
     echo "Removed: $p"
   fi
 }
 
-remove_path "/nix"
+if [[ ! -e "$NIX_MOUNT_POINT" && ! -e "/etc/nix" && ! -e "/etc/profile.d/nix.sh" ]]; then
+  echo "No incompatible root-backed Nix installation found."
+  exit 0
+fi
+
+remove_path "$NIX_MOUNT_POINT"
 remove_path "/etc/nix"
 remove_path "/etc/profile.d/nix.sh"
 remove_path "/etc/bashrc.backup-before-nix"

@@ -4,7 +4,22 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 export NIX_ISOLATED_ROOT="${NIX_ISOLATED_ROOT:-/opt/bin/dev/nix}"
-export NIX_CONF_DIR="${NIX_CONF_DIR:-$NIX_ISOLATED_ROOT/etc/nix}"
+export NIX_MOUNT_POINT="${NIX_MOUNT_POINT:-/nix}"
+export NIX_CONF_DIR="${NIX_CONF_DIR:-/etc/nix}"
+export DETERMINATE_NIX_BIN="${DETERMINATE_NIX_BIN:-$NIX_MOUNT_POINT/var/nix/profiles/default/bin/nix}"
+export DETERMINATE_NIX_INSTALLER_BIN="${DETERMINATE_NIX_INSTALLER_BIN:-$NIX_MOUNT_POINT/nix-installer}"
+export NIX_WRAPPER_BIN="${NIX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix}"
+export NIX_INSTALLER_WRAPPER_BIN="${NIX_INSTALLER_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix-installer}"
+export FLOX_WRAPPER_BIN="${FLOX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/flox}"
+export FLOX_PROFILE="${FLOX_PROFILE:-$NIX_MOUNT_POINT/var/nix/profiles/flox}"
+export PATH="$NIX_ISOLATED_ROOT/bin:$PATH"
+
+case "$NIX_ISOLATED_ROOT" in
+  /nix|/nix/*)
+    echo "ERROR: NIX_ISOLATED_ROOT must be a physical backing path, not under /nix: $NIX_ISOLATED_ROOT" >&2
+    exit 1
+    ;;
+esac
 
 export XDG_CONFIG_HOME="$PROJECT_ROOT/build/xdg/config"
 export XDG_CACHE_HOME="$PROJECT_ROOT/build/xdg/cache"
@@ -62,3 +77,57 @@ assert_under_project "$PYTHONPYCACHEPREFIX"
 assert_under_project "$SWIFT_BUILD_PATH"
 assert_under_project "$CACTUS_MODEL_PATH"
 assert_under_project "$LITERT_LM_MODELS"
+
+have_command() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+run_as_root() {
+  if [[ "$(id -u)" -eq 0 ]]; then
+    "$@"
+    return
+  fi
+
+  if have_command sudo; then
+    sudo "$@"
+    return
+  fi
+
+  echo "ERROR: root privileges are required for: $*" >&2
+  return 1
+}
+
+nix_mount_root() {
+  if have_command findmnt; then
+    findmnt -n -o ROOT --target "$NIX_MOUNT_POINT" 2>/dev/null || true
+    return
+  fi
+
+  awk -v target="$NIX_MOUNT_POINT" '$5 == target { print $4 }' /proc/self/mountinfo | tail -n 1
+}
+
+is_nix_mount_active() {
+  if have_command mountpoint; then
+    mountpoint -q "$NIX_MOUNT_POINT"
+    return
+  fi
+
+  [[ -n "$(nix_mount_root)" ]]
+}
+
+is_nix_bind_mounted_to_isolated_root() {
+  [[ "$(nix_mount_root)" == "$NIX_ISOLATED_ROOT" ]]
+}
+
+ensure_nix_bind_mount() {
+  if ! is_nix_mount_active; then
+    echo "ERROR: $NIX_MOUNT_POINT is not mounted." >&2
+    return 1
+  fi
+
+  if ! is_nix_bind_mounted_to_isolated_root; then
+    echo "ERROR: $NIX_MOUNT_POINT is mounted, but not from $NIX_ISOLATED_ROOT." >&2
+    echo "Detected mount root: $(nix_mount_root)" >&2
+    return 1
+  fi
+}

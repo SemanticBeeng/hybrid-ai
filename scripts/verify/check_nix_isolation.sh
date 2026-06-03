@@ -8,23 +8,60 @@ if [[ "$NIX_ISOLATED_ROOT" != "/opt/bin/dev/nix" ]]; then
   echo "WARN: NIX_ISOLATED_ROOT is '$NIX_ISOLATED_ROOT', expected '/opt/bin/dev/nix'." >&2
 fi
 
-case "$NIX_ISOLATED_ROOT" in
-  /nix|/nix/*)
-    echo "ERROR: NIX_ISOLATED_ROOT points to root /nix path: $NIX_ISOLATED_ROOT" >&2
-    exit 1
-    ;;
-esac
-
 if [[ ! -d "$NIX_ISOLATED_ROOT" ]]; then
-  echo "WARN: NIX_ISOLATED_ROOT does not exist on this host yet: $NIX_ISOLATED_ROOT" >&2
-fi
-
-if [[ -d "/nix" ]]; then
-  echo "ERROR: detected root /nix directory. This project forbids root-based nix installs." >&2
-  echo "Run scripts/env/remove_root_nix.sh with CONFIRM_REMOVE_ROOT_NIX=YES to remove it." >&2
+  echo "ERROR: NIX_ISOLATED_ROOT does not exist on this host: $NIX_ISOLATED_ROOT" >&2
   exit 1
 fi
 
-echo "OK: root /nix directory not present."
+if [[ ! -d "$NIX_MOUNT_POINT" ]]; then
+  echo "ERROR: expected mountpoint directory at $NIX_MOUNT_POINT" >&2
+  exit 1
+fi
+
+if ! is_nix_mount_active; then
+  echo "ERROR: $NIX_MOUNT_POINT exists but is not mounted." >&2
+  exit 1
+fi
+
+if ! is_nix_bind_mounted_to_isolated_root; then
+  echo "ERROR: $NIX_MOUNT_POINT is not bind-mounted from $NIX_ISOLATED_ROOT." >&2
+  echo "Detected mount root: $(nix_mount_root)" >&2
+  exit 1
+fi
+
+if [[ -d "$NIX_MOUNT_POINT/store" ]]; then
+  echo "OK: logical store present at $NIX_MOUNT_POINT/store"
+else
+  echo "WARN: logical store not present yet at $NIX_MOUNT_POINT/store" >&2
+fi
+
+if [[ -x "$NIX_WRAPPER_BIN" ]]; then
+  echo "OK: nix wrapper present at $NIX_WRAPPER_BIN"
+else
+  echo "WARN: nix wrapper missing at $NIX_WRAPPER_BIN" >&2
+fi
+
+if [[ -x "$FLOX_WRAPPER_BIN" ]]; then
+  echo "OK: flox wrapper present at $FLOX_WRAPPER_BIN"
+else
+  echo "WARN: flox wrapper missing at $FLOX_WRAPPER_BIN" >&2
+fi
+
+if [[ -x "$DETERMINATE_NIX_INSTALLER_BIN" ]]; then
+  echo "OK: Determinate installer present at $DETERMINATE_NIX_INSTALLER_BIN"
+else
+  echo "WARN: Determinate installer missing at $DETERMINATE_NIX_INSTALLER_BIN" >&2
+fi
+
+if [[ -f "$NIX_MOUNT_POINT/receipt.json" ]]; then
+  echo "OK: Determinate receipt present at $NIX_MOUNT_POINT/receipt.json"
+else
+  echo "WARN: Determinate receipt missing at $NIX_MOUNT_POINT/receipt.json" >&2
+fi
+
+if [[ -e "$NIX_MOUNT_POINT" && ! is_nix_bind_mounted_to_isolated_root ]]; then
+  echo "ERROR: $NIX_MOUNT_POINT exists outside the expected bind mount." >&2
+  exit 1
+fi
 
 echo "Nix isolation check complete."

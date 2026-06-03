@@ -67,13 +67,14 @@ Design:
 Requirement summary:
 - No writes in home directory.
 - Strict project-local containment.
-- No writes to host root /nix store; use isolated root.
+- No persistent Nix store data on the host root partition.
 - VS Code/Copilot must honor isolation.
 - Resettable upper layer.
 
 Design:
 - A single isolated root variable: NIX_ISOLATED_ROOT=/opt/bin/dev/nix.
-- All Nix/Flox mutable state redirected under NIX_ISOLATED_ROOT and project directories.
+- Determinate Nix keeps `/nix` as the logical store path, but `/nix` is only a bind-mounted mountpoint backed by `$NIX_ISOLATED_ROOT`.
+- Persistent Nix/Flox state lives under `$NIX_ISOLATED_ROOT`; the root filesystem may contain `/nix` only as an empty mountpoint plus mount metadata.
 - Wrapper scripts enforce and validate required vars before executing tools.
 - Cleanup and reset scripts target upper writable layer only.
 
@@ -120,7 +121,7 @@ Forbidden write locations:
 Mandatory exports in Flox activation hooks and wrapper scripts:
 - Core isolation:
   - NIX_ISOLATED_ROOT=/opt/bin/dev/nix
-  - NIX_CONF_DIR=$NIX_ISOLATED_ROOT/etc/nix
+  - NIX_CONF_DIR=/etc/nix
   - NIX_CONFIG=<inline config pointing stores and experimental features>
   - XDG_CONFIG_HOME=$PWD/build/xdg/config
   - XDG_CACHE_HOME=$PWD/build/xdg/cache
@@ -162,15 +163,29 @@ Documented exceptions:
 - lower-store: read-only baseline toolchain snapshot.
 - upper-cactus: writable project-specific layer (resettable without deleting lower-store).
 - local overlay/local root configuration under NIX_ISOLATED_ROOT.
+- logical Nix mountpoint at `/nix`, physically backed by `$NIX_ISOLATED_ROOT` via bind mount.
 
 Suggested Nix config (conceptual):
-- local-root points into NIX_ISOLATED_ROOT.
+- local-root and backing data live under `$NIX_ISOLATED_ROOT`.
+- logical store remains `/nix/store` for compatibility with Determinate Nix, default substituters, and Flox.
 - substitute base binaries from trusted cache.
 - writable overlay for project-level derivations.
 
 ## 4.3 Determinate Nix integration
 - Install Determinate Nix for reliable multi-platform Nix bootstrap and configuration consistency.
+- On Linux without systemd, install via `nix-installer install linux --init none` only after bind-mounting `$NIX_ISOLATED_ROOT` onto `/nix`.
 - Keep all Nix config explicit inside repository scripts and generated nix config under project-controlled paths.
+
+## 4.4 Chroot Store Policy
+- Do not use a Nix chroot store as the primary host workflow for this repository.
+- Reasoning:
+  - Determinate Nix installer, Flox, and default binary caches assume the logical store is `/nix/store`.
+  - Chroot stores keep the logical store at `/nix/store` but require namespace and chroot execution semantics, which adds operational complexity for shells, editors, wrappers, and uninstall flows.
+  - Changing the logical store away from `/nix/store` is explicitly not recommended by Nix documentation because it breaks compatibility with standard substituters.
+- Acceptable use:
+  - Disposable experiments, CI-only sandboxes, or narrow build-isolation tests where the entire workflow is intentionally launched through `nix --store <chroot-root>`.
+- Repository policy:
+  - The canonical developer workflow uses a bind-mounted `/nix` backed by `/opt/bin/dev/nix`, not a chroot store.
 
 ## 5. VS Code Portable + Copilot Isolation Model
 
@@ -228,8 +243,8 @@ Deliverables:
 Phase 1: Host prerequisites and bootstrap
 1. Install Determinate Nix on Linux and macOS hosts.
 2. Install Flox CLI.
-3. Create bootstrap script that configures NIX_ISOLATED_ROOT and writes local Nix config for isolated operation.
-4. Verify no writes to host root /nix (or apply documented macOS fallback if root restrictions apply).
+3. Create bootstrap script that prepares `/opt/bin/dev/nix`, mounts it onto `/nix`, and writes local Nix config for isolated operation.
+4. Verify the root filesystem contains no persistent Nix payload outside the `/nix` mountpoint and related minimal config files.
 
 Deliverables:
 - scripts/env/bootstrap_host.sh
@@ -327,6 +342,8 @@ Recommended immediate scaffold:
 - scripts/env/run_swift.sh
 - scripts/env/run_inference_local.sh
 - scripts/env/run_inference_remote.sh
+- scripts/env/manage_nix_fstab.sh
+- scripts/env/test_determinate_cycle.sh
 - scripts/env/setup_litert_lm.sh
 - scripts/verify/doctor.sh
 - scripts/verify/check_env.sh
@@ -341,7 +358,7 @@ Recommended immediate scaffold:
 
 Required pass conditions:
 - No writes to real user home during bootstrap, build, run, test, or editor usage.
-- No writes to host root /nix by project activities.
+- No persistent Nix store data on the host root partition; `/nix` must be a bind mount backed by `/opt/bin/dev/nix`.
 - Python and Swift executions resolve to Flox/Nix-managed binaries.
 - Copilot-generated run/debug actions execute via wrappers and inherit explicit vars.
 - All caches, build products, logs, model files remain in build/ or volumes/.
@@ -381,13 +398,13 @@ Implemented now:
 Verified in this workspace:
 - scripts/verify/doctor.sh passes.
 - scripts/verify/check_env.sh confirms project-local HOME/XDG/cache paths.
-- scripts/env/bootstrap_host.sh writes fallback nix.conf to project path when /opt/bin/dev/nix is not writable.
+- scripts/env/bootstrap_host.sh prepares the `/nix -> /opt/bin/dev/nix` bind-mount layout and ensures `/etc/nix` exists for the Determinate installer.
 
 Pending prerequisites before full execution:
-- Ensure root /nix is absent. If present, remove via CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh.
+- Ensure any existing root-backed `/nix` installation is removed before adopting the bind-mounted workflow.
 - Run toolchain installation:
-  1. NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/env/install_toolchain.sh
-  2. NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/env/bootstrap_host.sh
+  1. NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/env/bootstrap_host.sh
+  2. NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/env/install_toolchain.sh
   3. NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/verify/check_nix_isolation.sh
   4. scripts/verify/doctor.sh
 - After installation, run runtime checks:
@@ -424,48 +441,149 @@ Release pinning policy:
 - Default is latest release for bootstrap.
 - For reproducible CI and cross-machine parity, commit an explicit tag pin after validation.
 
-## 14. Root Nix Removal Policy
+## 14. Root Partition Nix Policy
 
-Project policy forbids root-based /nix installation.
+Project policy forbids persistent Nix store data on the root partition.
+
+Allowed:
+- `/nix` as an empty mountpoint on the root filesystem.
+- bind mounting `/opt/bin/dev/nix` onto `/nix`.
+- minimal config files required by Determinate Nix, provided they do not relocate store payload onto the root partition.
+
+Forbidden:
+- a root-partition-backed `/nix/store`.
+- running the installer before the bind mount is active.
+- any fallback workflow that silently replaces Determinate Nix with an alternate implementation.
 
 Enforced by:
-- scripts/env/bootstrap_host.sh refuses NIX_ISOLATED_ROOT under /nix.
-- scripts/verify/check_nix_isolation.sh fails if /nix exists.
-- scripts/env/install_nix_determinate.sh blocks root /nix bootstrap.
+- `scripts/env/bootstrap_host.sh` must prepare and verify the bind mount.
+- `scripts/verify/check_nix_isolation.sh` must fail if `/nix` is not backed by `/opt/bin/dev/nix`.
+- `scripts/env/install_nix_determinate.sh` must refuse to install when `/nix` is unmounted or backed by the wrong filesystem.
 
-Cleanup command:
-- CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh
+Cleanup command for incompatible legacy installs:
+- `CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh`
 
-## 15. Current Toolchain Install Procedure (Implemented)
+## 15. Canonical Toolchain Install Procedure (Determinate Nix + Bind Mount)
 
-This section captures the exact procedure and behavior currently implemented in scripts.
+This section defines the target workflow that repository scripts should implement.
 
 Step-by-step:
-1. Ensure root /nix is absent:
-  - CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh
-2. Set isolated non-/nix root:
-  - export NIX_ISOLATED_ROOT=/opt/bin/dev/nix
-3. Install toolchain:
-  - scripts/env/install_toolchain.sh
-4. Verify binaries:
-  - /opt/bin/dev/nix/bin/nix --version
-  - /opt/bin/dev/nix/bin/flox --version
-5. Bootstrap and run verification:
-  - NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/env/bootstrap_host.sh
-  - NIX_ISOLATED_ROOT=/opt/bin/dev/nix scripts/verify/check_nix_isolation.sh
-  - scripts/verify/doctor.sh
+1. Remove any incompatible root-backed Nix install:
+  - `CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh`
+2. Set isolated backing root:
+  - `export NIX_ISOLATED_ROOT=/opt/bin/dev/nix`
+3. Prepare the backing store and logical mountpoint:
+  - create `$NIX_ISOLATED_ROOT` as the physical Nix root
+  - create `/nix` as an empty mountpoint
+  - bind mount `$NIX_ISOLATED_ROOT` onto `/nix`
+4. Install Determinate Nix without systemd:
+  - `curl --proto '=https' --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --no-modify-profile --diagnostic-endpoint=""`
+5. Install Flox on top of the active Determinate Nix install.
+6. Run verification:
+  - verify `/nix` is mounted from `/opt/bin/dev/nix`
+  - verify `/nix/nix-installer` and `/nix/receipt.json` exist
+  - verify `nix --version`
+  - verify `flox --version`
+  - run `scripts/verify/check_nix_isolation.sh`
+  - run `scripts/verify/doctor.sh`
 
-Script behavior details:
-- scripts/env/install_nix_determinate.sh:
-  - Installs nix-portable into /opt/bin/dev/nix/bin/nix (or path from NIX_ISOLATED_ROOT).
-  - Writes nix.conf under $NIX_ISOLATED_ROOT/etc/nix/nix.conf.
-  - Refuses any /nix target and fails if /nix exists.
-- scripts/env/install_flox.sh:
-  - Installs Flox via Nix profile from FLOX_FLAKE_REF (default github:flox/flox/v1.12.2).
-  - Creates wrapper at $NIX_ISOLATED_ROOT/bin/flox that executes via $NIX_ISOLATED_ROOT/bin/nix run.
-  - Refuses any /nix target.
-- scripts/env/install_toolchain.sh:
-  - Runs both installer scripts in order and prints resulting binary paths.
+Script behavior required by this workflow:
+- `scripts/env/bootstrap_host.sh`:
+  - prepares `/opt/bin/dev/nix`
+  - ensures `/nix` exists only as a mountpoint
+  - mounts and validates `/nix -> /opt/bin/dev/nix`
+  - writes Nix config under `/etc/nix` or `/nix/etc/nix` only as required by the installer strategy being used
+- `scripts/env/install_nix_determinate.sh`:
+  - invokes the real Determinate installer, not an alternate Nix runtime
+  - requires the bind mount to be active before install
+  - runs `install linux --init none --no-modify-profile`
+- `scripts/env/install_flox.sh`:
+  - installs Flox using the Determinate-provided Nix command set
+  - exposes a stable wrapper under `/opt/bin/dev/nix/bin/flox` when a repository-local entrypoint is still desired
+- `scripts/env/install_toolchain.sh`:
+  - calls bootstrap, Determinate install, Flox install, and verification in that order
 
-Important naming note:
-- Despite its filename, scripts/env/install_nix_determinate.sh currently installs nix-portable, not Determinate Nix distribution. Rename or refactor if strict Determinate Nix installer semantics are required.
+Compatibility note:
+- This workflow is intentionally daemonless and therefore root-oriented on Linux.
+- If a non-root developer shell is required later, that should be treated as a separate design track rather than forcing this workflow into unsupported semantics.
+
+## 16. Determinate Nix Without systemd Using /opt/bin/dev/nix Backing Store
+
+Evidence from DeterminateSystems/nix-installer that drives this design:
+- The Linux installer supports daemonless operation via `install linux --init none`.
+- With `--init none`, only `root` or users able to elevate to `root` can run Nix.
+- Installer state is still anchored to `/nix`, including the uninstall receipt at `/nix/receipt.json` and a copied installer binary at `/nix/nix-installer`.
+- The public installer settings expose `--init`, `--no-start-daemon`, `--no-modify-profile`, and `--extra-conf`, but do not expose a supported flag to relocate `/nix` itself.
+- The upstream repo contains bind-mount logic only in planner-specific code paths such as Steam Deck systemd units, which indicates that `/nix` remains the expected logical mountpoint even when backing storage lives elsewhere.
+
+Design decision for this checkpoint:
+- Keep Determinate Nix's required logical mountpoint at `/nix`.
+- Move the physical storage off the root partition by placing the backing directory at `/opt/bin/dev/nix`.
+- Bind-mount `/opt/bin/dev/nix` onto `/nix` before running the installer.
+- Run the installer in daemonless mode with no systemd integration.
+
+Constraint change relative to the current repository policy:
+- The current repo forbids any live `/nix` path and fails verification if `/nix` exists.
+- To adopt this plan, that policy must be narrowed from `no /nix at all` to `no root-partition-backed /nix`.
+- Verification scripts must be updated to allow `/nix` only when it is a bind mount whose source resolves to `/opt/bin/dev/nix`.
+
+Planned install shape:
+1. Preflight
+  - Confirm `/opt/bin/dev/nix` is on the intended non-root filesystem.
+  - Confirm no existing Nix install is present in `/nix`, `/etc/nix`, or active systemd units.
+  - Confirm the host can perform privileged mount operations.
+2. Prepare backing store
+  - Create `/opt/bin/dev/nix` with root ownership and mode `0755`.
+  - Create required subpaths expected during install: `/opt/bin/dev/nix/store`, `/opt/bin/dev/nix/var`, `/opt/bin/dev/nix/tmp`.
+3. Create logical mountpoint
+  - Create empty `/nix` on the root filesystem as a mountpoint only.
+  - Bind mount `/opt/bin/dev/nix` to `/nix` using `mount --bind /opt/bin/dev/nix /nix`.
+  - Verify `findmnt /nix` or `/proc/self/mountinfo` shows `/opt/bin/dev/nix` as the source.
+4. Install Determinate Nix without systemd
+  - Run the installer with the Linux planner and no init integration:
+    - `curl --proto '=https' --tlsv1.2 -fsSL https://install.determinate.systems/nix | sh -s -- install linux --init none --no-confirm --no-modify-profile --diagnostic-endpoint=""`
+  - Add `--extra-conf` entries only for repository-specific behavior such as experimental features or substituters.
+  - Do not use `--no-start-daemon` as the primary switch here because `--init none` already removes init-based daemon management; keeping both is harmless but redundant.
+5. Validate daemonless behavior
+  - Source the installed profile from `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh` or invoke binaries by absolute path.
+  - Verify `sudo -i nix --version`, `sudo -i nix store ping`, and a small `nix run nixpkgs#hello` succeed.
+  - Verify `/nix/receipt.json` and `/nix/nix-installer` now exist on the bind-mounted backing store under `/opt/bin/dev/nix`.
+6. Install Flox on top of Determinate Nix
+  - Use the active Nix installation to install Flox into a profile rooted under the bind-mounted store.
+  - Preferred path for this repo: create a wrapper under `/opt/bin/dev/nix/bin/flox` that invokes the chosen Flox reference through `nix run` or `nix profile install`.
+  - Validate `sudo -i flox --version` or the wrapper path explicitly.
+7. Persist the mount without systemd
+  - Because systemd is out of scope, persistence must come from `/etc/fstab` or an explicit privileged bootstrap script run before any Nix command.
+  - Preferred host policy: add an `/etc/fstab` entry for the bind mount.
+  - Fallback policy: require a root-run bootstrap script to mount `/nix` before any Nix/Flox workflow.
+
+Repository helpers for persistence and lifecycle checks:
+- `scripts/env/manage_nix_fstab.sh status|print|install|remove`
+- `scripts/env/test_determinate_cycle.sh [--download-installer]`
+
+Recommended `/etc/fstab` entry for persistence:
+- `/opt/bin/dev/nix /nix none bind 0 0`
+
+Required repository changes before execution:
+- Replace the current `remove_root_nix` assumption with a new distinction between forbidden root-backed `/nix` and allowed bind-mounted `/nix`.
+- Update `scripts/verify/check_nix_isolation.sh` to assert that `/nix` is mounted and backed by `/opt/bin/dev/nix`.
+- Refactor `scripts/env/bootstrap_host.sh` and `scripts/env/install_nix_determinate.sh` so they prepare and verify the bind mount instead of rejecting `/nix` outright.
+- Remove legacy alternate-installer behavior from `scripts/env/install_nix_determinate.sh`; if an escape hatch is needed later, place it in a different script with a different name.
+
+Operational limitations of this plan:
+- Daemonless Determinate Nix on Linux is root-only in practice.
+- `/nix` still exists as a logical path; the isolation win comes from moving its storage off the root partition, not from eliminating the path.
+- Uninstall semantics will continue to reference `/nix/nix-installer uninstall`, which is acceptable only if the bind mount is present at uninstall time.
+
+Chroot store decision:
+- Do not make a chroot store part of the default developer workflow.
+- A chroot store can help isolate experiments because its physical root can live outside `/`, but it still keeps the logical store at `/nix/store` and depends on namespace/chroot execution.
+- That makes it a poor fit for Determinate installer lifecycle, editor integration, and Flox workflows that should behave like a normal host install.
+- Reserve chroot stores for disposable experiments or CI probes, not for the canonical `hybrid-ai` development environment.
+
+Recommended execution order for the next implementation checkpoint:
+1. Change repo policy and verification logic to allow only bind-mounted `/nix` backed by `/opt/bin/dev/nix`.
+2. Add a dedicated mount-management script that can `prepare`, `mount`, `status`, and `unmount` the bind mount.
+3. Refactor the Determinate installer script to use `install linux --init none` against the mounted `/nix`.
+4. Re-test Flox installation on top of the real Determinate install.
+5. Run a clean uninstall test with the mount active, then re-verify the root filesystem.
