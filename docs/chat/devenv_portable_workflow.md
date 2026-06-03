@@ -32,27 +32,27 @@ Top applicable practices extracted from the listed resources and adopted here:
 - Layering strategy for shared immutable base + writable project layer (from Flox layering content).
 - Hooks and profiles for explicit environment setup and role-based behavior (from hooks/profiles guidance).
 - Reproducible dev env workflow integrated with VS Code (from Flox VS Code guidance).
-- Python reproducibility through Nix-integrated packaging (poetry2nix workflow family).
+- Python reproducibility through lockfile-driven packaging, with Nix-integrated packaging kept as a deferred option rather than part of the current live workflow.
 - Use Nix + containers together where helpful: Nix/Flox for build reproducibility, containers only for transport/runtime packaging boundaries.
 - Determinate Nix setup for reproducible Nix behavior and better operational consistency.
 - Agentic development guardrails: wrappers and policy scripts that prevent accidental global installs.
 
-### 1.4 Python via Flox + poetry2nix
-Requirement: Python integrated with Flox, poetry2nix.
+### 1.4 Python via Flox
+Requirement: Python integrated with Flox, with room for stricter Nix packaging later if needed.
 
 Design:
 - Python module has pyproject.toml + poetry.lock as canonical dependency inputs.
-- Nix expression derives reproducible Python environment from lock metadata.
-- Flox environment exposes Python executable and tooling from Nix closure.
+- Flox environment exposes Python executable and packaging tooling for repository workflows.
+- If CI or release packaging later needs a Nix-built Python artifact, that should be added as a separate explicit path rather than assumed by the default developer workflow.
 - Runtime write paths (pip cache, poetry cache, pycache) redirected under build/.
 
-### 1.5 Swift via Flox + swiftpm2nix
-Requirement: Swift module via SwiftPM and swiftpm2nix.
+### 1.5 Swift via Flox
+Requirement: Swift module via SwiftPM under the Flox-managed toolchain.
 
 Design:
 - Swift package defined with Package.swift.
-- swiftpm2nix used to materialize reproducible dependency graph.
 - Flox swift module provides Swift toolchain and pins build behavior.
+- If reproducible Nix packaging for Swift becomes necessary later, introduce it as an explicit follow-on track with generated inputs, not as dormant scaffolding.
 - Swift build artifacts redirected to build/swift; no implicit .build folder in source tree.
 
 ### 1.6 Explicit dependency and path controls
@@ -154,8 +154,8 @@ Documented exceptions:
 
 ## 4.1 Composition model
 - env/base: shell, git, jq, yq, just, task runner, baseline utility tools, common hooks.
-- env/python: python runtime, poetry/pip/uv tooling, poetry2nix bridge.
-- env/swift: swift toolchain, swift-format, swiftpm2nix bridge.
+- env/python: python runtime, poetry/pip/uv tooling.
+- env/swift: swift toolchain, swift-format.
 - env/inference: LiteRT-LM integration, inference helper scripts, model path policy.
 - env/hybrid-ai: composed top-level environment importing base + python + swift + inference.
 
@@ -267,9 +267,9 @@ Deliverables:
 - Environment manifests and hooks.
 - Profile selection wrapper.
 
-Phase 3: Python module reproducibility (poetry2nix)
+Phase 3: Python module reproducibility
 1. Initialize src/python package and pyproject.toml + poetry.lock.
-2. Add poetry2nix mapping in nix expressions for locked dependency resolution.
+2. Keep the Flox-managed runtime aligned with locked Python dependencies.
 3. Add wrappers: run_python.sh, run_py_server.sh, run_py_tests.sh.
 4. Add verification script for Python path/caches/bytecode policy.
 
@@ -277,9 +277,9 @@ Deliverables:
 - Python module buildable in Flox.
 - Isolation checks passing.
 
-Phase 4: Swift module reproducibility (swiftpm2nix)
+Phase 4: Swift module reproducibility
 1. Initialize src/swift package with Package.swift.
-2. Add swiftpm2nix generation and lock procedures.
+2. Keep SwiftPM inputs and build behavior explicit under the Flox-managed toolchain.
 3. Add wrappers: run_swift.sh, run_swift_tests.sh.
 4. Ensure all Swift artifacts route to build/swift.
 
@@ -341,8 +341,6 @@ Recommended immediate scaffold:
 - env/swift/manifest.toml
 - env/inference/manifest.toml
 - env/hybrid-ai/manifest.toml
-- nix/python/default.nix
-- nix/swift/default.nix
 - scripts/env/toolchain/bootstrap_host.sh
 - scripts/env/enter.sh
 - scripts/env/run_python.sh
@@ -413,6 +411,7 @@ Pending prerequisites before full execution:
 
 Important note:
 - The current env/hybrid-ai/manifest.toml composes the module manifests via Flox `[include]`. Keep project-specific overrides in the top-level manifest and keep shared toolchain logic in the module-local manifests.
+- The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
 
 ## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
 
