@@ -39,6 +39,10 @@ Key constraints:
 3. Confirm `/opt/bin/dev/nix` is the intended physical backing path.
 4. Confirm `/nix` is either absent, empty, or already bind-mounted from `/opt/bin/dev/nix`.
 
+Important behavior:
+- the repository root-required helpers use `sudo -n`, not an interactive password prompt
+- either run them as `root`, use a host with passwordless sudo for the required commands, or refresh the sudo timestamp first with `sudo -v`
+
 If a stale or incompatible Nix install exists, use:
 - `CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/remove_root_nix.sh`
 
@@ -75,7 +79,7 @@ Installed paths of interest:
 - real installer: `/nix/nix-installer`
 - receipt: `/nix/receipt.json`
 - daemon profile script: `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh`
-- daemon socket: `/nix/var/nix/daemon-socket/socket`
+- daemon socket after the daemon is running: `/nix/var/nix/daemon-socket/socket`
 - repo wrapper for `nix`: `/opt/bin/dev/nix/bin/nix`
 - repo wrapper for `nix-installer`: `/opt/bin/dev/nix/bin/nix-installer`
 
@@ -113,6 +117,7 @@ Notes:
 - keep that process running while non-root Nix and Flox access is needed
 - the repository wrappers only require the socket; they do not require a specific service manager
 - on some hosts the socket may already exist because the daemon was started outside the repository workflow
+- `--no-start-daemon` means the socket should not be expected immediately after install; it appears only after `nix-daemon` is actually running
 
 ### 3.6 Initialize the Managed Flox Environment
 
@@ -139,6 +144,7 @@ scripts/env/install_toolchain.sh
 Expectation:
 - this shortcut now assumes the daemon socket is already available before it reaches `scripts/env/init_flox_env.sh`
 - if the socket is absent, the script stops and tells you to start `nix-daemon` first
+- on a fresh machine this usually means the first run gets through bootstrap, Determinate Nix install, and Flox install, then stops at the daemon-socket check; after starting `nix-daemon`, rerun `scripts/env/install_toolchain.sh` or continue with `scripts/env/init_flox_env.sh`
 
 It runs, in order:
 1. `scripts/env/bootstrap_host.sh`
@@ -435,8 +441,12 @@ rm -f build/home/.nix-profile
 ### 6.3 Recommended Fresh-Machine Command Sequence
 
 ```bash
+sudo -v
 scripts/env/bootstrap_host.sh
-scripts/env/install_toolchain.sh
+scripts/env/install_nix_determinate.sh
+scripts/env/install_flox.sh
+sudo /nix/var/nix/profiles/default/bin/nix-daemon
+scripts/env/init_flox_env.sh
 scripts/verify/check_nix_isolation.sh
 scripts/verify/doctor.sh
 scripts/env/with_flox.sh python --version
@@ -450,4 +460,5 @@ CONFIRM_WRITE_FSTAB=YES scripts/env/manage_nix_fstab.sh install
 ```
 
 Fresh-machine note:
-- if `scripts/env/install_toolchain.sh` stops on a missing daemon socket, start `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/init_flox_env.sh` or the full shortcut
+- `scripts/env/install_toolchain.sh` is a convenience shortcut, but on a fresh machine the explicit step-by-step sequence above is the most predictable path
+- if you prefer the shortcut and it stops on a missing daemon socket, start `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/init_flox_env.sh` or the full shortcut
