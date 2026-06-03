@@ -1,0 +1,13 @@
+version = 1
+
+[install]
+python.pkg-path = "python311"
+poetry.pkg-path = "poetry"
+uv.pkg-path = "uv"
+pipx.pkg-path = "pipx"
+
+[hook]
+on-activate = '''
+source scripts/env/common.sh
+export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-python-dev}
+'''

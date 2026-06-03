@@ -1,0 +1,22 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/scripts/env/run_python.sh",
+  "python.terminal.activateEnvironment": false,
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.env.linux": {
+    "NIX_ISOLATED_ROOT": "/opt/bin/dev/nix",
+    "XDG_CONFIG_HOME": "${workspaceFolder}/build/xdg/config",
+    "XDG_CACHE_HOME": "${workspaceFolder}/build/xdg/cache",
+    "XDG_DATA_HOME": "${workspaceFolder}/build/xdg/data",
+    "XDG_STATE_HOME": "${workspaceFolder}/build/xdg/state",
+    "HOME": "${workspaceFolder}/build/home"
+  },
+  "terminal.integrated.env.osx": {
+    "NIX_ISOLATED_ROOT": "/opt/bin/dev/nix",
+    "XDG_CONFIG_HOME": "${workspaceFolder}/build/xdg/config",
+    "XDG_CACHE_HOME": "${workspaceFolder}/build/xdg/cache",
+    "XDG_DATA_HOME": "${workspaceFolder}/build/xdg/data",
+    "XDG_STATE_HOME": "${workspaceFolder}/build/xdg/state",
+    "HOME": "${workspaceFolder}/build/home"
+  },
+  "swift.path": "${workspaceFolder}/scripts/env/run_swift.sh"
+}

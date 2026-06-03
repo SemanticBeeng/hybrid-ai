@@ -1,0 +1,12 @@
+version = 1
+
+[install]
+curl.pkg-path = "curl"
+jq.pkg-path = "jq"
+git.pkg-path = "git"
+
+[hook]
+on-activate = '''
+source scripts/env/common.sh
+export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-inference-dev}
+'''

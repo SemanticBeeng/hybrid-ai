@@ -1,0 +1,10 @@
+build/*
+!build/.gitkeep
+volumes/*
+!volumes/.gitkeep
+!volumes/models/
+!volumes/models/**
+deps/*
+!deps/.gitkeep
+*.log
+.DS_Store

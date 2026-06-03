@@ -1,0 +1,19 @@
+version = 1
+
+[install]
+bash.pkg-path = "bash"
+coreutils.pkg-path = "coreutils"
+git.pkg-path = "git"
+findutils.pkg-path = "findutils"
+gnused.pkg-path = "gnused"
+ripgrep.pkg-path = "ripgrep"
+jq.pkg-path = "jq"
+yq.pkg-path = "yq"
+just.pkg-path = "just"
+curl.pkg-path = "curl"
+
+[hook]
+on-activate = '''
+source scripts/env/common.sh
+export HYBRID_AI_PROFILE=base
+'''

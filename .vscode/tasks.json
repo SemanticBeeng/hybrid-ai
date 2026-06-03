@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "env:doctor",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/verify/doctor.sh"
+    },
+    {
+      "label": "python:run",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/env/run_python.sh"
+    },
+    {
+      "label": "python:server",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/env/run_py_server.sh"
+    },
+    {
+      "label": "swift:build",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/env/run_swift.sh build"
+    },
+    {
+      "label": "swift:test",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/env/run_swift.sh test"
+    },
+    {
+      "label": "inference:local",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/env/run_inference_local.sh \"hello\""
+    }
+  ]
+}
