@@ -139,6 +139,7 @@ print_effective_env() {
   local resolved_vscode_bin="${1:-unresolved}"
 
   env \
+    PROJECT_ROOT="$PROJECT_ROOT" \
     VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
     VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
     VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
@@ -146,6 +147,11 @@ print_effective_env() {
     RESOLVED_VSCODE_BIN="$resolved_vscode_bin" \
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
+      source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+      source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+      hybrid_ai_activate_python_env
+      hybrid_ai_activate_swift_env
+
       printf "project_root=%s\n" "$PWD"
       printf "host_home=%s\n" "'$HOST_HOME'"
       printf "editor_home=%s\n" "$HOME"
@@ -160,8 +166,16 @@ print_effective_env() {
       printf "python_bin=%s\n" "$(command -v python)"
       python -c "import sys; print(f\"python_executable={sys.executable}\")"
       python --version
+      printf "swiftly_root=%s\n" "${SWIFTLY_ROOT:-unset}"
+      printf "swiftly_home_dir=%s\n" "${SWIFTLY_HOME_DIR:-unset}"
+      printf "swiftly_bin_dir=%s\n" "${SWIFTLY_BIN_DIR:-unset}"
       printf "swift_bin=%s\n" "$(command -v swift)"
       swift --version | head -n 1
+      swift package --version
+      printf "clang_bin=%s\n" "$(command -v clang || true)"
+      clang --version | head -n 1
+      printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"
+      printf "lldb_bin=%s\n" "$(command -v lldb || true)"
     '
 }
 
@@ -196,11 +210,20 @@ if [[ $# -eq 0 ]]; then
 fi
 
 exec env \
+  PROJECT_ROOT="$PROJECT_ROOT" \
   VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
   VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
   VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
   VSCODE_SETTINGS_PATH="$VSCODE_SETTINGS_PATH" \
   "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- \
+  bash --noprofile --norc -lc '
+    set -euo pipefail
+    source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+    source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+    hybrid_ai_activate_python_env
+    hybrid_ai_activate_swift_env
+    exec "$@"
+  ' bash \
   "$resolved_vscode_bin" \
   --user-data-dir "$VSCODE_USER_DATA_DIR" \
   --extensions-dir "$VSCODE_EXTENSIONS_DIR" \

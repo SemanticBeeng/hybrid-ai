@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-06-04
+
+### Swiftly 6.3.2 migration and workflow verification
+- updated the portable dev-environment workflow to reflect the applied setup: Determinate Nix + Flox for environment/Python/native dependencies, and Swiftly for Swift
+- documented Swiftly as the active Swift owner under `/opt/bin/dev/swiftly`, with Swift `6.3.2`, SwiftPM `6.3.2`, `clang`, `sourcekit-lsp`, and `lldb` resolved from Swiftly
+- removed the old Flox/Nix Swift toolchain assumptions from the workflow doc; Flox no longer owns `swift`, `swiftpm`, `swiftPackages.XCTest`, or `clang`
+- verified Flox Python still resolves to the managed venv under `env/hybrid-ai/.flox/cache/python` and passes package/NumPy smoke checks
+- verified Swift build, run, and tests through `scripts/env/run_swift.sh` using Swiftly Swift `6.3.2`
+- updated and re-verified `docs/usecases/03-swift-build-and-test.md` against the current Swiftly-backed workflow: `check_swiftly.sh`, `check_swift_env.sh`, `package resolve`, `build`, `test`, `run hybrid-ai-cli`, native path proof, absence of `src/swift/.build`, and `doctor.sh` all passed
+- documented the current Swift resolution split in the Swift use case: Swift-specific tools from Swiftly, Flox/Nix native build-time paths before host OS defaults, and sanitized/unset `LD_LIBRARY_PATH` for Swiftly runtime execution
+- updated VS Code workflow documentation to match `scripts/env/start_vscode.sh`, which now activates both the managed Python venv and Swiftly-backed Swift before editor launch
+- confirmed `scripts/env/toolchain/doctor.sh` passes after removing forbidden source-adjacent SwiftPM `.build` output
+
 ## 2026-06-03
 
 ### Cleanup and workflow alignment
@@ -28,9 +41,9 @@
 
 ### Use-case docs
 - added `docs/usecases/README.md` as the landing page for concrete development workflow documents
-- added `docs/usecases/vscode-portable-project-env.md` with the full workflow for launching portable VS Code inside the repository environment
-- added `docs/usecases/python-cli-and-server.md` for Python CLI and server execution through repository wrappers
-- added `docs/usecases/swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
+- added `docs/usecases/01-vscode-portable-project-env.md` with the full workflow for launching portable VS Code inside the repository environment
+- added `docs/usecases/02-python-cli-and-server.md` for Python CLI and server execution through repository wrappers
+- added `docs/usecases/03-swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
 ### Python Flox alignment
 - moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python_env.sh`, with hooks creating and syncing the managed venv under `env/hybrid-ai/.flox/cache/python`

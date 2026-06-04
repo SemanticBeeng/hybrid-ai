@@ -1,8 +1,6 @@
-import XCTest
+import Testing
 @testable import HybridAI
 
-final class HybridAITests: XCTestCase {
-    func testStatus() {
-        XCTAssertEqual(HybridAI().status(), "hybrid-ai swift module ready")
-    }
+@Test func status() {
+    #expect(HybridAI().status() == "hybrid-ai swift module ready")
 }

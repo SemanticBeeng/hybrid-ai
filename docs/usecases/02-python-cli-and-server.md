@@ -1,4 +1,4 @@
-# Use Case: Python CLI And Python Server Development
+# Use Case 02: Python CLI And Python Server Development
 
 Date: 2026-06-03
 Status: Implemented
@@ -308,6 +308,6 @@ Recovery:
 Use this document for the concrete Python CLI and server workflow.
 
 Related documents:
-- `docs/usecases/vscode-portable-project-env.md`: editor-side startup path for Python and Swift tooling
+- `docs/usecases/01-vscode-portable-project-env.md`: editor-side startup path for Python and Swift tooling
 - `docs/chat/determinate_nix_flox_setup.md`: operational runbook for Nix, Flox, wrappers, and recovery
 - `docs/chat/devenv_portable_workflow.md`: high-level architecture and workflow plan
