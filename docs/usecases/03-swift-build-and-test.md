@@ -1,4 +1,4 @@
-# Use Case: Swift Build And Test Development Workflow
+# Use Case 03: Swift Build And Test Development Workflow
 
 Date: 2026-06-03
 Status: Implemented
@@ -219,6 +219,6 @@ Checks:
 Use this document for the concrete Swift build and test workflow.
 
 Related documents:
-- `docs/usecases/vscode-portable-project-env.md`: editor-side startup path for Python and Swift tooling
+- `docs/usecases/01-vscode-portable-project-env.md`: editor-side startup path for Python and Swift tooling
 - `docs/chat/determinate_nix_flox_setup.md`: operational runbook for Nix, Flox, wrappers, and recovery
 - `docs/chat/devenv_portable_workflow.md`: high-level architecture and workflow plan

@@ -39,9 +39,9 @@
 
 ### Use-case docs
 - added `docs/usecases/README.md` as the landing page for concrete development workflow documents
-- added `docs/usecases/vscode-portable-project-env.md` with the full workflow for launching portable VS Code inside the repository environment
-- added `docs/usecases/python-cli-and-server.md` for Python CLI and server execution through repository wrappers
-- added `docs/usecases/swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
+- added `docs/usecases/01-vscode-portable-project-env.md` with the full workflow for launching portable VS Code inside the repository environment
+- added `docs/usecases/02-python-cli-and-server.md` for Python CLI and server execution through repository wrappers
+- added `docs/usecases/03-swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
 ### Python Flox alignment
 - moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python_env.sh`, with hooks creating and syncing the managed venv under `env/hybrid-ai/.flox/cache/python`

@@ -1,4 +1,4 @@
-# Use Case: Verify Full Isolation Requirements
+# Use Case 04: Verify Full Isolation Requirements
 
 Date: 2026-06-04
 Status: Implemented
@@ -76,8 +76,8 @@ Runtime scripts used for proof:
 Reference docs:
 - `docs/chat/devenv_portable_workflow.md`
 - `docs/chat/determinate_nix_flox_setup.md`
-- `docs/usecases/python-cli-and-server.md`
-- `docs/usecases/swift-build-and-test.md`
+- `docs/usecases/02-python-cli-and-server.md`
+- `docs/usecases/03-swift-build-and-test.md`
 
 ## 5. Current Verification Layers
 
@@ -370,5 +370,5 @@ separate runtime correctness from verification-tool correctness.
 Related documents:
 - `docs/chat/determinate_nix_flox_setup.md`: host bootstrap and daemon runbook
 - `docs/chat/devenv_portable_workflow.md`: high-level isolation design and requirements
-- `docs/usecases/python-cli-and-server.md`: Python runtime workflow details
-- `docs/usecases/swift-build-and-test.md`: Swift runtime workflow details
+- `docs/usecases/02-python-cli-and-server.md`: Python runtime workflow details
+- `docs/usecases/03-swift-build-and-test.md`: Swift runtime workflow details

@@ -322,7 +322,7 @@ Portable directory defaults used by the wrapper:
 - portable settings file: `$HOST_HOME/appdata/.vscode/data/User/settings.json`
 
 Detailed workflow document:
-- `docs/usecases/vscode-portable-project-env.md`
+- `docs/usecases/01-vscode-portable-project-env.md`
 
 Verify the editor launch environment before opening the UI:
 

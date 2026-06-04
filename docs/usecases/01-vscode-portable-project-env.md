@@ -1,4 +1,4 @@
-# Use Case: Start Portable VS Code Inside The Project Environment
+# Use Case 01: Start Portable VS Code Inside The Project Environment
 
 Date: 2026-06-03
 Status: Implemented
