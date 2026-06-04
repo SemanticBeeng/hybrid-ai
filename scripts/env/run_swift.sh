@@ -14,8 +14,8 @@ shift
 swift_cmd=(
   swift "$SWIFT_SUBCOMMAND"
   --package-path "$SWIFT_PACKAGE_DIR"
-  "$@"
   --build-path "$PROJECT_ROOT/build/swift"
+  "$@"
 )
 
 if [[ -n "${FLOX_ENV:-}" ]]; then

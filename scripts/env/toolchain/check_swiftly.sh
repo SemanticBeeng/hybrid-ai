@@ -3,9 +3,9 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-source "$PROJECT_ROOT/scripts/env/toolchain/swiftly_common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
 
-hybrid_ai_source_swiftly_env
+hybrid_ai_activate_swift_env
 
 printf "SWIFTLY_ROOT=%s\n" "$SWIFTLY_ROOT"
 printf "SWIFTLY_HOME_DIR=%s\n" "$SWIFTLY_HOME_DIR"
