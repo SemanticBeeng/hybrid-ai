@@ -3,6 +3,7 @@
 Date: 2026-06-03
 Status: Implemented
 Primary scripts:
+- `scripts/env/enter_python.sh`
 - `scripts/env/run_python.sh`
 - `scripts/env/run_py_server.sh`
 
@@ -43,6 +44,7 @@ This workflow assumes:
 ## 4. Files Involved
 
 Runtime wrappers:
+- `scripts/env/enter_python.sh`
 - `scripts/env/run_python.sh`
 - `scripts/env/run_py_server.sh`
 - `scripts/env/with_flox.sh`
@@ -73,6 +75,12 @@ Repository-managed writable paths used by this workflow:
 - if already inside the active Flox environment, it activates the managed venv and runs `python` directly
 - otherwise it launches through `scripts/env/with_flox.sh` and activates the managed venv in the command shell
 - uses `scripts/env/toolchain/python_env.sh` as the single source of truth for venv creation, dependency sync, cache paths, and runtime library activation
+
+`scripts/env/enter_python.sh` does the following:
+- activates the composed Flox environment
+- sources `scripts/env/toolchain/python_env.sh`
+- activates the managed Python venv
+- drops into an interactive shell rooted at `src/python`
 
 Current default behavior of the module entrypoint:
 - `src/python/hybrid_ai/__main__.py` imports `hello()` and prints its value
@@ -117,7 +125,19 @@ cd src/python
 python -m hybrid_ai.hello_world
 ```
 
-### 6.3 Python CLI With Explicit Python Arguments
+### 6.3 One-Command Python Shell Workflow
+
+If you want an interactive shell with the managed Python venv already active,
+use:
+
+```bash
+scripts/env/enter_python.sh
+```
+
+This enters the composed Flox environment, activates the managed Python venv,
+and lands in `src/python`.
+
+### 6.4 Python CLI With Explicit Python Arguments
 
 Run arbitrary Python commands inside the repository environment:
 
@@ -126,7 +146,7 @@ scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 scripts/env/run_python.sh -m hybrid_ai
 ```
 
-### 6.4 Python Server
+### 6.5 Python Server
 
 Start the server with defaults:
 
@@ -153,6 +173,16 @@ scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 Expected result:
 - the interpreter path should point into `env/hybrid-ai/.flox/cache/python/bin/python`
 - it should not resolve to a host-global Python installation
+
+You can verify the interactive Python shell path too:
+
+```bash
+scripts/env/enter_python.sh
+which python
+```
+
+Expected result:
+- `which python` points into `env/hybrid-ai/.flox/cache/python/bin/python`
 
 ### 7.2 Verify Repository-Local Caches And Bytecode
 
@@ -223,6 +253,7 @@ Expected result:
 
 When this workflow is correct:
 - `flox activate -d env/hybrid-ai` yields a shell that can run project Python commands against the managed venv
+- `scripts/env/enter_python.sh` yields an interactive Python-focused shell with the managed venv already active
 - wrapper-based Python commands bootstrap the same managed venv when no activated shell exists
 - bytecode and Python package caches are written under `env/hybrid-ai/.flox/cache/`
 - server logs are written under `volumes/logs`
@@ -249,6 +280,7 @@ Symptom:
 Recovery:
 - rerun through `scripts/env/run_python.sh`
 - activate the environment with `flox activate -d env/hybrid-ai` before invoking `python` directly
+- or use `scripts/env/enter_python.sh` to enter a shell with the managed Python venv already active
 - if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
 
 ### 9.3 Server Does Not Start
@@ -269,7 +301,7 @@ Symptom:
 Recovery:
 - inspect `scripts/env/toolchain/python_env.sh`
 - rerun `scripts/env/toolchain/check_env.sh`
-- make sure the command was started via the repository wrapper or an activated Flox shell rather than host Python
+- make sure the command was started via `scripts/env/run_python.sh`, `scripts/env/enter_python.sh`, or an activated Flox shell rather than host Python
 
 ## 10. Relationship To Other Docs
 

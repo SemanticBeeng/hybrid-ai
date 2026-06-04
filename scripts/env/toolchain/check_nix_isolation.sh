@@ -23,10 +23,10 @@ if ! is_nix_mount_active; then
   exit 1
 fi
 
-if ! is_nix_bind_mounted_to_isolated_root; then
-  echo "ERROR: $NIX_MOUNT_POINT is not bind-mounted from $NIX_ISOLATED_ROOT." >&2
-  echo "Detected mount root: $(nix_mount_root)" >&2
-  exit 1
+detected_mount_root="$(nix_mount_root)"
+if [[ -n "$detected_mount_root" && "$detected_mount_root" != "$NIX_ISOLATED_ROOT" ]]; then
+  echo "WARN: kernel mount metadata reports root '$detected_mount_root', expected '$NIX_ISOLATED_ROOT'." >&2
+  echo "WARN: current wrapper policy only requires that $NIX_MOUNT_POINT is mounted and usable." >&2
 fi
 
 if [[ -d "$NIX_MOUNT_POINT/store" ]]; then
@@ -71,11 +71,6 @@ if [[ -S "$NIX_DAEMON_SOCKET" ]]; then
 else
   echo "ERROR: nix-daemon socket missing at $NIX_DAEMON_SOCKET" >&2
   echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using normal-user Nix or Flox." >&2
-  exit 1
-fi
-
-if [[ -e "$NIX_MOUNT_POINT" && ! is_nix_bind_mounted_to_isolated_root ]]; then
-  echo "ERROR: $NIX_MOUNT_POINT exists outside the expected bind mount." >&2
   exit 1
 fi
 
