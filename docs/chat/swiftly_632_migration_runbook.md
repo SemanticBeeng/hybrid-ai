@@ -1,7 +1,7 @@
 # hybrid-ai: Swiftly 6.3.2 Migration Runbook
 
 Date: 2026-06-04
-Status: Proposed roadmap
+Status: Applied migration runbook
 Scope: Replace Nix/Flox-provided Swift 5.x with Swiftly-managed Swift 6.3.2 while keeping Flox as the project environment manager for Python, base tools, and native host dependencies.
 
 ## 1. Decision Summary
@@ -381,3 +381,34 @@ Risk: Tests behave differently after Swift 6 migration.
 - Should the old Nix Swift fallback remain temporarily behind `HYBRID_AI_SWIFT_PROVIDER=nix`?
 - Which additional native libraries will Swiftly report as missing on this host?
 - Should `LinuxMain.swift` and `XCTestManifests.swift` be removed after Swiftly validation, or kept until the Swift Testing migration?
+
+## 10. Migration Conclusion
+
+The final environment matches the purpose of combining Swiftly with Nix/Flox:
+
+- Swiftly owns the Swift toolchain and all Swift-specific resolution.
+- Flox/Nix own the reproducible project shell, Python environment, common tools, and build-time native dependency paths.
+- Nix/Flox no longer provide the active Swift compiler, SwiftPM, XCTest, Swift Testing, clang, lldb, SourceKit-LSP, or Swift toolchain internals.
+- Swift commands still run inside the Flox project environment so that non-Swift tools and native dependency paths are reproducible.
+
+The effective resolution model is:
+
+1. Project Swift entry points use `scripts/env/run_swift.sh`.
+2. The wrapper enters `env/hybrid-ai` through Flox when needed.
+3. `scripts/env/toolchain/swift_env.sh` activates Swiftly and validates Swift `6.3.2`.
+4. Swiftly paths win for `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, `lldb`, Swift runtime libraries, Swift standard libraries, Swift Testing, XCTest, and toolchain internals.
+5. Build-time native resolution prefers Flox/Nix before the host OS through `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH`.
+6. Runtime dynamic library resolution does not prefer Flox/Nix by default because `LD_LIBRARY_PATH` is sanitized or unset for Swiftly tools.
+7. Host OS include/library defaults remain available after Flox/Nix build-time paths, so Swift package native dependencies can still fall back to host system paths if not supplied by Flox/Nix.
+
+Verified current behavior:
+
+- `swift` resolves to `/opt/bin/dev/swiftly/bin/swift`.
+- `swiftc` resolves to `/opt/bin/dev/swiftly/bin/swiftc`.
+- `clang` resolves to `/opt/bin/dev/swiftly/bin/clang`.
+- Swift runtime/import paths resolve under the Swiftly `6.3.2` toolchain.
+- `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` expose Flox/Nix build-time native paths before host OS defaults.
+- `LD_LIBRARY_PATH` is unset after Swift activation.
+- `flox list -d env/hybrid-ai` reports no Swift-specific Nix packages.
+
+This is the intended split: Swiftly provides a current official Swift toolchain, while Flox/Nix provide reproducible non-Swift build inputs ahead of the host OS without reintroducing Nix Swift package ownership.
