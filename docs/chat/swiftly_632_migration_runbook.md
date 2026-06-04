@@ -113,6 +113,18 @@ Actions:
 Decision:
 - Treat `flake.nix` as experimental/non-canonical during migration.
 
+Execution note:
+- Current working Swift commands to preserve during migration:
+  - `scripts/env/run_swift.sh build`
+  - `scripts/env/run_swift.sh run hybrid-ai-cli`
+  - `scripts/env/run_swift.sh test`
+- Current working Python verification command:
+  - `scripts/env/toolchain/check_python_env.sh`
+- Manual Linux XCTest workaround remains in place temporarily:
+  - `src/swift/Tests/LinuxMain.swift`
+  - `src/swift/Tests/HybridAITests/XCTestManifests.swift`
+- `.gitignore` now ignores nested SwiftPM `.build` directories via `**/.build/`.
+
 ## Stage 1: Install Swiftly Under `/opt/bin/dev/swiftly`
 
 Goal: install Swiftly outside the repo but inside the dev prefix.
@@ -134,6 +146,18 @@ Confirm:
 This should be handled by a new bootstrap script, likely:
 - `scripts/env/install_swiftly.sh`
 
+Execution note:
+- Swiftly was installed under `/opt/bin/dev/swiftly`.
+- `scripts/env/toolchain/check_swiftly.sh` verified:
+  - `SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home`
+  - `SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin`
+  - `swift=/opt/bin/dev/swiftly/bin/swift`
+  - `clang=/opt/bin/dev/swiftly/bin/clang`
+  - `sourcekit-lsp=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
+  - `lldb=/opt/bin/dev/swiftly/bin/lldb`
+  - `Swift version 6.3.2 (swift-6.3.2-RELEASE)`
+  - `Swift Package Manager - Swift 6.3.2`
+
 ## Stage 2: Make `swift_env.sh` Swiftly-First
 
 Goal: every project entry point sees Swift `6.3.2`.
@@ -152,6 +176,15 @@ Then validate through existing wrappers:
 Expected result:
 - `scripts/env/toolchain/check_swift_env.sh` prints Swift `6.3.2`.
 - `scripts/env/run_swift.sh build` uses Swiftly Swift, not Nix Swift.
+
+Execution note:
+- `scripts/env/toolchain/swift_env.sh` was changed to source the Swiftly helper and validate Swift `6.3.2`.
+- `scripts/env/toolchain/check_swift_env.sh` now reports Swiftly paths and confirmed:
+  - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
+  - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
+  - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
+  - `lldb_bin=/opt/bin/dev/swiftly/bin/lldb`
+  - `Swift version 6.3.2 (swift-6.3.2-RELEASE)`
 
 ## Stage 3: Remove Swift From Flox Manifests
 
@@ -173,6 +206,13 @@ Expected result:
 - `command -v swift` points into `/opt/bin/dev/swiftly/bin` or a Swiftly-managed shim.
 - no Nix Swift wrapper is on `PATH` before Swiftly.
 
+Execution note:
+- Removed Nix Swift package entries from `env/swift/manifest.toml` and `env/hybrid-ai/manifest.toml`.
+- Re-synced Flox state with `scripts/env/toolchain/init_flox_env.sh`.
+- Refreshed composed includes with `flox include upgrade -d env/hybrid-ai`.
+- `flox list -d env/hybrid-ai` no longer reports `swift`, `swiftpm`, `XCTest`, or `clang` packages from Nix.
+- `flox activate -d env/hybrid-ai -- bash -lc 'command -v swift && swift --version | head -n 1'` reports Swiftly Swift `6.3.2`.
+
 ## Stage 4: Validate Swift Build/Run/Test
 
 Goal: confirm Swiftly solves the old Nix split-package issues.
@@ -188,6 +228,11 @@ Expected result:
 - `swift test` works without `libIndexStore.so` errors.
 - `XCTest` is available from the official Swift toolchain.
 - `Testing` is available as a built-in Swift 6 module.
+
+Execution note:
+- `scripts/env/run_swift.sh build` succeeded with Swiftly Swift `6.3.2`.
+- `scripts/env/run_swift.sh run hybrid-ai-cli` succeeded and printed `hybrid-ai swift module ready`.
+- `scripts/env/run_swift.sh test` succeeded: 1 test executed, 0 failures.
 
 ## Stage 5: Decide Test Framework
 
@@ -228,6 +273,11 @@ Recommendation: migrate to `Testing` after Swiftly is validated.
 
 Goal: reduce maintenance.
 
+Decision: remove the flake completely. The Flox environments are sufficient for
+the Python environment, common tools, activation hooks, and native host
+dependencies. Swift will be supplied by Swiftly, so the flake no longer owns any
+unique required capability.
+
 If Flox + Swiftly works:
 - remove `flake.nix` and `flake.lock`, or mark them unsupported/experimental.
 - keep one canonical path: Flox activation + Swiftly toolchain.
@@ -240,6 +290,10 @@ If keeping the flake:
 Recommendation:
 
 > Remove the flake unless there is a concrete need for non-Flox contributors.
+
+Execution note:
+- `scripts/env/toolchain/check_python_env.sh` was used to verify the Flox-managed Python environment.
+- `flake.nix` and `flake.lock` were removed from the repository.
 
 ## 6. Proposed Final Developer Commands
 

@@ -8,6 +8,7 @@ volumes/*
 deps/*
 !deps/.gitkeep
 env/*/.flox/
+**/.build/
 **/.venv/
 **/.dist/
 *.log

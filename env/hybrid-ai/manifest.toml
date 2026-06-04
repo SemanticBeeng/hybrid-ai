@@ -3,10 +3,6 @@ version = 1
 [install]
 libgcc.pkg-path = "libgcc"
 libgcc.systems = ["x86_64-linux"]
-swiftpm.pkg-path = "swiftpm"
-swiftpm.systems = ["x86_64-linux"]
-xctest.pkg-path = "swiftPackages.XCTest"
-xctest.systems = ["x86_64-linux"]
 
 [include]
 environments = [

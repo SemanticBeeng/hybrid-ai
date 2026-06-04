@@ -1,9 +1,6 @@
 version = 1
 
 [install]
-swift.pkg-path = "swift"
-swiftpm.pkg-path = "swiftpm"
-xctest.pkg-path = "swiftPackages.XCTest"
 cmake.pkg-path = "cmake"
 
 [hook]
