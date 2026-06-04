@@ -1,7 +1,7 @@
 # hybrid-ai: Portable, Reproducible, Isolated Dev Environment Workflow
 
-Date: 2026-06-02
-Scope: Hybrid cloud development for Python CLI/server + Swift mobile modules, with distributed LLM inference (Gemma 4 and multiple engines) via Google LiteRT-LM, built with Flox + Nix composition and strict containment.
+Date: 2026-06-04
+Scope: Hybrid cloud development for Python CLI/server + Swift mobile modules, with distributed LLM inference (Gemma 4 and multiple engines) via Google LiteRT-LM, built with Determinate Nix + Flox composition, Swiftly-managed Swift, and strict containment.
 
 ## 1. Requirements Analysis and Design Decisions
 
@@ -11,7 +11,7 @@ Requirement: Support Linux VMs, macOS cloud hardware, and on-demand GPU provider
 Design:
 - Use Flox-managed, composable environments as the primary dependency/runtime boundary.
 - Keep environment logic in repository files and shell wrappers (not in host machine defaults).
-- Split concerns into modules: base tooling, python, swift, inference, orchestration.
+- Split concerns into modules: base tooling, python, Swiftly-backed Swift activation, inference, orchestration.
 - Provide graceful degradation on macOS where Linux-specific Nix store layering primitives are unavailable or constrained.
 
 ### 1.2 Modular architecture with Python + Swift + inference engines
@@ -22,7 +22,7 @@ Design:
 - Flox composition layers:
   - base: shared system tools, shell policy, git, direnv integration if needed.
   - python: python runtime and packaging workflow.
-  - swift: swift toolchain and SwiftPM workflow.
+  - swift: native Swift support tools plus Swiftly activation for SwiftPM workflows.
   - inference: Google LiteRT-LM runtime helpers, model path policy, GPU provider wrappers.
   - hybrid-ai: top-level composed environment used by developers and CI.
 
@@ -48,14 +48,16 @@ Design:
 - If CI or release packaging later needs a Nix-built Python artifact, that should be added as a separate explicit path rather than assumed by the default developer workflow.
 - Python package caches and bytecode are redirected under `env/hybrid-ai/.flox/cache/`.
 
-### 1.5 Swift via Flox
-Requirement: Swift module via SwiftPM under the Flox-managed toolchain.
+### 1.5 Swift via Swiftly, activated through Flox
+Requirement: Swift module via SwiftPM using Swift 6.3.2 while retaining Flox as the repository environment boundary.
 
 Design:
 - Swift package defined with Package.swift.
-- Flox swift module provides Swift toolchain and pins build behavior.
-- If reproducible Nix packaging for Swift becomes necessary later, introduce it as an explicit follow-on track with generated inputs, not as dormant scaffolding.
-- Swift build artifacts redirected to build/swift; no implicit .build folder in source tree.
+- Swiftly owns the active Swift toolchain under `/opt/bin/dev/swiftly`.
+- `scripts/env/toolchain/swift_env.sh` activates Swiftly and validates Swift `6.3.2` inside Flox-launched shells and wrappers.
+- Flox `env/swift` no longer installs Nix `swift`, `swiftpm`, or `swiftPackages.XCTest`; it only carries native support dependencies such as `cmake`.
+- If reproducible Nix packaging for Swift becomes necessary later, introduce it as an explicit follow-on track, not as dormant scaffolding or a default developer path.
+- Swift build artifacts redirected to `build/swift`; source-adjacent `.build` directories are ignored and treated as cleanup targets.
 
 ### 1.6 Explicit dependency and path controls
 Requirement: Make all build/runtime paths explicit, justify exceptions.
@@ -100,7 +102,6 @@ All writable data is constrained to:
   - env/hybrid-ai/.flox/cache/poetry-cache
   - env/hybrid-ai/.flox/cache/uv-cache
   - env/hybrid-ai/.flox/cache/pycache
-- nix/
 - .vscode/
 
 Repository config and docs:
@@ -124,7 +125,6 @@ Mandatory exports in Flox activation hooks and wrapper scripts:
 - Core isolation:
   - NIX_ISOLATED_ROOT=/opt/bin/dev/nix
   - NIX_CONF_DIR=/etc/nix
-  - NIX_CONFIG=<inline config pointing stores and experimental features>
   - XDG_CONFIG_HOME=$PWD/build/xdg/config
   - XDG_CACHE_HOME=$PWD/build/xdg/cache
   - XDG_DATA_HOME=$PWD/build/xdg/data
@@ -140,6 +140,11 @@ Mandatory exports in Flox activation hooks and wrapper scripts:
   - PYTHONDONTWRITEBYTECODE=1
   - PIP_DISABLE_PIP_VERSION_CHECK=1
 - Swift:
+  - SWIFTLY_ROOT=/opt/bin/dev/swiftly
+  - SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home
+  - SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin
+  - HYBRID_AI_SWIFT_VERSION=6.3.2
+  - HYBRID_AI_SWIFT_DIR=$PWD/src/swift
   - SWIFT_BUILD_PATH=$PWD/build/swift
   - CLANG_MODULE_CACHE_PATH=$PWD/build/swift/clang-module-cache
   - SWIFTPM_PACKAGECACHE=$PWD/build/swift/package-cache
@@ -157,13 +162,13 @@ Documented exceptions:
 ## 4.1 Composition model
 - env/base: shell, git, jq, yq, just, task runner, baseline utility tools, common hooks.
 - env/python: python runtime, poetry/pip/uv tooling.
-- env/swift: swift toolchain, swift-format.
+- env/swift: Swift support layer that activates Swiftly and carries native helper dependencies; it does not install Nix Swift packages.
 - env/inference: LiteRT-LM integration, inference helper scripts, model path policy.
 - env/hybrid-ai: composed top-level environment importing base + python + swift + inference.
 
 Relationship to source modules:
 - env/python supports the Python source module under `src/python`.
-- env/swift supports the Swift source module under `src/swift`.
+- env/swift supports the Swift source module under `src/swift` by sourcing the Swiftly activation helper.
 - env/inference supports inference wrappers and runtime workflows that are currently script-driven rather than isolated in a dedicated `src/inference` tree.
 - env/base provides shared tooling and activation policy used across all source modules.
 - env/hybrid-ai is the top-level developer environment used when working across the whole repository.
@@ -202,14 +207,14 @@ Assumption: VS Code is already installed in portable mode.
 
 Policy:
 - Launch VS Code through `scripts/env/start_vscode.sh`, which activates the composed Flox environment before the editor process starts.
-- The launcher keeps the editor, extension host, Copilot, and language tools on the project Python and Swift toolchain while forcing the portable user-data and extensions directories.
+- The launcher keeps the editor, extension host, Copilot, and language tools on the project Python venv and Swiftly-backed Swift toolchain while forcing the portable user-data and extensions directories.
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
-- Python extension interpreter path resolves to `python` from the Flox-activated `PATH`.
-- Swift extension tools resolve to `swift` from the Flox-activated `PATH`.
-- The managed Python venv used by CLI/server workflows is activated by `scripts/env/toolchain/python_env.sh`; the VS Code launcher does not currently source that helper before opening the editor, so editor Python is Flox-based but not yet explicitly managed-venv-specific.
+- Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/python_env.sh`.
+- Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift_env.sh` activates Swiftly.
+- The VS Code launcher explicitly sources both `python_env.sh` and `swift_env.sh` before launching the editor.
 
 Verification requirements:
-- Confirm `scripts/env/start_vscode.sh --print-env` reports Flox-provided `python` and `swift` binaries.
+- Confirm `scripts/env/start_vscode.sh --print-env` reports the managed Flox venv `python`, Swiftly `swift`, SwiftPM `6.3.2`, Swiftly `clang`, `sourcekit-lsp`, and `lldb`.
 - Confirm VS Code integrated terminal inherits Flox activation variables.
 - Confirm Copilot-generated run/debug tasks execute via wrapper scripts, not system Python/Swift.
 - Confirm the portable user-data and extensions directories resolve to the configured portable root.
@@ -227,9 +232,9 @@ Verification requirements:
 - Validate logs to volumes/logs and temp/cache under build/ or volumes/cache.
 
 ### 6.3 Swift build and test
-- Command-line: scripts/env/run_swift.sh build/test with explicit --build-path bound to SWIFT_BUILD_PATH.
+- Command-line: scripts/env/run_swift.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
 - Copilot/VS Code: build tasks call same wrapper.
-- Validation: run `scripts/env/toolchain/check_swift_env.sh`, then ensure no source-adjacent .build output.
+- Validation: run `scripts/env/toolchain/check_swift_env.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test`, then ensure no unintended source-adjacent build output is relied on.
 
 ### 6.4 Inference workflow (Gemma 4 + multi-engine)
 - Local Linux VM: run LiteRT-LM using LITERT_LM_MODELS under volumes/models/litert-lm.
@@ -285,13 +290,13 @@ Deliverables:
 
 Phase 4: Swift module reproducibility
 1. Initialize src/swift package with Package.swift.
-2. Keep SwiftPM inputs and build behavior explicit under the Flox-managed toolchain.
+2. Keep SwiftPM inputs and build behavior explicit under the Swiftly-managed Swift `6.3.2` toolchain activated by Flox wrappers.
 3. Add wrappers: run_swift.sh, run_swift_tests.sh.
 4. Ensure all Swift artifacts route to build/swift.
 
 Deliverables:
-- Swift module buildable/testable in Flox.
-- No implicit .build folder near sources.
+- Swift module buildable/testable through Flox activation with Swiftly Swift.
+- No required implicit `.build` folder near sources; wrapper builds use `build/swift`.
 
 Phase 5: Inference engines and Gemma 4 workflows
 1. Add inference profile and wrappers for local and remote providers.
@@ -304,7 +309,7 @@ Deliverables:
 
 Phase 6: VS Code portable and Copilot integration
 1. Add `scripts/env/start_vscode.sh` to launch the editor inside the Flox environment while preserving the portable VS Code data root.
-2. Add .vscode/settings.json to pin interpreters/tools to Flox wrappers.
+2. Add .vscode/settings.json to resolve interpreters/tools from the activated editor `PATH`.
 3. Add .vscode/tasks.json and launch profiles using scripts/env wrappers only.
 4. Add .vscode/extensions.json with required extension list.
 5. Add verification command to print extension and user-data paths and confirm the active Python and Swift toolchain.
@@ -373,7 +378,8 @@ Recommended immediate scaffold:
 Required pass conditions:
 - No writes to real user home during bootstrap, build, run, test, or editor usage.
 - No persistent Nix store data on the host root partition; `/nix` must be a bind mount backed by `/opt/bin/dev/nix`.
-- Python and Swift executions resolve to Flox/Nix-managed binaries.
+- Python execution resolves to the Flox-managed venv under `env/hybrid-ai/.flox/cache/python`.
+- Swift execution resolves to Swiftly under `/opt/bin/dev/swiftly/bin`.
 - Copilot-generated run/debug actions execute via wrappers and inherit explicit vars.
 - All caches, build products, logs, model files remain in build/ or volumes/.
 - Reset script removes upper writable layer while preserving reusable base assets.
@@ -403,26 +409,38 @@ Then implement Python and Swift modules in separate PRs to keep lockfile and env
 
 Implemented now:
 - Phase 0 foundation and policy scaffolding (folders, policy-enforcing wrappers, doctor checks).
-- Phase 1 bootstrap scripts and initial Nix isolation checks with host fallback behavior.
+- Phase 1 Determinate Nix/Flox bootstrap scripts and isolation checks with manual daemon behavior.
 - Phase 2 Flox manifest scaffolding and activation hook strategy.
-- Partial Phase 3 and Phase 4 module scaffolding (Python and Swift package skeletons + wrappers).
-- Partial Phase 6 VS Code and Copilot task/settings integration.
+- Phase 3 Python module workflow through the Flox-managed venv.
+- Phase 4 Swift module workflow through Swiftly-managed Swift `6.3.2` activated by Flox wrappers.
+- Phase 6 VS Code and Copilot task/settings integration through `scripts/env/start_vscode.sh`.
 - Partial Phase 8 cleanup/reset scripts.
 
 Verified in this workspace:
-- scripts/env/toolchain/doctor.sh passes.
-- scripts/env/toolchain/check_env.sh confirms project-local HOME/XDG/cache paths.
+- `scripts/env/toolchain/check_env.sh` confirms project-local HOME/XDG/cache paths and the active daemon socket.
+- `scripts/env/toolchain/check_python_env.sh` confirms Python resolves to `env/hybrid-ai/.flox/cache/python/bin/python`.
+- Python smoke tests pass: `python -m hybrid_ai` prints `hybrid-ai python module ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
+- `scripts/env/toolchain/check_swift_env.sh` confirms Swiftly paths:
+  - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
+  - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
+  - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
+  - `lldb_bin=/opt/bin/dev/swiftly/bin/lldb`
+  - `Swift version 6.3.2 (swift-6.3.2-RELEASE)`
+- `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test` all pass.
+- Swift tests use Swift 6 built-in `Testing`, not manual Linux `XCTest` manifests.
+- Flox no longer installs Nix `swift`, `swiftpm`, `XCTest`, or `clang`; `env/swift` currently resolves only `cmake`.
+- `flake.nix` and `flake.lock` have been removed from the canonical workflow.
 - Determinate Nix and Flox setup details are tracked in `docs/chat/determinate_nix_flox_setup.md`.
-- `scripts/env/start_vscode.sh --print-env` reports the portable user-data root plus Flox-provided Python and Swift binaries for editor launch.
-- `scripts/env/run_python.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'` succeeds with output `6.0` through the managed Flox Python venv.
+- `scripts/env/start_vscode.sh --print-env` reports the portable user-data root plus managed Flox Python and Swiftly Swift `6.3.2` for editor launch.
 
 Pending prerequisites before full execution:
-- Follow the runbook in `docs/chat/determinate_nix_flox_setup.md` for Determinate Nix, Flox, bind-mount persistence, and verification.
+- On a fresh host, follow the runbooks in `docs/chat/determinate_nix_flox_setup.md` and `docs/chat/swiftly_632_migration_runbook.md` for Determinate Nix, Flox, Swiftly, bind-mount persistence, and verification.
 
 Important note:
 - The current env/hybrid-ai/manifest.toml composes the module manifests via Flox `[include]`. Keep project-specific overrides in the top-level manifest and keep shared toolchain logic in the module-local manifests.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
 - The Python workflow now relies on `scripts/env/toolchain/python_env.sh` as the single source of truth for managed-venv creation, dependency sync, cache paths, and runtime-library activation.
+- The Swift workflow now relies on `scripts/env/toolchain/swift_env.sh` and `scripts/env/toolchain/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization.
 
 ## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
 
@@ -495,8 +513,10 @@ Current operating sequence:
   - `nix --version`
   - `flox --version`
   - `scripts/env/with_flox.sh python --version`
-  - `scripts/env/with_flox.sh swift --version`
-  - confirm VS Code tools resolve Python and Swift without a root shell
+  - `scripts/env/toolchain/check_python_env.sh`
+  - `scripts/env/toolchain/check_swift_env.sh`
+  - `scripts/env/start_vscode.sh --print-env`
+  - confirm VS Code tools resolve Python from the managed Flox venv and Swift from Swiftly without a root shell
 
 Repository implications now in force:
 - `scripts/env/toolchain/install_nix_determinate.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.

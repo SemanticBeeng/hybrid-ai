@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-04
+
+### Swiftly 6.3.2 migration and workflow verification
+- updated the portable dev-environment workflow to reflect the applied setup: Determinate Nix + Flox for environment/Python/native dependencies, and Swiftly for Swift
+- documented Swiftly as the active Swift owner under `/opt/bin/dev/swiftly`, with Swift `6.3.2`, SwiftPM `6.3.2`, `clang`, `sourcekit-lsp`, and `lldb` resolved from Swiftly
+- removed the old Flox/Nix Swift toolchain assumptions from the workflow doc; Flox no longer owns `swift`, `swiftpm`, `swiftPackages.XCTest`, or `clang`
+- verified Flox Python still resolves to the managed venv under `env/hybrid-ai/.flox/cache/python` and passes package/NumPy smoke checks
+- verified Swift build, run, and tests through `scripts/env/run_swift.sh` using Swiftly Swift `6.3.2`
+- updated VS Code workflow documentation to match `scripts/env/start_vscode.sh`, which now activates both the managed Python venv and Swiftly-backed Swift before editor launch
+- confirmed `scripts/env/toolchain/doctor.sh` passes after removing forbidden source-adjacent SwiftPM `.build` output
+
 ## 2026-06-03
 
 ### Cleanup and workflow alignment
