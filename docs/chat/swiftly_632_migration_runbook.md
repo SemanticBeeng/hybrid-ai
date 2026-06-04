@@ -99,191 +99,147 @@ Rationale:
 
 ## 5. Staged Migration Plan
 
-## Stage 0: Preserve Current Working State
+This section intentionally preserves the exact stage structure of the agreed roadmap.
 
-Goal: Ensure the current repository state is recoverable before changing toolchain ownership.
+## Stage 0: Freeze Current State
+
+Goal: avoid mixing old Nix Swift with new Swiftly.
 
 Actions:
-1. Confirm current Git status.
-2. Commit or stash any unrelated edits.
-3. Keep the current Swift package and tests intact until Swift 6.3.2 is active.
+1. Record current working commands.
+2. Keep current manual `LinuxMain.swift` workaround temporarily.
+3. Ensure `.build` outputs stay ignored by `.gitignore`.
 
-Verification:
+Decision:
+- Treat `flake.nix` as experimental/non-canonical during migration.
 
-```bash
-git status --short
-```
+## Stage 1: Install Swiftly Under `/opt/bin/dev/swiftly`
+
+Goal: install Swiftly outside the repo but inside the dev prefix.
+
+Actions:
+1. Create `/opt/bin/dev/swiftly/home`.
+2. Create `/opt/bin/dev/swiftly/bin`.
+3. Set `SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home`.
+4. Set `SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin`.
+5. Install Swiftly from Swift.org.
+6. Install/use Swift `6.3.2`.
+
+Confirm:
+- `swift --version` reports `Swift version 6.3.2`.
+- `swift package --version` works.
+- `clang --version` resolves from the Swift toolchain or Swiftly bin path.
+- `sourcekit-lsp --version` works, if provided.
+
+This should be handled by a new bootstrap script, likely:
+- `scripts/env/install_swiftly.sh`
+
+## Stage 2: Make `swift_env.sh` Swiftly-First
+
+Goal: every project entry point sees Swift `6.3.2`.
+
+Modify `scripts/env/toolchain/swift_env.sh`:
+1. Remove reliance on Nix `swift-wrapper`.
+2. Source `/opt/bin/dev/swiftly/home/env.sh`.
+3. Prepend `/opt/bin/dev/swiftly/bin`.
+4. Validate version.
+5. Keep cache variables/project paths.
+
+Then validate through existing wrappers:
+- `scripts/env/run_swift.sh`
+- `scripts/env/toolchain/check_swift_env.sh`
 
 Expected result:
-- only intentional migration files should be changed.
+- `scripts/env/toolchain/check_swift_env.sh` prints Swift `6.3.2`.
+- `scripts/env/run_swift.sh build` uses Swiftly Swift, not Nix Swift.
 
-## Stage 1: Add Swiftly Host Bootstrap Scripts
+## Stage 3: Remove Swift From Flox Manifests
 
-Goal: Add explicit scripts for host-level Swiftly installation under `/opt/bin/dev/swiftly`.
+Goal: prevent old Nix Swift from shadowing Swiftly.
 
-Proposed new scripts:
-- `scripts/env/toolchain/install_swiftly.sh`
-- `scripts/env/toolchain/check_swiftly.sh`
+Modify `env/swift/manifest.toml`:
+- remove `swift`
+- remove `swiftpm`
+- remove `swiftPackages.XCTest`
+- keep/add native dependencies only
 
-`install_swiftly.sh` responsibilities:
-1. Create `/opt/bin/dev/swiftly/home` and `/opt/bin/dev/swiftly/bin`.
-2. Export `SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home`.
-3. Export `SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin`.
-4. Download Swiftly from Swift.org.
-5. Run `swiftly init` using the project’s configured Swiftly directories.
-6. Install and select Swift 6.3.2.
-7. Avoid modifying user shell profiles.
-8. Print follow-up verification commands.
+Modify `env/hybrid-ai/manifest.toml`:
+- remove duplicate `swiftpm`
+- remove duplicate `xctest`
+- keep `libgcc` and Python/fullstack includes
 
-`check_swiftly.sh` responsibilities:
-1. Verify `swiftly` exists.
-2. Verify `swift --version` reports Swift 6.3.2.
-3. Verify `swiftc`, `swift package`, `clang`, `sourcekit-lsp`, and `lldb` resolve from the Swiftly/toolchain path, not Nix Swift.
-4. Report the effective `SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, and `PATH` ordering.
+Expected result:
+- `flox activate -d env/swift` activates host libs + Swiftly Swift.
+- `command -v swift` points into `/opt/bin/dev/swiftly/bin` or a Swiftly-managed shim.
+- no Nix Swift wrapper is on `PATH` before Swiftly.
 
-Notes:
-- This is analogous to the existing Determinate Nix backing path model: `/nix` is backed by `/opt/bin/dev/nix`; Swiftly is simply backed directly by `/opt/bin/dev/swiftly`.
-- Unlike Nix, Swiftly does not need a `/swiftly` logical bind mount unless a future tool requires it.
+## Stage 4: Validate Swift Build/Run/Test
 
-## Stage 2: Rewrite Swift Activation Helper Around Swiftly
+Goal: confirm Swiftly solves the old Nix split-package issues.
 
-Goal: Change `scripts/env/toolchain/swift_env.sh` from a Nix Swift wrapper helper into a Swiftly activation helper.
+Run through the project wrapper:
+- build
+- run CLI
+- test
 
-New behavior:
-1. Set default `HYBRID_AI_SWIFT_VERSION=6.3.2`.
-2. Set default `SWIFTLY_ROOT=/opt/bin/dev/swiftly`.
-3. Set `SWIFTLY_HOME_DIR=$SWIFTLY_ROOT/home`.
-4. Set `SWIFTLY_BIN_DIR=$SWIFTLY_ROOT/bin`.
-5. Source `$SWIFTLY_HOME_DIR/env.sh` if present.
-6. Prepend `$SWIFTLY_BIN_DIR` to `PATH`.
-7. Export `HYBRID_AI_SWIFT_DIR=$PROJECT_ROOT/src/swift`.
-8. Keep repository-local Swift build caches:
-   - `SWIFT_BUILD_PATH=$PROJECT_ROOT/build/swift`
-   - `CLANG_MODULE_CACHE_PATH=$PROJECT_ROOT/build/swift/clang-module-cache`
-   - `SWIFTPM_PACKAGECACHE=$PROJECT_ROOT/build/swift/package-cache`
-9. Validate that `swift --version` reports `6.3.2`.
-10. Fail with a clear message if Swiftly or Swift 6.3.2 is not installed.
+Expected result:
+- `swift build` works.
+- `swift run hybrid-ai-cli` works.
+- `swift test` works without `libIndexStore.so` errors.
+- `XCTest` is available from the official Swift toolchain.
+- `Testing` is available as a built-in Swift 6 module.
 
-Nix-specific fallback:
-- Optionally keep the old Nix `cc_wrapper` parser behind `HYBRID_AI_SWIFT_PROVIDER=nix` for temporary fallback only.
-- Default provider should be `swiftly`.
+## Stage 5: Decide Test Framework
 
-## Stage 3: Update Flox Manifests
+Goal: simplify tests after Swift 6.3.2 is active.
 
-Goal: Keep Flox as the environment manager while removing old Swift packages.
+Two options:
 
-Update `env/swift/manifest.toml`:
-- Remove:
-  - `swift.pkg-path = "swift"`
-  - `swiftpm.pkg-path = "swiftpm"`
-  - `xctest.pkg-path = "swiftPackages.XCTest"`
-- Keep/add host tools and dependencies:
-  - `cmake`
-  - `pkg-config` if needed
-  - `curl`
-  - `git`
-  - native libraries Swiftly or Swift reports as missing
-- Continue to source `scripts/env/toolchain/swift_env.sh` in hooks and shell profiles.
+### Conservative
 
-Update `env/hybrid-ai/manifest.toml`:
-- Remove duplicate Swift package entries:
-  - `swiftpm`
-  - `xctest`
-- Continue to include `../swift` as the Swift activation layer.
-- Keep Python setup unchanged.
+Keep current `XCTest` tests and manual Linux manifests:
+- `src/swift/Tests/LinuxMain.swift`
+- `src/swift/Tests/HybridAITests/XCTestManifests.swift`
 
-## Stage 4: Remove or Retire the Nix Flake
+Pros:
+- proven to work
+- minimal source churn
 
-Goal: Avoid maintaining duplicate environment definitions.
+Cons:
+- manual `allTests` maintenance
 
-Preferred action:
-- Delete `flake.nix` and `flake.lock` after Swiftly/Flox validation succeeds.
+### Preferred After Swift 6.3.2
 
-Alternative temporary action:
-- Keep them for one short transition branch only, but remove old Swift packages from the flake and make it source the same Swiftly activation helper.
+Migrate to built-in Swift `Testing`:
+- remove `LinuxMain.swift`
+- remove `XCTestManifests.swift`
+- replace `import XCTest` with `import Testing`
+- replace `XCTestCase` methods with `@Test` functions
+- replace `XCTAssertEqual` with `#expect`
 
-Recommended final state:
-- No flake required for day-to-day development.
-- Flox is the project activation boundary.
-- Swiftly is the Swift toolchain source.
+Pros:
+- modern Swift 6 path
+- avoids Linux XCTest discovery edge cases
+- no external `swift-testing` package needed
 
-## Stage 5: Add Project Swift Version Pin
+Recommendation: migrate to `Testing` after Swiftly is validated.
 
-Goal: Make the intended Swift version visible to tools and developers.
+## Stage 6: Decide Fate Of `flake.nix`
 
-Add:
+Goal: reduce maintenance.
 
-```text
-.swift-version
-```
+If Flox + Swiftly works:
+- remove `flake.nix` and `flake.lock`, or mark them unsupported/experimental.
+- keep one canonical path: Flox activation + Swiftly toolchain.
 
-Contents:
+If keeping the flake:
+- remove Nix Swift packages from `flake.nix`.
+- make devShell source the same Swiftly activation helper.
+- use Nix only for host libraries, not Swift.
 
-```text
-6.3.2
-```
+Recommendation:
 
-Activation scripts should treat this as the expected version when present.
-
-## Stage 6: Validate Swift 6.3.2 Build And Test
-
-Goal: Confirm the new toolchain works through the existing repo wrapper.
-
-Commands:
-
-```bash
-scripts/env/toolchain/check_swiftly.sh
-scripts/env/toolchain/check_swift_env.sh
-scripts/env/run_swift.sh build
-scripts/env/run_swift.sh run hybrid-ai-cli
-scripts/env/run_swift.sh test
-```
-
-Expected results:
-- `swift --version` reports Swift 6.3.2.
-- `swift build` succeeds.
-- `swift run hybrid-ai-cli` prints the expected status message.
-- `swift test` succeeds.
-- No Nix Swift wrapper path appears as the active `swift` binary.
-
-## Stage 7: Revisit Test Framework Choice
-
-Goal: Decide whether to keep XCTest or use Swift 6 built-in Testing.
-
-Option A: Keep XCTest
-- Conservative.
-- Minimal code changes.
-- Manual Linux manifests may no longer be necessary with Swiftly, but can be kept temporarily.
-
-Option B: Move to Swift Testing
-- Preferred long-term for Swift 6.
-- Use the built-in `Testing` module from the Swift 6.3.2 toolchain.
-- Do not add the external `apple/swift-testing` package unless there is a specific reason.
-
-Recommended sequence:
-1. First validate Swift 6.3.2 with existing XCTest tests.
-2. Then remove manual Linux discovery workaround if auto-discovery works.
-3. Then migrate to Swift Testing in a separate commit.
-
-## Stage 8: Documentation And VS Code Alignment
-
-Goal: Make all documented workflows point at the new toolchain boundary.
-
-Update:
-- `docs/usecases/swift-build-and-test.md`
-- `docs/chat/devenv_portable_workflow.md`
-- VS Code tasks if they mention Nix Swift specifically
-- Any runbooks that describe Swift as Flox/Nix-owned
-
-Expected documented workflow:
-
-```bash
-flox activate -d env/hybrid-ai
-swift --version
-scripts/env/run_swift.sh test
-```
-
-`swift --version` must show Swift 6.3.2 from Swiftly.
+> Remove the flake unless there is a concrete need for non-Flox contributors.
 
 ## 6. Proposed Final Developer Commands
 
