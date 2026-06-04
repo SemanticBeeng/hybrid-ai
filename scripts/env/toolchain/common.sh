@@ -34,15 +34,6 @@ export HOME="$PROJECT_ROOT/build/home"
 unset VIRTUAL_ENV
 unset VIRTUAL_ENV_PROMPT
 
-export PYTHON_DIR="$PROJECT_ROOT/src/python"
-export PIP_CACHE_DIR="$PROJECT_ROOT/build/python/cache/pip"
-export POETRY_CACHE_DIR="$PROJECT_ROOT/build/python/cache/poetry"
-export UV_CACHE_DIR="$PROJECT_ROOT/build/python/cache/uv"
-export PYTHONPYCACHEPREFIX="$PROJECT_ROOT/build/python/pycache"
-export PYTHONDONTWRITEBYTECODE=1
-export PIP_DISABLE_PIP_VERSION_CHECK=1
-export POETRY_VIRTUALENVS_IN_PROJECT=true
-
 export SWIFT_BUILD_PATH="$PROJECT_ROOT/build/swift"
 export CLANG_MODULE_CACHE_PATH="$PROJECT_ROOT/build/swift/clang-module-cache"
 export SWIFTPM_PACKAGECACHE="$PROJECT_ROOT/build/swift/package-cache"
@@ -54,7 +45,7 @@ export TRANSFORMERS_CACHE="$PROJECT_ROOT/volumes/cache/transformers"
 
 mkdir -p \
   "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" \
-  "$HOME" "$PIP_CACHE_DIR" "$POETRY_CACHE_DIR" "$UV_CACHE_DIR" "$PYTHONPYCACHEPREFIX" \
+  "$HOME" \
   "$SWIFT_BUILD_PATH" "$CLANG_MODULE_CACHE_PATH" "$SWIFTPM_PACKAGECACHE" \
   "$CACTUS_MODEL_PATH" "$LITERT_LM_MODELS" "$HF_HOME" "$TRANSFORMERS_CACHE" \
   "$PROJECT_ROOT/volumes/logs" "$PROJECT_ROOT/build/artifacts" "$PROJECT_ROOT/deps/libs" "$PROJECT_ROOT/deps/models"
@@ -75,10 +66,6 @@ assert_under_project "$XDG_CACHE_HOME"
 assert_under_project "$XDG_DATA_HOME"
 assert_under_project "$XDG_STATE_HOME"
 assert_under_project "$HOME"
-assert_under_project "$PIP_CACHE_DIR"
-assert_under_project "$POETRY_CACHE_DIR"
-assert_under_project "$UV_CACHE_DIR"
-assert_under_project "$PYTHONPYCACHEPREFIX"
 assert_under_project "$SWIFT_BUILD_PATH"
 assert_under_project "$CACTUS_MODEL_PATH"
 assert_under_project "$LITERT_LM_MODELS"
@@ -86,49 +73,6 @@ assert_under_project "$LITERT_LM_MODELS"
 have_command() {
   command -v "$1" >/dev/null 2>&1
 }
-
-prepend_env_path() {
-  local var_name="$1"
-  local value="$2"
-  local current_value="${!var_name:-}"
-
-  if [[ -z "$value" || ! -d "$value" ]]; then
-    return 0
-  fi
-
-  case ":$current_value:" in
-    *":$value:"*)
-      return 0
-      ;;
-  esac
-
-  if [[ -n "$current_value" ]]; then
-    printf -v "$var_name" '%s:%s' "$value" "$current_value"
-  else
-    printf -v "$var_name" '%s' "$value"
-  fi
-
-  export "$var_name"
-}
-
-configure_cpp_runtime() {
-  local libstdcpp_path=""
-  local runtime_dir=""
-
-  if ! have_command g++; then
-    return 0
-  fi
-
-  libstdcpp_path="$(g++ -print-file-name=libstdc++.so.6 2>/dev/null || true)"
-  if [[ -z "$libstdcpp_path" || "$libstdcpp_path" == "libstdc++.so.6" || ! -f "$libstdcpp_path" ]]; then
-    return 0
-  fi
-
-  runtime_dir="$(dirname "$libstdcpp_path")"
-  prepend_env_path LD_LIBRARY_PATH "$runtime_dir"
-}
-
-configure_cpp_runtime
 
 run_as_root() {
   if [[ "$(id -u)" -eq 0 ]]; then

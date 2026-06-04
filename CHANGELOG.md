@@ -32,14 +32,21 @@
 - added `docs/usecases/python-cli-and-server.md` for Python CLI and server execution through repository wrappers
 - added `docs/usecases/swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
-### Pending Python wrapper issue
-- verified that `poetry -C src/python run python -m hybrid_ai.hello_world` works from an already-active Flox shell
-- recorded that `scripts/env/run_python.sh` and `scripts/env/with_flox.sh` still hit a pending shell runtime failure (`bash: undefined symbol: rl_completion_rewrite_hook`) that must be resolved so wrapper-based Python commands work again
+### Python Flox alignment
+- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python_env.sh`, with hooks creating and syncing the managed venv under `env/hybrid-ai/.flox/cache/python`
+- added Flox profile activation for the Python venv in both `env/python/manifest.toml` and `env/hybrid-ai/manifest.toml`
+- removed the host-derived `LD_LIBRARY_PATH` mutation from `scripts/env/toolchain/common.sh` and replaced it with Flox-managed runtime activation from the Python helper
+- simplified `scripts/env/run_python.sh` and `scripts/env/run_py_server.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
+- declared `libgcc` in the active composed Flox environment and verified NumPy imports correctly from the managed venv (`6.0` sum proof)
+- resolved the earlier wrapper/runtime failure caused by pre-activation host library path pollution
 
-### Pending shell/runtime investigation
-- TODO: continue tracing the wrapper failure with the current evidence chain preserved
-- minimal repro is already confirmed: `./scripts/env/with_flox.sh env` fails before Poetry or Python are involved
-- current shell resolves `bash` from `env/hybrid-ai/.flox/run/x86_64-linux.hybrid-ai.dev/bin/bash`, which points at `bash-interactive-5.3p9`
-- direct `flox activate -d env/hybrid-ai -- ...` currently fails during `hook.on-activate` with host-tool GLIBC mismatches (`dirname` and `mkdir` requiring `GLIBC_2.42`)
-- `common.sh` currently exports `LD_LIBRARY_PATH` from the host compiler before Flox activation by resolving `g++ -print-file-name=libstdc++.so.6` to `/usr/lib/gcc/x86_64-linux-gnu/14/../../../x86_64-linux-gnu/libstdc++.so.6`
-- current root-cause hypothesis to verify next: pre-activation `LD_LIBRARY_PATH` from host `g++` is poisoning the shell/runtime environment and contributing to the `bash`/`readline` symbol failure
+### Detailed Python workflow changes
+- added `scripts/env/toolchain/python_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
+- updated `env/python/manifest.toml` so the Python module now declares `python311`, `poetry`, `uv`, and `libgcc`, boots the managed venv from its hook, and activates it from Flox shell profiles
+- updated `env/hybrid-ai/manifest.toml` so the top-level composed environment also bootstraps and activates the managed Python venv and explicitly exposes `libgcc` in the active runtime
+- updated `scripts/env/toolchain/common.sh` to remove Python-specific cache and venv policy from the shared bootstrap and to stop exporting `LD_LIBRARY_PATH` from host `g++`
+- updated `scripts/env/with_flox.sh` so no-argument mode enters a native `flox activate` shell instead of forcing `bash --noprofile --norc`
+- updated `scripts/env/run_python.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
+- updated `scripts/env/run_py_server.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
+- kept direct shell usage valid by making `flox activate -d env/hybrid-ai` the canonical Python shell entry point while preserving wrappers for non-activated shells and tasks
+- verified wrapper bootstrap from a clean shell, direct Flox activation with managed venv activation, and NumPy native-extension loading through both paths

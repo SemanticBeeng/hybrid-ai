@@ -29,12 +29,10 @@ if [[ ! -f "$FLOX_ENV_DIR/manifest.toml" ]]; then
   exit 1
 fi
 
-flox_cmd=("$FLOX_BIN" activate -d "$FLOX_ENV_DIR" --)
 if [[ $# -eq 0 ]]; then
-  flox_cmd+=(bash --noprofile --norc)
-else
-  flox_cmd+=("$@")
+  cd "$PROJECT_ROOT"
+  exec "$FLOX_BIN" activate -d "$FLOX_ENV_DIR"
 fi
 
 cd "$PROJECT_ROOT"
-exec "${flox_cmd[@]}"
+exec "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- "$@"

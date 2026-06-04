@@ -2,12 +2,32 @@ version = 1
 
 [install]
 python.pkg-path = "python311"
+python.systems = ["x86_64-linux"]
 poetry.pkg-path = "poetry"
+poetry.systems = ["x86_64-linux"]
 uv.pkg-path = "uv"
+uv.systems = ["x86_64-linux"]
+libgcc.pkg-path = "libgcc"
+libgcc.systems = ["x86_64-linux"]
 
 [hook]
 on-activate = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-python-dev}
+hybrid_ai_setup_python_env
+'''
+
+[profile]
+bash = '''
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+hybrid_ai_activate_python_env
+'''
+
+zsh = '''
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+hybrid_ai_activate_python_env
 '''

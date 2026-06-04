@@ -165,7 +165,8 @@ Verification commands:
 scripts/env/toolchain/check_nix_isolation.sh
 scripts/env/toolchain/doctor.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
-scripts/env/with_flox.sh python --version
+scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
+scripts/env/run_python.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
 scripts/env/with_flox.sh swift --version
 ```
 
@@ -174,7 +175,8 @@ Expected outcomes:
 - `/nix/nix-installer` exists
 - `/nix/receipt.json` exists
 - the daemon socket is present
-- `python` resolves inside the Flox environment
+- Python resolves to the managed Flox venv under `env/hybrid-ai/.flox/cache/python`
+- NumPy native extensions load successfully from the Flox-managed runtime (`6.0` proof)
 - `swift` resolves inside the Flox environment
 
 ## 4. Bind-Mount Persistence
@@ -260,9 +262,22 @@ sudo /nix/var/nix/profiles/default/bin/nix-daemon
 Run one command inside the Flox environment:
 
 ```bash
-scripts/env/with_flox.sh python --version
+scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 scripts/env/with_flox.sh swift --version
 ```
+
+Canonical Python shell workflow:
+
+```bash
+flox activate -d env/hybrid-ai
+cd src/python
+python -m hybrid_ai.hello_world
+```
+
+Notes:
+- `flox activate -d env/hybrid-ai` is now the canonical interactive Python shell entry point
+- the managed Python venv lives under `env/hybrid-ai/.flox/cache/python`
+- repository Python wrappers source `scripts/env/toolchain/python_env.sh` so non-activated shells reach the same managed venv and runtime-library setup
 
 Use task-specific wrappers:
 
@@ -307,14 +322,15 @@ execution to the repository wrappers:
 - `.vscode/settings.json` points editor extensions at `python` and `swift` from the Flox-activated `PATH`
 - `.vscode/tasks.json` keeps task execution pinned to repository wrappers such as `scripts/env/run_python.sh` and `scripts/env/run_swift.sh`
 - `.vscode/tasks.json` exposes `vscode:print-env` to print the live editor toolchain and portable data roots after launch
+- Python CLI/server and native-extension verification should still be treated as wrapper-or-activated-shell workflows because `scripts/env/start_vscode.sh` does not currently source `scripts/env/toolchain/python_env.sh` before launching the editor
 
 ### 6.2 Learnings and Pitfalls From This Session
 
 #### Bind-Mount Validation
 
-- On this host, `findmnt -o ROOT` was not usable for determining whether `/nix` was correctly bind-mounted.
-- The reliable test was device/inode identity between `/nix` and `/opt/bin/dev/nix`.
-- The scripts now validate the bind mount using `stat -Lc '%d:%i'` rather than depending on `findmnt` root output.
+- A stricter source-root comparison produced false negatives on this host because kernel mount metadata reported an internal subtree path rather than a visible host pathname.
+- The current workflow now only requires that `/nix` is mounted and that the daemon socket exists before wrapper-based commands proceed.
+- Practical implication: bind-mount health is still verified, but wrappers no longer reject the environment based on a brittle source-path equality check.
 
 #### Empty `/nix` Is Not a Completed Install
 
@@ -335,6 +351,20 @@ execution to the repository wrappers:
 - `flox init` created managed environments under `env/*/.flox`, including the module envs that are included by `env/hybrid-ai`.
 - The repository manifests had to be explicitly synced into those managed Flox environments before the composed top-level environment could be refreshed cleanly.
 - This is now automated by `scripts/env/toolchain/init_flox_env.sh`.
+
+#### Python Now Uses A Flox-Managed Venv
+
+- The canonical Python runtime is no longer a project-local `.venv` under `src/python`.
+- The managed venv now lives under `env/hybrid-ai/.flox/cache/python` and is created/synced by Flox hooks via `scripts/env/toolchain/python_env.sh`.
+- Direct shell usage works through `flox activate -d env/hybrid-ai`; wrapper-based usage works through `scripts/env/run_python.sh` and `scripts/env/run_py_server.sh`.
+- Python package caches and bytecode now live under `env/hybrid-ai/.flox/cache/*`, not under `build/python/*`.
+
+#### Host-Derived `LD_LIBRARY_PATH` Was The Wrong Fix Layer
+
+- Earlier iterations tried to export `LD_LIBRARY_PATH` from host `g++` inside `scripts/env/toolchain/common.sh`.
+- That polluted shell runtime linking and contributed to wrapper failures.
+- The working model is now: declare the native runtime in Flox (`libgcc` in the active composed environment) and export the runtime library path from the Flox-managed Python helper instead of deriving it from the host compiler.
+- After this change, NumPy imports successfully through both the wrapper path and the activated-shell path.
 
 #### Root-Owned Flox Cache State Causes Permission Errors
 

@@ -8,9 +8,9 @@ Primary scripts:
 
 ## 1. Goal
 
-Run Python development workflows through the repository wrappers so the Python
-runtime, dependency resolution, caches, bytecode, and logs stay inside the
-repository-managed environment.
+Run Python development workflows through the Flox-managed Python module so the
+interpreter, managed virtual environment, dependency resolution, caches,
+bytecode, and logs stay inside the repository-managed environment.
 
 This use case covers two closely related paths:
 - the Python CLI module entrypoint
@@ -23,13 +23,14 @@ The repository does not treat the host Python installation as a valid runtime.
 Instead, Python execution is expected to flow through:
 - the Determinate Nix install under the bind-mounted `/nix`
 - the composed Flox environment under `env/hybrid-ai`
-- repository wrappers that pin the actual command path and runtime variables
+- the managed Python venv created under `env/hybrid-ai/.flox/cache/python`
+- repository wrappers only when the shell is not already activated
 
-Without the wrappers, these failures become likely:
+Without the Flox activation model, these failures become likely:
 - the wrong Python interpreter is used
 - package resolution drifts from the declared repository environment
 - caches and bytecode are written outside the repository
-- Copilot or task-generated commands run against the host interpreter instead of the project toolchain
+- native Python extensions miss their declared system runtime libraries
 
 ## 3. Scope And Assumptions
 
@@ -46,6 +47,7 @@ Runtime wrappers:
 - `scripts/env/run_py_server.sh`
 - `scripts/env/with_flox.sh`
 - `scripts/env/toolchain/common.sh`
+- `scripts/env/toolchain/python_env.sh`
 
 Python source:
 - `src/python/pyproject.toml`
@@ -55,10 +57,11 @@ Python source:
 
 Repository-managed writable paths used by this workflow:
 - `build/home`
-- `build/python/cache/pip`
-- `build/python/cache/poetry`
-- `build/python/cache/uv`
-- `build/python/pycache`
+- `env/hybrid-ai/.flox/cache/python`
+- `env/hybrid-ai/.flox/cache/pip-cache`
+- `env/hybrid-ai/.flox/cache/poetry-cache`
+- `env/hybrid-ai/.flox/cache/uv-cache`
+- `env/hybrid-ai/.flox/cache/pycache`
 - `volumes/logs/python_server.log`
 
 ## 5. Effective Runtime Behavior
@@ -67,8 +70,9 @@ Repository-managed writable paths used by this workflow:
 
 `scripts/env/run_python.sh` does the following:
 - defaults to `python -m hybrid_ai` when no explicit arguments are given
-- launches through `scripts/env/with_flox.sh`
-- inherits the repository path policy from `scripts/env/toolchain/common.sh`
+- if already inside the active Flox environment, it activates the managed venv and runs `python` directly
+- otherwise it launches through `scripts/env/with_flox.sh` and activates the managed venv in the command shell
+- uses `scripts/env/toolchain/python_env.sh` as the single source of truth for venv creation, dependency sync, cache paths, and runtime library activation
 
 Current default behavior of the module entrypoint:
 - `src/python/hybrid_ai/__main__.py` imports `hello()` and prints its value
@@ -79,7 +83,7 @@ Current default behavior of the module entrypoint:
 `scripts/env/run_py_server.sh` does the following:
 - creates `volumes/logs` if needed
 - appends server output to `volumes/logs/python_server.log`
-- runs `python -m hybrid_ai.server` through `scripts/env/with_flox.sh`
+- activates the managed venv and runs `python -m hybrid_ai.server`
 
 Current server behavior:
 - binds to `127.0.0.1:8080` by default
@@ -102,7 +106,18 @@ Expected output today:
 hybrid-ai python module ready
 ```
 
-### 6.2 Python CLI With Explicit Python Arguments
+### 6.2 Direct Flox Shell Workflow
+
+When you are already in a Flox shell, direct Python commands are valid after the
+managed venv has been activated by the Flox profile:
+
+```bash
+flox activate -d env/hybrid-ai
+cd src/python
+python -m hybrid_ai.hello_world
+```
+
+### 6.3 Python CLI With Explicit Python Arguments
 
 Run arbitrary Python commands inside the repository environment:
 
@@ -111,7 +126,7 @@ scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 scripts/env/run_python.sh -m hybrid_ai
 ```
 
-### 6.3 Python Server
+### 6.4 Python Server
 
 Start the server with defaults:
 
@@ -136,7 +151,7 @@ scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 ```
 
 Expected result:
-- the interpreter path should point into `env/hybrid-ai/.flox/run/.../bin/python`
+- the interpreter path should point into `env/hybrid-ai/.flox/cache/python/bin/python`
 - it should not resolve to a host-global Python installation
 
 ### 7.2 Verify Repository-Local Caches And Bytecode
@@ -148,7 +163,7 @@ scripts/env/run_python.sh -c 'import os; print(os.environ["PIP_CACHE_DIR"]); pri
 ```
 
 Expected result:
-- all paths should resolve under `build/`
+- all paths should resolve under `env/hybrid-ai/.flox/cache/`
 
 ### 7.3 Verify The Default CLI Entry
 
@@ -159,7 +174,18 @@ scripts/env/run_python.sh
 Expected result:
 - output should be `hybrid-ai python module ready`
 
-### 7.4 Verify The Server Response
+### 7.4 Verify Native Runtime Support
+
+Use the wrapper to prove NumPy can load its native extension runtime:
+
+```bash
+scripts/env/run_python.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
+```
+
+Expected result:
+- output should be `6.0`
+
+### 7.5 Verify The Server Response
 
 Start the server in one terminal:
 
@@ -181,7 +207,7 @@ Expected JSON payload fields:
 Current expected service name:
 - `hybrid-ai-python-server`
 
-### 7.5 Verify The Server Log Path
+### 7.6 Verify The Server Log Path
 
 After running the server, confirm the log file exists:
 
@@ -196,11 +222,11 @@ Expected result:
 ## 8. Expected Outcomes
 
 When this workflow is correct:
-- Python execution always goes through the Flox-managed environment
-- CLI behavior is reproducible from both shells and editor tasks
-- bytecode and caches are written under `build/`
+- `flox activate -d env/hybrid-ai` yields a shell that can run project Python commands against the managed venv
+- wrapper-based Python commands bootstrap the same managed venv when no activated shell exists
+- bytecode and Python package caches are written under `env/hybrid-ai/.flox/cache/`
 - server logs are written under `volumes/logs`
-- no host-global virtualenv or user-site state is required
+- NumPy and other native Python extensions can resolve their Flox-provided runtime libraries
 
 ## 9. Failure Modes And Recovery
 
@@ -218,11 +244,11 @@ sudo /nix/var/nix/profiles/default/bin/nix-daemon
 ### 9.2 Wrong Python Interpreter
 
 Symptom:
-- `sys.executable` does not point into `env/hybrid-ai/.flox/run/...`
+- `sys.executable` does not point into `env/hybrid-ai/.flox/cache/python/bin/python`
 
 Recovery:
 - rerun through `scripts/env/run_python.sh`
-- avoid invoking `python` directly from the host shell
+- activate the environment with `flox activate -d env/hybrid-ai` before invoking `python` directly
 - if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
 
 ### 9.3 Server Does Not Start
@@ -241,9 +267,9 @@ Symptom:
 - Python writes appear under the real user home or another unexpected location
 
 Recovery:
-- inspect `scripts/env/toolchain/common.sh`
+- inspect `scripts/env/toolchain/python_env.sh`
 - rerun `scripts/env/toolchain/check_env.sh`
-- make sure the command was started via the repository wrapper rather than host Python
+- make sure the command was started via the repository wrapper or an activated Flox shell rather than host Python
 
 ## 10. Relationship To Other Docs
 

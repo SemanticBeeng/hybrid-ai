@@ -12,7 +12,8 @@ instead of the host machine defaults.
 
 For this repository, that means:
 - the editor is launched through the composed Flox environment at `env/hybrid-ai`
-- Python resolves to the Flox-managed Python runtime
+- Python resolves to the Flox-managed interpreter from the active Flox environment
+- Python CLI and native-extension workflows still rely on the managed venv helper under `env/hybrid-ai/.flox/cache/python`
 - Swift resolves to the Flox-managed Swift toolchain
 - the portable VS Code user-data root remains under `$HOME/appdata/.vscode/data`
 - workspace-level VS Code settings continue to route task execution through the repository wrappers
@@ -86,6 +87,12 @@ As a result:
 - `swift` inside the editor environment comes from Flox
 - integrated terminals still inherit the repository workspace terminal environment settings
 - Python and Swift extension paths remain pinned by `.vscode/settings.json`
+
+Important current split:
+- the editor process starts inside the composed Flox environment
+- the managed Python venv under `env/hybrid-ai/.flox/cache/python` is the canonical runtime for Python CLI, server, and native-extension workflows
+- wrapper-based Python commands and activated Flox shells explicitly source `scripts/env/toolchain/python_env.sh` to activate that managed venv
+- `scripts/env/start_vscode.sh` does not currently source the Python helper itself before launching VS Code, so editor-side Python extension discovery is Flox-based but not yet managed-venv-specific
 
 ## 6. Required VS Code Settings Context
 
@@ -182,15 +189,21 @@ This means:
 - extension-launched Swift actions resolve to the Flox-managed Swift binary from the activated editor `PATH`
 - Copilot-generated tasks remain aligned with repository scripts rather than host binaries
 
+Current Python nuance:
+- `.vscode/settings.json` intentionally points to `python`, not directly to `env/hybrid-ai/.flox/cache/python/bin/python`
+- this keeps the editor aligned with the activated Flox environment while avoiding direct extension reliance on the CLI/server wrapper scripts
+- the managed venv remains the canonical runtime for wrapper-based Python commands and for validated native-extension behavior such as NumPy
+
 ## 9. Expected Outcomes
 
 When this workflow is working correctly:
 - the editor process is launched from a shell that already activated Flox
-- editor-side Python resolves to the project environment
+- editor-side Python resolves to the project Flox environment
 - editor-side Swift resolves to the project environment
 - user settings such as `remote.SSH.serverInstallPath` still come from the portable user settings file
 - workspace settings override only the repository-specific keys that need pinning
 - Copilot suggestions and generated commands are grounded in the same repository toolchain used by the wrappers and tasks
+- Python CLI/server commands remain reproducible because the repository wrappers and activated Flox shells both source the managed Python helper before running Python code
 
 ## 10. Failure Modes And Recovery
 
@@ -242,6 +255,18 @@ Recovery:
 - relaunch the editor with `scripts/env/start_vscode.sh`
 - do not open the workspace from a host-launched editor window that bypasses the launcher
 
+### 10.5 Editor Python Uses Flox But Not Managed Venv
+
+Symptom:
+- editor-side Python features resolve the Flox interpreter, but CLI/runtime checks that depend on the managed venv are not identical to `scripts/env/run_python.sh`
+
+Meaning:
+- the editor was launched inside Flox as designed, but `scripts/env/start_vscode.sh` does not yet source `scripts/env/toolchain/python_env.sh` before launching VS Code
+
+Recovery:
+- use `scripts/env/run_python.sh` or an activated Flox shell for authoritative Python CLI and runtime verification
+- if editor-side managed-venv parity becomes required, update the launcher to source the Python helper before launching VS Code
+
 ## 11. Relationship To The Other Docs
 
 Use this document when you want the detailed operational workflow for the editor
@@ -255,9 +280,10 @@ Use the following documents for broader context:
 
 Implemented now:
 - `scripts/env/start_vscode.sh`
-- workspace settings pinned to repository Python and Swift wrappers
+- workspace settings pinned to repository Flox-resolved `python` and `swift`
 - task `vscode:print-env`
 - portable-root-aware editor documentation
 
 Known limitation:
 - the launcher can only auto-resolve the VS Code binary if it is on `PATH` or matches one of the expected portable locations; otherwise `VSCODE_BIN` must be provided explicitly
+- the launcher currently guarantees the composed Flox toolchain for the editor process, but it does not yet pre-activate the managed Python venv used by the repository Python wrappers

@@ -43,8 +43,10 @@ Requirement: Python integrated with Flox, with room for stricter Nix packaging l
 Design:
 - Python module has pyproject.toml + poetry.lock as canonical dependency inputs.
 - Flox environment exposes Python executable and packaging tooling for repository workflows.
+- The canonical Python runtime is a Flox-managed venv under `env/hybrid-ai/.flox/cache/python`, created and synced by hook logic in `scripts/env/toolchain/python_env.sh`.
+- Interactive shell use is expected to start with `flox activate -d env/hybrid-ai`; wrapper-based CLI/server use activates the same managed venv explicitly when the shell is not already activated.
 - If CI or release packaging later needs a Nix-built Python artifact, that should be added as a separate explicit path rather than assumed by the default developer workflow.
-- Runtime write paths (pip cache, poetry cache, pycache) redirected under build/.
+- Python package caches and bytecode are redirected under `env/hybrid-ai/.flox/cache/`.
 
 ### 1.5 Swift via Flox
 Requirement: Swift module via SwiftPM under the Flox-managed toolchain.
@@ -82,11 +84,6 @@ Design:
 
 All writable data is constrained to:
 - build/
-  - build/python/venv
-  - build/python/cache/pip
-  - build/python/cache/poetry
-  - build/python/cache/uv
-  - build/python/pycache
   - build/swift
   - build/artifacts
 - volumes/
@@ -98,6 +95,11 @@ All writable data is constrained to:
   - deps/libs (symlink targets)
   - deps/models (symlink targets)
 - env/*/.flox/ (managed local Flox state; ignored by Git)
+  - env/hybrid-ai/.flox/cache/python
+  - env/hybrid-ai/.flox/cache/pip-cache
+  - env/hybrid-ai/.flox/cache/poetry-cache
+  - env/hybrid-ai/.flox/cache/uv-cache
+  - env/hybrid-ai/.flox/cache/pycache
 - nix/
 - .vscode/
 
@@ -130,11 +132,11 @@ Mandatory exports in Flox activation hooks and wrapper scripts:
   - HOME=$PWD/build/home (only inside controlled wrappers when tools hardcode HOME)
 - Python:
   - PYTHON_DIR=$PWD/src/python
-  - VIRTUAL_ENV=$PWD/build/python/venv (if venv bridge is needed)
-  - PIP_CACHE_DIR=$PWD/build/python/cache/pip
-  - POETRY_CACHE_DIR=$PWD/build/python/cache/poetry
-  - UV_CACHE_DIR=$PWD/build/python/cache/uv
-  - PYTHONPYCACHEPREFIX=$PWD/build/python/pycache
+  - VIRTUAL_ENV=$PWD/env/hybrid-ai/.flox/cache/python
+  - PIP_CACHE_DIR=$PWD/env/hybrid-ai/.flox/cache/pip-cache
+  - POETRY_CACHE_DIR=$PWD/env/hybrid-ai/.flox/cache/poetry-cache
+  - UV_CACHE_DIR=$PWD/env/hybrid-ai/.flox/cache/uv-cache
+  - PYTHONPYCACHEPREFIX=$PWD/env/hybrid-ai/.flox/cache/pycache
   - PYTHONDONTWRITEBYTECODE=1
   - PIP_DISABLE_PIP_VERSION_CHECK=1
 - Swift:
@@ -204,6 +206,7 @@ Policy:
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
 - Python extension interpreter path resolves to `python` from the Flox-activated `PATH`.
 - Swift extension tools resolve to `swift` from the Flox-activated `PATH`.
+- The managed Python venv used by CLI/server workflows is activated by `scripts/env/toolchain/python_env.sh`; the VS Code launcher does not currently source that helper before opening the editor, so editor Python is Flox-based but not yet explicitly managed-venv-specific.
 
 Verification requirements:
 - Confirm `scripts/env/start_vscode.sh --print-env` reports Flox-provided `python` and `swift` binaries.
@@ -214,9 +217,10 @@ Verification requirements:
 ## 6. Execution Scenarios to Validate
 
 ### 6.1 Python CLI execution
-- Command-line: run through scripts/env/run_python.sh to enforce env vars and flox activation.
-- Copilot/VS Code: tasks and debug profiles invoke same wrapper.
-- Validation: print sys.executable, cache dirs, pycache prefix; ensure all under build/.
+- Command-line: run through `scripts/env/run_python.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
+- Activated shell: `flox activate -d env/hybrid-ai`, then run Python directly from `src/python`.
+- Copilot/VS Code: tasks should continue to invoke the repository wrapper for authoritative CLI/runtime behavior.
+- Validation: print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `env/hybrid-ai/.flox/cache/`.
 
 ### 6.2 Python server execution
 - Launch server via scripts/env/run_py_server.sh.
@@ -410,6 +414,7 @@ Verified in this workspace:
 - scripts/env/toolchain/check_env.sh confirms project-local HOME/XDG/cache paths.
 - Determinate Nix and Flox setup details are tracked in `docs/chat/determinate_nix_flox_setup.md`.
 - `scripts/env/start_vscode.sh --print-env` reports the portable user-data root plus Flox-provided Python and Swift binaries for editor launch.
+- `scripts/env/run_python.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'` succeeds with output `6.0` through the managed Flox Python venv.
 
 Pending prerequisites before full execution:
 - Follow the runbook in `docs/chat/determinate_nix_flox_setup.md` for Determinate Nix, Flox, bind-mount persistence, and verification.
@@ -417,6 +422,7 @@ Pending prerequisites before full execution:
 Important note:
 - The current env/hybrid-ai/manifest.toml composes the module manifests via Flox `[include]`. Keep project-specific overrides in the top-level manifest and keep shared toolchain logic in the module-local manifests.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
+- The Python workflow now relies on `scripts/env/toolchain/python_env.sh` as the single source of truth for managed-venv creation, dependency sync, cache paths, and runtime-library activation.
 
 ## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
 
