@@ -9,5 +9,7 @@ deps/*
 !deps/.gitkeep
 env/*/.flox/
 **/.venv/
+src/swift/.build/
+**/.dist/
 *.log
 .DS_Store

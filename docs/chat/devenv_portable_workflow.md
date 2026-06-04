@@ -220,7 +220,7 @@ Verification requirements:
 - Command-line: run through `scripts/env/run_python.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
 - Activated shell: `flox activate -d env/hybrid-ai`, then run Python directly from `src/python`.
 - Copilot/VS Code: tasks should continue to invoke the repository wrapper for authoritative CLI/runtime behavior.
-- Validation: print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `env/hybrid-ai/.flox/cache/`.
+- Validation: run `scripts/env/toolchain/check_python_env.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `env/hybrid-ai/.flox/cache/`.
 
 ### 6.2 Python server execution
 - Launch server via scripts/env/run_py_server.sh.
@@ -229,7 +229,7 @@ Verification requirements:
 ### 6.3 Swift build and test
 - Command-line: scripts/env/run_swift.sh build/test with explicit --build-path bound to SWIFT_BUILD_PATH.
 - Copilot/VS Code: build tasks call same wrapper.
-- Validation: no source-adjacent .build output.
+- Validation: run `scripts/env/toolchain/check_swift_env.sh`, then ensure no source-adjacent .build output.
 
 ### 6.4 Inference workflow (Gemma 4 + multi-engine)
 - Local Linux VM: run LiteRT-LM using LITERT_LM_MODELS under volumes/models/litert-lm.

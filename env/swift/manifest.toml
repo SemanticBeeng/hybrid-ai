@@ -2,11 +2,28 @@ version = 1
 
 [install]
 swift.pkg-path = "swift"
+swiftpm.pkg-path = "swiftpm"
+xctest.pkg-path = "swiftPackages.XCTest"
 cmake.pkg-path = "cmake"
 
 [hook]
 on-activate = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-swift-dev}
+hybrid_ai_activate_swift_env
+'''
+
+[profile]
+bash = '''
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+hybrid_ai_activate_swift_env
+'''
+
+zsh = '''
+PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+hybrid_ai_activate_swift_env
 '''

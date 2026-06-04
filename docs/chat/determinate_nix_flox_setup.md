@@ -162,6 +162,9 @@ It runs, in order:
 Verification commands:
 
 ```bash
+scripts/env/toolchain/check_env.sh
+scripts/env/toolchain/check_python_env.sh
+scripts/env/toolchain/check_swift_env.sh
 scripts/env/toolchain/check_nix_isolation.sh
 scripts/env/toolchain/doctor.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
@@ -171,6 +174,9 @@ scripts/env/with_flox.sh swift --version
 ```
 
 Expected outcomes:
+- the shared isolation layer reports project-local `HOME` and `XDG_*` paths
+- the Python runtime verifier reports the managed Flox venv under `env/hybrid-ai/.flox/cache/python`
+- the Swift runtime verifier reports the Flox-managed Swift toolchain and `build/swift` paths
 - `/nix` is bind-mounted from `/opt/bin/dev/nix`
 - `/nix/nix-installer` exists
 - `/nix/receipt.json` exists
@@ -264,6 +270,14 @@ Run one command inside the Flox environment:
 ```bash
 scripts/env/run_python.sh -c 'import sys; print(sys.executable)'
 scripts/env/with_flox.sh swift --version
+```
+
+Dedicated environment verification helpers:
+
+```bash
+scripts/env/toolchain/check_env.sh
+scripts/env/toolchain/check_python_env.sh
+scripts/env/toolchain/check_swift_env.sh
 ```
 
 Canonical Python shell workflow:

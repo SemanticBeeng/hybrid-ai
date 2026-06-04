@@ -106,7 +106,7 @@ scripts/env/run_swift.sh package resolve
 ### 6.4 Show The Active Swift Toolchain
 
 ```bash
-scripts/env/run_swift.sh --version
+scripts/env/with_flox.sh swift --version
 ```
 
 ## 7. Verification Workflow
@@ -186,7 +186,7 @@ sudo /nix/var/nix/profiles/default/bin/nix-daemon
 ### 9.2 Wrong Swift Toolchain
 
 Symptom:
-- `swift --version` or `command -v swift` indicates a host toolchain rather than the Flox-managed one
+- `scripts/env/with_flox.sh swift --version` or `command -v swift` indicates a host toolchain rather than the Flox-managed one
 
 Recovery:
 - rerun through `scripts/env/run_swift.sh`

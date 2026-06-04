@@ -3,6 +3,10 @@ version = 1
 [install]
 libgcc.pkg-path = "libgcc"
 libgcc.systems = ["x86_64-linux"]
+swiftpm.pkg-path = "swiftpm"
+swiftpm.systems = ["x86_64-linux"]
+xctest.pkg-path = "swiftPackages.XCTest"
+xctest.systems = ["x86_64-linux"]
 
 [include]
 environments = [
@@ -17,19 +21,25 @@ on-activate = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-fullstack}
 hybrid_ai_setup_python_env
+hybrid_ai_activate_swift_env
 '''
 
 [profile]
 bash = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
 hybrid_ai_activate_python_env
+hybrid_ai_activate_swift_env
 '''
 
 zsh = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
 hybrid_ai_activate_python_env
+hybrid_ai_activate_swift_env
 '''

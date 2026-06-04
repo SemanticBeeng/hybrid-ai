@@ -5,6 +5,8 @@ Status: Implemented
 Primary scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
+- `scripts/env/toolchain/check_python_env.sh`
+- `scripts/env/toolchain/check_swift_env.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 - `scripts/env/run_python.sh`
 - `scripts/env/with_flox.sh`
@@ -55,6 +57,8 @@ Key requirements:
 Verification scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
+- `scripts/env/toolchain/check_python_env.sh`
+- `scripts/env/toolchain/check_swift_env.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 
 Runtime scripts used for proof:
@@ -91,7 +95,9 @@ It means the scripts that are supposed to validate isolation must themselves be
 kept consistent with the current environment model.
 
 Current examples:
-- `scripts/env/toolchain/check_env.sh` must inspect the current managed Flox Python venv model rather than older `common.sh` Python exports
+- `scripts/env/toolchain/check_env.sh` should stay focused on the common/shared isolation layer
+- `scripts/env/toolchain/check_python_env.sh` should verify the Python-specific managed Flox venv layer
+- `scripts/env/toolchain/check_swift_env.sh` should verify the Swift-specific runtime/toolchain layer
 - `scripts/env/toolchain/check_nix_isolation.sh` must follow the current mount policy implemented in `common.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
 
 So host-level verification tooling consistency is satisfied only when the
@@ -145,9 +151,46 @@ Intended purpose:
 - print the core isolation variables and daemon state
 
 Current status:
-- this script now activates the composed Flox environment, sources `scripts/env/toolchain/python_env.sh`, activates the managed venv, and prints the current env model directly
+- this script is now generic/common again
+- it inspects the shared isolation layer from `scripts/env/toolchain/common.sh`
+- it does not claim to prove Python or Swift runtime state by itself
 
-### 6.3 Host-Level Nix Isolation Check
+### 6.3 Python Runtime Environment Check
+
+Run:
+
+```bash
+scripts/env/toolchain/check_python_env.sh
+```
+
+Intended purpose:
+- print the Python-specific managed Flox venv state directly
+
+Expected outputs include:
+- `FLOX_ENV`
+- `FLOX_ENV_CACHE`
+- `HYBRID_AI_PYTHON_VENV`
+- `VIRTUAL_ENV`
+- Python cache paths under `env/hybrid-ai/.flox/cache/`
+- `sys.executable` under `env/hybrid-ai/.flox/cache/python/bin/python`
+
+### 6.4 Swift Runtime Environment Check
+
+Run:
+
+```bash
+scripts/env/toolchain/check_swift_env.sh
+```
+
+Intended purpose:
+- print the Swift-specific runtime/toolchain state directly
+
+Expected outputs include:
+- `swift_bin` under `env/hybrid-ai/.flox/run/.../bin/swift`
+- `SWIFT_BUILD_PATH` under `build/swift`
+- Swift cache/module-cache paths under `build/swift`
+
+### 6.5 Host-Level Nix Isolation Check
 
 Run:
 
@@ -162,7 +205,7 @@ Intended purpose:
 Current status:
 - this script now follows the current mount-validation policy: `/nix` must be mounted and usable, the daemon socket must be present, and kernel-reported mount-root mismatches are treated as warnings rather than false-failing the workflow
 
-### 6.4 Python Runtime Isolation Proof
+### 6.6 Python Runtime Isolation Proof
 
 Run:
 
@@ -177,7 +220,7 @@ Expected results:
 - Python caches point into `env/hybrid-ai/.flox/cache/`
 - NumPy prints `6.0`
 
-### 6.5 Swift Runtime Isolation Proof
+### 6.7 Swift Runtime Isolation Proof
 
 Run:
 
@@ -196,6 +239,8 @@ Expected results:
 These checks should pass in the current setup:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
+- `scripts/env/toolchain/check_python_env.sh`
+- `scripts/env/toolchain/check_swift_env.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 - Python wrapper/runtime isolation proofs
 - NumPy import proof
@@ -262,7 +307,9 @@ Recovery:
 
 This use case is fully satisfied only when all of the following are true:
 - `scripts/env/toolchain/doctor.sh` passes
-- `scripts/env/toolchain/check_env.sh` passes and prints the current env model correctly
+- `scripts/env/toolchain/check_env.sh` passes and prints the common/shared env model correctly
+- `scripts/env/toolchain/check_python_env.sh` passes and prints the Python runtime env correctly
+- `scripts/env/toolchain/check_swift_env.sh` passes and prints the Swift runtime env correctly
 - `scripts/env/toolchain/check_nix_isolation.sh` passes and reflects the current mount-validation model correctly
 - Python runtime proof passes
 - NumPy proof passes
