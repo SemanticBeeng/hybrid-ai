@@ -1,0 +1,11 @@
+{
+  "": {
+    "swift-dependencies": "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/master.swiftdeps"
+  },
+  "/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAI/HybridAI.swift": {
+    "dependencies": "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.d",
+    "object": "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o",
+    "swiftmodule": "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI~partial.swiftmodule",
+    "swift-dependencies": "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftdeps"
+  }
+}

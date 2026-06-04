@@ -1,0 +1,176 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "HybridAI-debug.module": ["<HybridAI-debug.module>"]
+  "HybridAICLI-debug.module": ["<HybridAICLI-debug.module>"]
+  "HybridAIPackageTests-debug.module": ["<HybridAIPackageTests-debug.module>"]
+  "HybridAIPackageTests-debug.test": ["<HybridAIPackageTests-debug.test>"]
+  "HybridAITests-debug.module": ["<HybridAITests-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "hybrid-ai-cli-debug.exe": ["<hybrid-ai-cli-debug.exe>"]
+  "main": ["<HybridAI-debug.module>","<HybridAICLI-debug.module>","<hybrid-ai-cli-debug.exe>"]
+  "test": ["<HybridAI-debug.module>","<HybridAICLI-debug.module>","<HybridAIPackageTests-debug.test>","<HybridAITests-debug.module>","<hybrid-ai-cli-debug.exe>"]
+default: "main"
+nodes:
+  "/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAI/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAICLI/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o"]
+    description: "Wrapping AST for HybridAI for debugging"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-modulewrap","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAI/HybridAI.swift"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/sources"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/sources"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/HybridAICLI.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.swiftmodule"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/HybridAICLI.swiftmodule.o"]
+    description: "Wrapping AST for HybridAICLI for debugging"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-modulewrap","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.swiftmodule","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/HybridAICLI.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAICLI/main.swift"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/sources"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/sources"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/HybridAIPackageTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.swiftmodule"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/HybridAIPackageTests.swiftmodule.o"]
+    description: "Wrapping AST for HybridAIPackageTests for debugging"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-modulewrap","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.swiftmodule","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/HybridAIPackageTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/nkse/projects/hybrid-ai/src/swift/Tests/LinuxMain.swift"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/sources"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/sources"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/HybridAIPackageTests.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/LinuxMain.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/XCTestManifests.swift.o"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.product/Objects.LinkFileList"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swiftmodule.o"]
+    description: "Wrapping AST for HybridAITests for debugging"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-modulewrap","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/HybridAITests.swift","/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/XCTestManifests.swift"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/sources"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/sources"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/HybridAICLI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/main.swift.o"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli.product/Objects.LinkFileList"
+
+  "/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt"
+
+  "<HybridAI-debug.module>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule"]
+    outputs: ["<HybridAI-debug.module>"]
+
+  "<HybridAICLI-debug.module>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/main.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.swiftmodule"]
+    outputs: ["<HybridAICLI-debug.module>"]
+
+  "<HybridAIPackageTests-debug.module>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/LinuxMain.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.swiftmodule"]
+    outputs: ["<HybridAIPackageTests-debug.module>"]
+
+  "<HybridAIPackageTests-debug.test>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.xctest"]
+    outputs: ["<HybridAIPackageTests-debug.test>"]
+
+  "<HybridAITests-debug.module>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/XCTestManifests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule"]
+    outputs: ["<HybridAITests-debug.module>"]
+
+  "<hybrid-ai-cli-debug.exe>":
+    tool: phony
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli"]
+    outputs: ["<hybrid-ai-cli-debug.exe>"]
+
+  "C.HybridAI-debug.module":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAI/HybridAI.swift","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/sources"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule"]
+    description: "Compiling Swift Module 'HybridAI' (1 sources)"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-module-name","HybridAI","-emit-dependencies","-emit-module","-emit-module-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule","-output-file-map","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/sources","-I","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-target","x86_64-unknown-linux-gnu","-swift-version","5","-enable-batch-mode","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","swift","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.HybridAICLI-debug.module":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAICLI/main.swift","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/sources"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/main.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.swiftmodule"]
+    description: "Compiling Swift Module 'HybridAICLI' (1 sources)"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-module-name","HybridAICLI","-emit-dependencies","-emit-module","-emit-module-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.swiftmodule","-output-file-map","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/output-file-map.json","-incremental","-c","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/sources","-I","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-target","x86_64-unknown-linux-gnu","-swift-version","5","-enable-batch-mode","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","HybridAICLI_main","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","swift","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.HybridAIPackageTests-debug.module":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/Tests/LinuxMain.swift","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/sources"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/LinuxMain.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.swiftmodule"]
+    description: "Compiling Swift Module 'HybridAIPackageTests' (1 sources)"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-module-name","HybridAIPackageTests","-emit-dependencies","-emit-module","-emit-module-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.swiftmodule","-output-file-map","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/output-file-map.json","-incremental","-c","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/sources","-I","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-target","x86_64-unknown-linux-gnu","-swift-version","5","-enable-batch-mode","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","swift","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.HybridAIPackageTests-debug.test":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/HybridAIPackageTests.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.build/LinuxMain.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/XCTestManifests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.product/Objects.LinkFileList"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.xctest"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.xctest"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-L","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.xctest","-module-name","HybridAIPackageTests","-emit-executable","-Xlinker","-rpath=$ORIGIN","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAIPackageTests.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "C.HybridAITests-debug.module":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/HybridAITests.swift","/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/XCTestManifests.swift","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/swift-version--3514359E4C88D01C.txt","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.swiftmodule","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/sources"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/HybridAITests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/XCTestManifests.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule"]
+    description: "Compiling Swift Module 'HybridAITests' (2 sources)"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-module-name","HybridAITests","-emit-dependencies","-emit-module","-emit-module-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.swiftmodule","-output-file-map","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAITests.build/sources","-I","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-target","x86_64-unknown-linux-gnu","-swift-version","5","-enable-batch-mode","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-module-cache-path","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","swift","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.hybrid-ai-cli-debug.exe":
+    tool: shell
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAI.build/HybridAI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/HybridAICLI.swiftmodule.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/HybridAICLI.build/main.swift.o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli.product/Objects.LinkFileList"]
+    outputs: ["/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli"
+    args: ["/home/nkse/projects/hybrid-ai/env/swift/.flox/run/x86_64-linux.swift.dev/bin/swiftc","-L","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug","-o","/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli","-module-name","hybrid_ai_cli","-emit-executable","-Xlinker","--defsym","-Xlinker","main=HybridAICLI_main","-Xlinker","-rpath=$ORIGIN","@/home/nkse/projects/hybrid-ai/src/swift/.build/x86_64-unknown-linux-gnu/debug/hybrid-ai-cli.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAI/","/home/nkse/projects/hybrid-ai/src/swift/Sources/HybridAICLI/","/home/nkse/projects/hybrid-ai/src/swift/Tests/HybridAITests/","/home/nkse/projects/hybrid-ai/src/swift/Package.swift","/home/nkse/projects/hybrid-ai/src/swift/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
