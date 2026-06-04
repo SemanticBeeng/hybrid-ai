@@ -233,6 +233,7 @@ Execution note:
 - `scripts/env/run_swift.sh build` succeeded with Swiftly Swift `6.3.2`.
 - `scripts/env/run_swift.sh run hybrid-ai-cli` succeeded and printed `hybrid-ai swift module ready`.
 - `scripts/env/run_swift.sh test` succeeded: 1 test executed, 0 failures.
+- During Stage 4 validation, Swiftly initially failed because Flox-provided `LD_LIBRARY_PATH` caused the official Swift toolchain to load incompatible Nix/Flox libraries. `scripts/env/toolchain/swift_env.sh` now preserves the original value in `HYBRID_AI_ORIGINAL_LD_LIBRARY_PATH` and sanitizes `LD_LIBRARY_PATH` for Swiftly tools.
 
 ## Stage 5: Decide Test Framework
 
@@ -269,6 +270,14 @@ Pros:
 
 Recommendation: migrate to `Testing` after Swiftly is validated.
 
+Execution note:
+- Chose the preferred Swift 6 path.
+- Migrated `src/swift/Tests/HybridAITests/HybridAITests.swift` from `XCTest` to built-in Swift `Testing`.
+- Removed the manual Linux XCTest discovery files:
+  - `src/swift/Tests/LinuxMain.swift`
+  - `src/swift/Tests/HybridAITests/XCTestManifests.swift`
+- `scripts/env/run_swift.sh test` succeeded with Swift Testing: 1 test, 0 failures.
+
 ## Stage 6: Decide Fate Of `flake.nix`
 
 Goal: reduce maintenance.
@@ -294,6 +303,7 @@ Recommendation:
 Execution note:
 - `scripts/env/toolchain/check_python_env.sh` was used to verify the Flox-managed Python environment.
 - `flake.nix` and `flake.lock` were removed from the repository.
+- Stage 6 was re-verified after the Swiftly migration: no `flake.*` files remain, Flox Python still resolves to `env/hybrid-ai/.flox/cache/python/bin/python`, and Swift resolves to `/opt/bin/dev/swiftly/bin/swift` with Swift `6.3.2`.
 
 ## 6. Proposed Final Developer Commands
 
