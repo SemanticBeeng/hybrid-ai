@@ -159,8 +159,8 @@ Intended purpose:
 - print the core isolation variables and daemon state
 
 Current status:
-- this script is now generic/common again
-- it inspects the shared isolation layer aggregated by `scripts/env/toolchain/common.sh`
+- this script prints the broad compatibility/isolation view used by repository wrappers
+- it sources `scripts/env/toolchain/common.sh`, which is a compatibility aggregator and not the central Flox manifest policy
 - it does not claim to prove Python or Swift runtime state by itself
 
 ### 6.3 Python Runtime Environment Check

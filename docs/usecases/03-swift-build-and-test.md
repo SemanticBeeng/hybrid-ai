@@ -49,7 +49,9 @@ Runtime wrappers:
 - `scripts/env/toolchain/swift/swifty_check.sh`
 
 Session support:
-- `scripts/env/toolchain/common.sh` can be sourced once by external shells as the full-session compatibility aggregator, but Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
+- `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Swift activation.
+- Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
+- Normal Swift wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
 - `scripts/env/toolchain/swift/swift_env.sh` sources the Swift path/cache module internally, so callers do not need to source `swift_paths.sh` directly.
 
 Swift package files:

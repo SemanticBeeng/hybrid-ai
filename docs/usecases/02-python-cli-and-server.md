@@ -51,7 +51,9 @@ Runtime wrappers:
 - `scripts/env/toolchain/python/python_env.sh`
 
 Session support:
-- `scripts/env/toolchain/common.sh` can be sourced once by external shells as the full-session compatibility aggregator, but Python manifests and wrappers use `scripts/env/toolchain/python/python_env.sh` as their narrow runtime source of truth.
+- `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Python activation.
+- Python manifests and wrappers use `scripts/env/toolchain/python/python_env.sh` as their narrow runtime source of truth.
+- Normal Python wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
 
 Python source:
 - `src/python/pyproject.toml`

@@ -13,6 +13,7 @@
 - updated Flox initialization and wrappers to prefer the root-attached environment and expect root `.flox` cache paths
 - removed the legacy fullstack environment now that the root-attached `.flox/env/manifest.toml` owns canonical fullstack activation
 - updated runbooks and use cases so current Python cache, venv, activation, and verification examples point at root `.flox/cache` instead of the retired fullstack environment cache
+- refreshed runbooks and use cases for the latest root-attached Flox design: `env/base` owns `HOME`/`XDG_*`, module envs include base, wrappers use local `project_root` discovery, and `scripts/env/toolchain/common.sh` is documented as a compatibility aggregator rather than the central environment policy
 
 ### Linux-first Swift mobile UI proof
 - added a Linux-only GTK/libadwaita mobile chat proof target, `hybrid-ai-mobile-chat`, with a phone-sized single-column chat UI that imports the shared `HybridAI` module and displays the existing `hybrid-ai swift module ready` status

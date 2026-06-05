@@ -12,7 +12,7 @@ Design:
 - Use Flox-managed, composable environments as the primary dependency/runtime boundary.
 - Keep environment logic in repository files and shell wrappers (not in host machine defaults).
 - Split concerns into modules: base tooling, python, Swiftly-backed Swift activation, inference, orchestration.
-- Keep Flox manifest hooks narrow: module manifests source only the concern modules they need, while `scripts/env/toolchain/common.sh` remains a full-session compatibility aggregator for external shells and the VS Code launcher.
+- Keep Flox manifest hooks narrow: module manifests source only the concern modules they need. `scripts/env/toolchain/common.sh` remains a compatibility aggregator for broad external-shell/launcher setup, not the central policy file.
 - Provide graceful degradation on macOS where Linux-specific Nix store layering primitives are unavailable or constrained.
 
 ### 1.2 Modular architecture with Python + Swift + inference engines
@@ -25,7 +25,7 @@ Design:
   - python: python runtime and packaging workflow.
   - swift: native Swift support tools plus Swiftly activation for SwiftPM workflows.
   - inference: Google LiteRT-LM runtime helpers, model path policy, GPU provider wrappers.
-  - hybrid-ai: top-level composed environment used by developers and CI.
+  - root `.flox`: top-level composed environment used by developers and CI.
 
 ### 1.3 Flox/Nix best-practice adoption (explicit)
 Top applicable practices extracted from the listed resources and adopted here:
@@ -65,8 +65,8 @@ Design:
 Requirement: Make all build/runtime paths explicit, justify exceptions.
 
 Design:
-- Central env policy script exports all required path variables.
-- XDG variables always set to project-local roots.
+- There is no central manifest policy script. Flox modules source narrow concern helpers directly.
+- `env/base/manifest.toml` owns project-local `HOME`/`XDG_*` setup by sourcing `scripts/env/toolchain/xdg_env.sh`; `env/python`, `env/swift`, and `env/inference` include `env/base`.
 - PYTHONPATH intentionally not globally forced by default to avoid import ambiguity; only set in module wrappers when required for controlled local package execution.
 
 ### 1.7 Isolation and cleanliness constraints
@@ -215,7 +215,7 @@ Policy:
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
 - Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/python/python_env.sh`.
 - Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly.
-- The VS Code launcher sources `scripts/env/toolchain/common.sh` for session defaults, `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, and then sources `python_env.sh` plus `swift_env.sh` inside the activated Flox launch shell before starting the editor.
+- The VS Code launcher uses `scripts/env/toolchain/common.sh` only as a compatibility/helper aggregator, sources `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, and then sources `python_env.sh` plus `swift_env.sh` inside the activated root Flox launch shell before starting the editor.
 
 Verification requirements:
 - Confirm `scripts/env/start_vscode.sh --print-env` reports the managed Flox venv `python`, Swiftly `swift`, SwiftPM `6.3.2`, Swiftly `clang`, `sourcekit-lsp`, and `lldb`.
@@ -443,7 +443,8 @@ Pending prerequisites before full execution:
 
 Important note:
 - The current `.flox/env/manifest.toml` composes the module manifests via Flox `[include]`. Keep project-specific overrides in the root top-level manifest and keep shared toolchain logic in the module-local manifests.
-- Flox manifest hooks source narrow concern modules directly instead of sourcing `scripts/env/toolchain/common.sh`; `common.sh` is reserved for full-session compatibility and launcher/external-shell initialization.
+- Flox manifest hooks source narrow concern modules directly instead of sourcing `scripts/env/toolchain/common.sh`; `common.sh` is a compatibility aggregator for broad external-shell/launcher setup, not the central environment policy.
+- `env/base/manifest.toml` is the single owner of `xdg_env.sh`; module manifests include `env/base` rather than duplicating `HOME`/`XDG_*` setup.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
 - The Python workflow now relies on `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
 - The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization; `swift_env.sh` sources Swift path setup internally.

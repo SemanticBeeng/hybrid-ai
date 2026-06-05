@@ -74,10 +74,11 @@ Supporting environment files:
 - `.flox/env/manifest.toml`
 
 Design boundary:
-- `common.sh` is the full-session compatibility aggregator used by the launcher and interactive shells.
+- `common.sh` is a compatibility aggregator for legacy/full-session shell setup, not the central manifest policy and not a default for Flox hooks.
 - `vscode_paths.sh` owns portable VS Code paths and binary resolution.
 - `python_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
 - `swift_env.sh` owns Swiftly activation and sources the Swift build/cache path module internally.
+- `xdg_env.sh` owns project-local `HOME`/`XDG_*` setup and is sourced only from `env/base/manifest.toml`; module manifests include `env/base` instead of duplicating XDG setup.
 - Flox manifests source the narrow concern modules they need instead of sourcing `common.sh`.
 
 ## 5. Effective Behavior
@@ -86,7 +87,7 @@ When `scripts/env/start_vscode.sh` is used, the workflow does all of the
 following before the editor opens:
 
 1. Resolves the real host home directory from the user account instead of trusting an already-overridden `HOME`.
-2. Sources `scripts/env/toolchain/common.sh`.
+2. Sources `scripts/env/toolchain/common.sh` only as a launcher compatibility aggregator for shared helper functions and defaults.
 3. Enforces the active bind-mounted Determinate Nix layout.
 4. Requires the nix daemon socket.
 5. Resolves Flox and ensures the root-attached fullstack environment is ready.
@@ -307,28 +308,28 @@ Known limitation:
 
 # Design Work
 
-## Q: If `start_vscode.sh` is canonical and `common.sh` is sourced once, what can scripts assume?
+## Q: If `start_vscode.sh` is canonical, what role does `common.sh` still have?
 
-Assumptions under discussion:
+Current assumptions:
 
 1. `scripts/env/start_vscode.sh` is the canonical entrypoint when using VS Code and GitHub Copilot.
-2. `scripts/env/toolchain/common.sh` is sourced once in every external shell session before running project scripts.
+2. The root-attached Flox environment is the canonical fullstack activation boundary.
+3. `scripts/env/toolchain/common.sh` remains available for compatibility and broad external-shell setup, but it is not the central policy file and scripts should not depend on it having been pre-sourced.
 
 Under that model, the following conclusions hold.
 
-### 1. `start_vscode.sh` inherits `common.sh` environment variables and activates Flox
+### 1. `start_vscode.sh` activates the root Flox environment and then sources narrow runtime helpers
 
-Yes.
-
-`scripts/env/start_vscode.sh` sources the project environment aggregator and then launches VS Code through the composed Flox environment.
+`scripts/env/start_vscode.sh` sources compatibility helpers, validates host Nix/Flox prerequisites, and then launches VS Code through the root-attached composed Flox environment.
 
 The launcher is responsible for:
 
-- loading the common project environment
+- loading compatibility helper functions/defaults needed by the launcher
 - loading VS Code portable path defaults
 - validating the Nix daemon and `/nix` mount assumptions
 - ensuring the Flox environment is ready
 - launching the editor through the root-attached Flox environment
+- sourcing `python_env.sh` and `swift_env.sh` inside the activated launch shell before starting VS Code
 
 The `--check` path confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
 
@@ -344,30 +345,32 @@ Important caveats:
 - already-open integrated terminals do not retroactively inherit environment changes
 - after changing environment scripts, restart VS Code or create a new terminal
 
-### 3. External shells can inherit `common.sh` state once
+### 3. External shells may source `common.sh`, but scripts should remain boundary-explicit
 
-Yes, if the shell uses `source`, not script execution:
+For an ad hoc interactive shell, it is still acceptable to source the compatibility aggregator:
 
 ```bash
 source scripts/env/toolchain/common.sh
 ```
 
-After that, child processes inherit exported variables from the common project environment, including XDG/HOME isolation, Nix/Flox path defaults, Swift build/cache paths, and inference/model/cache paths.
+After that, child processes inherit exported variables from the broad compatibility setup, including XDG/HOME isolation, Nix/Flox path defaults, Swift build/cache paths, and inference/model/cache paths.
 
 Important distinction:
 
 - exported variables are inherited by child scripts
 - shell functions are not normally inherited by child scripts unless explicitly exported with `export -f`
+- repository wrappers are written to compute their own local `project_root` and source the narrow helper they need, so a pre-sourced `common.sh` session is not required for normal workflows
 
-Therefore, if scripts stop sourcing modules and only rely on a once-sourced shell, they can rely on exported activation values such as `XDG_CACHE_HOME`, `FLOX_ENV_DIR`, and `SWIFT_BUILD_PATH`, but not on functions such as `run_as_root`, `use_nix_daemon`, `require_flox_bin`, or `hybrid_ai_assert_under_project` unless those scripts are executed in the same shell context or still source the needed module.
+Therefore, scripts should keep sourcing their specific concern module or wrapper boundary instead of assuming `common.sh` has already run.
 
 ### 4. Directory creation and isolation verification can be sufficient once at session start
 
 Mostly yes, for a stable session.
 
-Sourcing `scripts/env/toolchain/common.sh` creates the project-local directory structure through the concern modules:
+Root Flox activation creates the project-local directory structure through the module manifests and concern helpers:
 
-- `xdg_env.sh` creates project-local XDG and HOME directories
+- `env/base/manifest.toml` sources `xdg_env.sh`, which creates project-local XDG and HOME directories
+- `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` include `env/base`
 - `swift_env.sh` sources the Swift path module, which creates Swift build/cache directories
 - `inference_env.sh` creates model/cache/log/artifact/dependency directories
 
@@ -384,20 +387,21 @@ Important caveats:
 
 - if `/nix` is unmounted later, the daemon stops, or caches are pruned during the session, assumptions can become stale
 - destructive scripts such as cache cleanup and Nix mount management should keep local safety checks
-- if the project later supports discretionary module-specific Flox activation, each module activation boundary should verify the module environment it is about to activate
+- direct module activation remains supported because modules include `env/base`; each module boundary should still verify the module environment it is about to activate
 
 ### Design implication
 
 This supports a session-initialization model:
 
 - `scripts/env/start_vscode.sh` is the canonical VS Code/Copilot session initializer
-- external shells should source `scripts/env/toolchain/common.sh` once before running project workflows
-- scripts can gradually reduce repeated environment discovery if they are only intended to run inside initialized sessions
-- scripts that require helper functions should still source the specific concern module they use, or a narrower concern aggregator
+- `flox activate` from the repository root is the canonical interactive fullstack shell
+- direct module activation uses `flox activate -d env/python`, `flox activate -d env/swift`, or `flox activate -d env/inference`
+- external shells may source `scripts/env/toolchain/common.sh` for broad compatibility, but normal wrappers should not require that
+- scripts that require helper functions should source the specific concern module they use, or a wrapper that owns that boundary
 
 The guiding rule becomes:
 
-> Variables can be inherited once from `common.sh`; functions and destructive safety checks should remain explicitly sourced or verified at the boundary that uses them.
+> Flox manifests and wrappers source narrow concern modules directly. `common.sh` is a compatibility aggregator, not the central source of truth.
 
 ## Q: What is the root-attached Flox environment migration model?
 
