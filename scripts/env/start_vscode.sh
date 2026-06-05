@@ -11,7 +11,7 @@ use_nix_daemon
 ensure_nix_bind_mount
 require_nix_daemon_socket
 
-FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
+FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT}"
 FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
 
 usage() {
@@ -27,7 +27,7 @@ Environment overrides:
   VSCODE_PORTABLE_ROOT   Portable root, default: $HOST_HOME/appdata/.vscode
   VSCODE_USER_DATA_DIR   VS Code user-data dir, default: $VSCODE_PORTABLE_ROOT/data
   VSCODE_EXTENSIONS_DIR  VS Code extensions dir, default: $VSCODE_USER_DATA_DIR/extensions
-  FLOX_ENV_DIR           Flox env dir, default: env/hybrid-ai
+  FLOX_ENV_DIR           Flox env dir, default: repository root
 
 Modes:
   --print-env            Print the effective editor/toolchain environment.
@@ -77,7 +77,6 @@ print_effective_env() {
 
   env \
     HOST_HOME="$HOST_HOME" \
-    PROJECT_ROOT="$PROJECT_ROOT" \
     VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
     VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
     VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
@@ -85,6 +84,7 @@ print_effective_env() {
     RESOLVED_VSCODE_BIN="$resolved_vscode_bin" \
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
+      PROJECT_ROOT="$1"
       source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
       source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
       hybrid_ai_activate_python_env
@@ -114,7 +114,7 @@ print_effective_env() {
       clang --version | head -n 1
       printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"
       printf "lldb_bin=%s\n" "$(command -v lldb || true)"
-    '
+    ' bash "$PROJECT_ROOT"
 }
 
 case "$mode" in
@@ -148,7 +148,6 @@ if [[ $# -eq 0 ]]; then
 fi
 
 exec env \
-  PROJECT_ROOT="$PROJECT_ROOT" \
   VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
   VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
   VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
@@ -156,12 +155,15 @@ exec env \
   "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- \
   bash --noprofile --norc -lc '
     set -euo pipefail
+    PROJECT_ROOT="$1"
+    shift
     source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
     source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
     hybrid_ai_activate_python_env
     hybrid_ai_activate_swift_env
     exec "$@"
   ' bash \
+  "$PROJECT_ROOT" \
   "$resolved_vscode_bin" \
   --user-data-dir "$VSCODE_USER_DATA_DIR" \
   --extensions-dir "$VSCODE_EXTENSIONS_DIR" \

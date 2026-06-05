@@ -86,7 +86,7 @@ exec swift "$SWIFT_SUBCOMMAND" \
   "${swiftpm_flags[@]}" \
   "$@"'
 
-if [[ -n "${FLOX_ENV:-}" ]]; then
+if [[ -n "${FLOX_ENV:-}" && "${FLOX_ENV_PROJECT:-}" == "$PROJECT_ROOT" ]]; then
   exec bash -lc "$run_swift_ui_command" bash "$PROJECT_ROOT" "$SWIFT_PACKAGE_DIR" "$SWIFT_SUBCOMMAND" "$@"
 fi
 

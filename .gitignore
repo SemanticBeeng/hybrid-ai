@@ -8,6 +8,11 @@ volumes/*
 deps/*
 !deps/.gitkeep
 env/*/.flox/
+.flox/*
+!.flox/env.json
+!.flox/env/
+.flox/env/*
+!.flox/env/manifest.toml
 **/.build/
 **/.venv/
 **/.dist/

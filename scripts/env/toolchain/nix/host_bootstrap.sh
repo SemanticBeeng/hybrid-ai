@@ -24,7 +24,8 @@ Next (fresh machine):
 1) sudo -v
 2) scripts/env/toolchain/nix/nix_determinate_install.sh
 3) scripts/env/toolchain/nix/flox_install.sh
-4) sudo /nix/var/nix/profiles/default/bin/nix-daemon
+4) if $NIX_DAEMON_SOCKET is absent, start the daemon manually:
+  sudo /nix/var/nix/profiles/default/bin/nix-daemon
 5) scripts/env/toolchain/nix/flox_env_init.sh
 Optional shortcut after you understand the flow:
 - scripts/env/toolchain/nix/toolchain_install.sh

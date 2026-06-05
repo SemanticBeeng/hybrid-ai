@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-if [[ "$DRY_RUN" -eq 0 && -n "${FLOX_ENV:-}" && "$FLOX_ENV" == "$PROJECT_ROOT"/env/*/.flox/run/* ]]; then
+if [[ "$DRY_RUN" -eq 0 && -n "${FLOX_ENV:-}" && ( "$FLOX_ENV" == "$PROJECT_ROOT"/.flox/run/* || "$FLOX_ENV" == "$PROJECT_ROOT"/env/*/.flox/run/* ) ]]; then
   echo "ERROR: refusing to remove project Flox runtime state from inside an active project Flox environment." >&2
   echo "Re-run from a clean shell, for example:" >&2
   echo "  env -u FLOX_ENV -u FLOX_ENV_PROJECT -u FLOX_ENV_CACHE $0" >&2
@@ -102,6 +102,12 @@ remove_children "$PROJECT_ROOT/build"
 remove_children "$PROJECT_ROOT/volumes/cache"
 
 # Flox generated state is project-local and safe to regenerate from manifest.toml.
+if [[ -d "$PROJECT_ROOT/.flox" ]]; then
+  remove_path "$PROJECT_ROOT/.flox/cache"
+  remove_path "$PROJECT_ROOT/.flox/run"
+  remove_path "$PROJECT_ROOT/.flox/env/manifest.lock"
+fi
+
 for flox_dir in "$PROJECT_ROOT"/env/*/.flox; do
   [[ -d "$flox_dir" ]] || continue
   remove_path "$flox_dir/cache"

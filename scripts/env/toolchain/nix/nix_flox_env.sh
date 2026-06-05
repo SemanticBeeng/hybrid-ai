@@ -15,9 +15,46 @@ export NIX_WRAPPER_BIN="${NIX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix}"
 export NIX_INSTALLER_WRAPPER_BIN="${NIX_INSTALLER_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix-installer}"
 export FLOX_WRAPPER_BIN="${FLOX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/flox}"
 export FLOX_PROFILE="${FLOX_PROFILE:-$NIX_MOUNT_POINT/var/nix/profiles/flox}"
-export FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
+
+hybrid_ai_flox_manifest_path_for() {
+  local env_dir="$1"
+
+  if [[ -f "$env_dir/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/manifest.toml"
+    return 0
+  fi
+
+  if [[ -f "$env_dir/.flox/env/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/.flox/env/manifest.toml"
+    return 0
+  fi
+
+  return 1
+}
+
+hybrid_ai_default_flox_env_dir() {
+  if [[ -f "$PROJECT_ROOT/.flox/env/manifest.toml" ]]; then
+    printf '%s\n' "$PROJECT_ROOT"
+    return 0
+  fi
+
+  echo "ERROR: expected canonical Flox manifest at $PROJECT_ROOT/.flox/env/manifest.toml" >&2
+  return 1
+}
+
+HYBRID_AI_DEFAULT_FLOX_ENV_DIR="$(hybrid_ai_default_flox_env_dir)"
+if [[ -z "${FLOX_ENV_DIR:-}" ]]; then
+  export FLOX_ENV_DIR="$HYBRID_AI_DEFAULT_FLOX_ENV_DIR"
+else
+  export FLOX_ENV_DIR
+fi
 export FLOX_ENV_NAME="${FLOX_ENV_NAME:-${FLOX_ENV_DIR##*/}}"
-export FLOX_MANIFEST_PATH="${FLOX_MANIFEST_PATH:-$FLOX_ENV_DIR/manifest.toml}"
+HYBRID_AI_DEFAULT_FLOX_MANIFEST_PATH="$(hybrid_ai_flox_manifest_path_for "$FLOX_ENV_DIR" || printf '%s\n' "$FLOX_ENV_DIR/manifest.toml")"
+if [[ -z "${FLOX_MANIFEST_PATH:-}" ]]; then
+  export FLOX_MANIFEST_PATH="$HYBRID_AI_DEFAULT_FLOX_MANIFEST_PATH"
+else
+  export FLOX_MANIFEST_PATH
+fi
 export FLOX_DISABLE_METRICS="${FLOX_DISABLE_METRICS:-true}"
 
 case "$NIX_ISOLATED_ROOT" in
@@ -112,7 +149,9 @@ require_nix_daemon_socket() {
   fi
 
   echo "ERROR: expected nix-daemon socket at $NIX_DAEMON_SOCKET" >&2
-  echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using non-root Nix or Flox." >&2
+  echo "Project scripts do not start host Nix services automatically." >&2
+  echo "Start the daemon manually if needed, then rerun:" >&2
+  echo "  sudo /nix/var/nix/profiles/default/bin/nix-daemon" >&2
   return 1
 }
 
@@ -145,13 +184,14 @@ require_flox_bin() {
 
 hybrid_ai_require_flox_env() {
   local env_dir="${1:-$FLOX_ENV_DIR}"
-  local manifest_path="$env_dir/manifest.toml"
+  local manifest_path=""
 
-  if [[ -f "$manifest_path" ]]; then
+  manifest_path="$(hybrid_ai_flox_manifest_path_for "$env_dir" || true)"
+  if [[ -n "$manifest_path" ]]; then
     return 0
   fi
 
-  echo "ERROR: expected Flox manifest at $manifest_path" >&2
+  echo "ERROR: expected Flox manifest at $env_dir/.flox/env/manifest.toml or $env_dir/manifest.toml" >&2
   return 1
 }
 

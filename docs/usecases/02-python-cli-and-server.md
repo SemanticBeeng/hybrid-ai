@@ -23,8 +23,8 @@ The repository does not treat the host Python installation as a valid runtime.
 
 Instead, Python execution is expected to flow through:
 - the Determinate Nix install under the bind-mounted `/nix`
-- the composed Flox environment under `env/hybrid-ai`
-- the managed Python venv created under `env/hybrid-ai/.flox/cache/python`
+- the root-attached composed Flox environment under `.flox`
+- the managed Python venv created under `.flox/cache/python`
 - repository wrappers only when the shell is not already activated
 
 Without the Flox activation model, these failures become likely:
@@ -38,7 +38,7 @@ Without the Flox activation model, these failures become likely:
 This workflow assumes:
 - Determinate Nix and Flox are already installed according to the runbook
 - the nix daemon socket exists and normal-user Flox access is working
-- `env/hybrid-ai/.flox` has already been initialized and synced
+- the root `.flox` environment has already been initialized and synced
 - the Python module source exists under `src/python`
 
 ## 4. Files Involved
@@ -61,11 +61,11 @@ Python source:
 
 Repository-managed writable paths used by this workflow:
 - `build/home`
-- `env/hybrid-ai/.flox/cache/python`
-- `env/hybrid-ai/.flox/cache/pip-cache`
-- `env/hybrid-ai/.flox/cache/poetry-cache`
-- `env/hybrid-ai/.flox/cache/uv-cache`
-- `env/hybrid-ai/.flox/cache/pycache`
+- `.flox/cache/python`
+- `.flox/cache/pip-cache`
+- `.flox/cache/poetry-cache`
+- `.flox/cache/uv-cache`
+- `.flox/cache/pycache`
 - `volumes/logs/python_server.log`
 
 ## 5. Effective Runtime Behavior
@@ -122,7 +122,7 @@ When you are already in a Flox shell, direct Python commands are valid after the
 managed venv has been activated by the Flox profile:
 
 ```bash
-flox activate -d env/hybrid-ai
+flox activate
 cd src/python
 python -m hybrid_ai.hello_world
 ```
@@ -173,7 +173,7 @@ scripts/env/toolchain/python/python_run.sh -c 'import sys; print(sys.executable)
 ```
 
 Expected result:
-- the interpreter path should point into `env/hybrid-ai/.flox/cache/python/bin/python`
+- the interpreter path should point into `.flox/cache/python/bin/python`
 - it should not resolve to a host-global Python installation
 
 You can verify the interactive Python shell path too:
@@ -184,7 +184,7 @@ which python
 ```
 
 Expected result:
-- `which python` points into `env/hybrid-ai/.flox/cache/python/bin/python`
+- `which python` points into `.flox/cache/python/bin/python`
 
 ### 7.2 Verify Repository-Local Caches And Bytecode
 
@@ -195,7 +195,7 @@ scripts/env/toolchain/python/python_run.sh -c 'import os; print(os.environ["PIP_
 ```
 
 Expected result:
-- all paths should resolve under `env/hybrid-ai/.flox/cache/`
+- all paths should resolve under `.flox/cache/`
 
 ### 7.3 Verify The Default CLI Entry
 
@@ -254,10 +254,10 @@ Expected result:
 ## 8. Expected Outcomes
 
 When this workflow is correct:
-- `flox activate -d env/hybrid-ai` yields a shell that can run project Python commands against the managed venv
+- `flox activate` yields a shell that can run project Python commands against the managed venv
 - `scripts/env/toolchain/python/python_enter.sh` yields an interactive Python-focused shell with the managed venv already active
 - wrapper-based Python commands bootstrap the same managed venv when no activated shell exists
-- bytecode and Python package caches are written under `env/hybrid-ai/.flox/cache/`
+- bytecode and Python package caches are written under `.flox/cache/`
 - server logs are written under `volumes/logs`
 - NumPy and other native Python extensions can resolve their Flox-provided runtime libraries
 
@@ -269,19 +269,18 @@ Symptom:
 - wrappers fail before Python starts
 
 Recovery:
-
-```bash
-sudo /nix/var/nix/profiles/default/bin/nix-daemon
-```
+- restore the host Determinate Nix runtime so `/nix/var/nix/daemon-socket/socket` exists
+- do not start host Nix services from the project workflow
+- retry the wrapper after the host prerequisite is restored
 
 ### 9.2 Wrong Python Interpreter
 
 Symptom:
-- `sys.executable` does not point into `env/hybrid-ai/.flox/cache/python/bin/python`
+- `sys.executable` does not point into `.flox/cache/python/bin/python`
 
 Recovery:
 - rerun through `scripts/env/toolchain/python/python_run.sh`
-- activate the environment with `flox activate -d env/hybrid-ai` before invoking `python` directly
+- activate the environment with `flox activate` before invoking `python` directly
 - or use `scripts/env/toolchain/python/python_enter.sh` to enter a shell with the managed Python venv already active
 - if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
 

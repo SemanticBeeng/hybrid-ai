@@ -7,7 +7,7 @@ if [[ $# -eq 0 ]]; then
   set -- -m hybrid_ai
 fi
 
-if [[ -n "${FLOX_ENV:-}" ]]; then
+if [[ -n "${FLOX_ENV:-}" && "${FLOX_ENV_PROJECT:-}" == "$PROJECT_ROOT" ]]; then
   # shellcheck disable=SC1090
   source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
   hybrid_ai_activate_python_env

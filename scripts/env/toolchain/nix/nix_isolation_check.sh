@@ -70,7 +70,9 @@ if [[ -S "$NIX_DAEMON_SOCKET" ]]; then
   echo "OK: nix-daemon socket present at $NIX_DAEMON_SOCKET"
 else
   echo "ERROR: nix-daemon socket missing at $NIX_DAEMON_SOCKET" >&2
-  echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using normal-user Nix or Flox." >&2
+  echo "Project scripts do not start host Nix services automatically." >&2
+  echo "Start the daemon manually if needed, then rerun:" >&2
+  echo "  sudo /nix/var/nix/profiles/default/bin/nix-daemon" >&2
   exit 1
 fi
 

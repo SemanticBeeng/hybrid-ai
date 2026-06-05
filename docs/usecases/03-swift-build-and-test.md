@@ -30,7 +30,7 @@ The wrapper ensures that:
 This workflow assumes:
 - Determinate Nix and Flox are working for the repository
 - the nix daemon socket exists
-- `env/hybrid-ai/.flox` has already been initialized and synced
+- the root `.flox` environment has already been initialized and synced
 - Swiftly is installed under `/opt/bin/dev/swiftly`
 - `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly and validates Swift `6.3.2`
 - GTK/libadwaita development packages are installed through `env/swift/manifest.toml` for the Linux UI proof
@@ -344,10 +344,9 @@ Symptom:
 - the wrapper fails before Swift starts
 
 Recovery:
-
-```bash
-sudo /nix/var/nix/profiles/default/bin/nix-daemon
-```
+- restore the host Determinate Nix runtime so `/nix/var/nix/daemon-socket/socket` exists
+- do not start host Nix services from the project workflow
+- retry the wrapper after the host prerequisite is restored
 
 ### 9.2 Wrong Swift Toolchain
 

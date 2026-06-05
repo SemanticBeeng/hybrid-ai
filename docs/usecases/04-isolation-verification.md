@@ -47,8 +47,8 @@ This document verifies the requirements currently documented in
 Key requirements:
 - no writes to the real user home for project processes
 - all intended writable paths remain under the repository or the isolated Nix backing path
-- Python uses the managed Flox venv under `env/hybrid-ai/.flox/cache/python`
-- Python caches and bytecode stay under `env/hybrid-ai/.flox/cache/`
+- Python uses the managed Flox venv under `.flox/cache/python`
+- Python caches and bytecode stay under `.flox/cache/`
 - Swift uses Swiftly-managed Swift `6.3.2` under `/opt/bin/dev/swiftly`, activated from inside the Flox environment
 - Swift build outputs stay under `build/swift`
 - Swift native build-time dependency resolution sees Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` before host OS defaults
@@ -179,8 +179,8 @@ Expected outputs include:
 - `FLOX_ENV_CACHE`
 - `HYBRID_AI_PYTHON_VENV`
 - `VIRTUAL_ENV`
-- Python cache paths under `env/hybrid-ai/.flox/cache/`
-- `sys.executable` under `env/hybrid-ai/.flox/cache/python/bin/python`
+- Python cache paths under `.flox/cache/`
+- `sys.executable` under `.flox/cache/python/bin/python`
 
 ### 6.4 Swift Runtime Environment Check
 
@@ -228,9 +228,9 @@ scripts/env/toolchain/python/python_run.sh -c 'import numpy as np; values = np.a
 ```
 
 Expected results:
-- `sys.executable` points into `env/hybrid-ai/.flox/cache/python/bin/python`
-- `VIRTUAL_ENV` points into `env/hybrid-ai/.flox/cache/python`
-- Python caches point into `env/hybrid-ai/.flox/cache/`
+- `sys.executable` points into `.flox/cache/python/bin/python`
+- `VIRTUAL_ENV` points into `.flox/cache/python`
+- Python caches point into `.flox/cache/`
 - NumPy prints `6.0`
 
 ### 6.7 Swift Runtime Isolation Proof
@@ -254,7 +254,7 @@ Expected results:
 Native build-time dependency proof:
 
 ```bash
-flox activate -d env/hybrid-ai -- bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
+flox activate -- bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
 ```
 
 Expected result:
@@ -279,7 +279,7 @@ Verified on 2026-06-04:
 - `doctor.sh` passed after removing a generated `src/swift/.build` byproduct.
 - `check_env.sh`, `python_env_check.sh`, `swift_env_check.sh`, and `nix_isolation_check.sh` passed.
 - `nix_isolation_check.sh` emitted the expected mount metadata warning: kernel-reported root `/bin/dev/nix` differs from configured `/opt/bin/dev/nix`, but current policy only requires `/nix` to be mounted and usable.
-- Python proof resolved `sys.executable` to `env/hybrid-ai/.flox/cache/python/bin/python`.
+- Python proof resolved `sys.executable` to `.flox/cache/python/bin/python`.
 - NumPy proof printed `6.0`.
 - Swift proof resolved `swift`, `swiftc`, and `clang` to `/opt/bin/dev/swiftly/bin/...`.
 - Swift native build-time paths exposed Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH`; `LD_LIBRARY_PATH` was unset.
@@ -292,7 +292,7 @@ Verified on 2026-06-04:
 This means:
 - Python resolves into the intended Flox-managed venv path
 - Swift resolves into the intended Swiftly-managed toolchain path from inside the Flox project environment
-- writable runtime paths stay under the repository or `env/*/.flox`
+- writable runtime paths stay under the repository root `.flox` cache, module `.flox` caches, `build/`, or `volumes/`
 - native Python extensions can load Flox-provided runtime libraries
 - Swift native build-time resolution prefers Flox/Nix paths before host OS defaults, while Swift runtime dynamic library resolution avoids Flox/Nix `LD_LIBRARY_PATH`
 

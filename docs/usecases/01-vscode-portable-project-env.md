@@ -11,8 +11,8 @@ Copilot, Python extension, and Swift extension use the repository toolchain
 instead of the host machine defaults.
 
 For this repository, that means:
-- the editor is launched through the composed Flox environment at `env/hybrid-ai`
-- Python resolves to the managed venv under `env/hybrid-ai/.flox/cache/python`
+- the editor is launched through the root-attached composed Flox environment at `.flox/env/manifest.toml`
+- Python resolves to the managed venv under `.flox/cache/python`
 - Python CLI, server, editor, and native-extension workflows share the same managed venv activation helper
 - Swift resolves to the Swiftly-managed Swift toolchain activated inside the Flox project environment
 - the portable VS Code user-data root remains under `$HOME/appdata/.vscode/data`
@@ -46,7 +46,7 @@ This workflow assumes:
 - Determinate Nix is installed using the repository's manual-daemon bind-mounted host model
 - the `/nix` mount is active and backed by `/opt/bin/dev/nix`
 - the nix daemon socket exists at `/nix/var/nix/daemon-socket/socket`
-- Flox is installed and the managed environment at `env/hybrid-ai/.flox` has already been initialized
+- Flox is installed and the root-attached managed environment under `.flox` has already been initialized
 - VS Code is installed in portable mode
 - the portable VS Code user-data root is under `$HOME/appdata/.vscode/data`
 
@@ -71,7 +71,7 @@ Supporting environment files:
 - `scripts/env/toolchain/python/python_env.sh`
 - `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
-- `env/hybrid-ai/manifest.toml`
+- `.flox/env/manifest.toml`
 
 Design boundary:
 - `common.sh` is the full-session compatibility aggregator used by the launcher and interactive shells.
@@ -89,20 +89,20 @@ following before the editor opens:
 2. Sources `scripts/env/toolchain/common.sh`.
 3. Enforces the active bind-mounted Determinate Nix layout.
 4. Requires the nix daemon socket.
-5. Resolves Flox and ensures `env/hybrid-ai` is ready.
+5. Resolves Flox and ensures the root-attached fullstack environment is ready.
 6. Forces the portable VS Code user-data and extensions directories.
-7. Activates `env/hybrid-ai`, then sources `python_env.sh` and `swift_env.sh` inside that activation.
+7. Activates the root-attached fullstack environment, then sources `python_env.sh` and `swift_env.sh` inside that activation.
 8. Activates the managed Python venv and Swiftly toolchain before launching the real VS Code binary.
 
 As a result:
-- `python` inside the editor environment comes from `env/hybrid-ai/.flox/cache/python`
+- `python` inside the editor environment comes from `.flox/cache/python`
 - `swift` inside the editor environment comes from `/opt/bin/dev/swiftly/bin` after Swiftly activation
 - integrated terminals still inherit the repository workspace terminal environment settings
 - Python and Swift extension paths remain pinned by `.vscode/settings.json`
 
 Important current split:
 - the editor process starts inside the composed Flox environment
-- the managed Python venv under `env/hybrid-ai/.flox/cache/python` is the canonical runtime for Python CLI, server, editor, and native-extension workflows
+- the managed Python venv under `.flox/cache/python` is the canonical runtime for Python CLI, server, editor, and native-extension workflows
 - wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
 - Swift workflows source `scripts/env/toolchain/swift/swift_env.sh`, which activates Swiftly and applies Swift build/cache path policy
 
@@ -186,7 +186,7 @@ binary can actually be resolved.
 After the editor opens:
 
 1. Run the task `vscode:print-env`.
-2. Confirm the printed `python_bin` and `python_executable` point into `env/hybrid-ai/.flox/cache/python`.
+2. Confirm the printed `python_bin` and `python_executable` point into `.flox/cache/python`.
 3. Confirm `swift_bin` points into `/opt/bin/dev/swiftly/bin`.
 4. Confirm `vscode_user_data_dir` and `vscode_extensions_dir` point at the portable root under `$HOME/appdata/.vscode/data`.
 
@@ -202,7 +202,7 @@ This means:
 - Copilot-generated tasks remain aligned with repository scripts rather than host binaries
 
 Current Python nuance:
-- `.vscode/settings.json` intentionally points to `python`, not directly to `env/hybrid-ai/.flox/cache/python/bin/python`
+- `.vscode/settings.json` intentionally points to `python`, not directly to `.flox/cache/python/bin/python`
 - this keeps the editor aligned with the activated launcher environment while avoiding direct extension reliance on the CLI/server wrapper scripts
 - the launcher activates the managed venv before starting VS Code, so `python` resolves to the same runtime used by wrapper-based Python commands and native-extension checks such as NumPy
 
@@ -225,12 +225,9 @@ Symptom:
 - `scripts/env/start_vscode.sh` fails before launch with a socket error
 
 Recovery:
-
-```bash
-sudo /nix/var/nix/profiles/default/bin/nix-daemon
-```
-
-Then retry the launcher.
+- restore the host Determinate Nix runtime so `/nix/var/nix/daemon-socket/socket` exists
+- do not start host Nix services from the project workflow
+- retry the launcher after the host prerequisite is restored
 
 ### 10.2 VS Code Binary Not Found
 
@@ -270,14 +267,14 @@ Recovery:
 ### 10.5 Editor Python Is Not The Managed Venv
 
 Symptom:
-- editor-side Python features resolve a Flox run interpreter or host interpreter instead of `env/hybrid-ai/.flox/cache/python/bin/python`
+- editor-side Python features resolve a Flox run interpreter or host interpreter instead of `.flox/cache/python/bin/python`
 
 Meaning:
 - the editor was not launched through the current `scripts/env/start_vscode.sh` path, or an existing VS Code window/terminal was reused after environment scripts changed
 
 Recovery:
 - close stale VS Code windows and relaunch with `scripts/env/start_vscode.sh`
-- run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `env/hybrid-ai/.flox/cache/python`
+- run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `.flox/cache/python`
 - use `scripts/env/toolchain/python/python_run.sh` as the authoritative CLI runtime check if editor state is still unclear
 
 ## 11. Relationship To The Other Docs
@@ -326,7 +323,7 @@ The launcher is responsible for:
 - loading VS Code portable path defaults
 - validating the Nix daemon and `/nix` mount assumptions
 - ensuring the Flox environment is ready
-- launching the editor through `flox activate -d env/hybrid-ai`
+- launching the editor through the root-attached Flox environment
 
 The `--check` path confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
 
@@ -396,3 +393,20 @@ This supports a session-initialization model:
 The guiding rule becomes:
 
 > Variables can be inherited once from `common.sh`; functions and destructive safety checks should remain explicitly sourced or verified at the boundary that uses them.
+
+## Q: What is the root-attached Flox environment migration model?
+
+The target model is **Model A: root fullstack plus module environments**.
+
+In that model:
+
+- `.flox/env/manifest.toml` is the canonical fullstack developer environment attached to the repository root
+- `env/base/manifest.toml`, `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` remain reusable module environments
+- activating from the repository root with `flox activate` makes `FLOX_ENV_PROJECT` equal the repository root
+- module environments can still be activated directly with `flox activate -d env/python`, `flox activate -d env/swift`, and similar commands
+
+This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, use `$FLOX_ENV_PROJECT` for project-relative paths, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
+
+The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, `env/swift`, and `env/inference` remain as reusable module environments.
+
+Once the root-attached environment is fully validated, most `PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"` style path recovery can be removed from the canonical fullstack activation path. Module manifests may keep a fallback root-discovery path if direct standalone activation remains supported.

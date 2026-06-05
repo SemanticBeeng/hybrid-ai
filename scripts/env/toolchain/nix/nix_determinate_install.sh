@@ -58,6 +58,8 @@ Logical root: $NIX_MOUNT_POINT
 Physical backing root: $NIX_ISOLATED_ROOT
 Nix wrapper: $NIX_WRAPPER_BIN
 Installer wrapper: $NIX_INSTALLER_WRAPPER_BIN
-Start nix-daemon as root if the daemon socket is not already available:
-  /nix/var/nix/profiles/default/bin/nix-daemon
+Host prerequisite: the Determinate Nix runtime must provide $NIX_DAEMON_SOCKET before normal-user Flox/Nix commands run.
+Project scripts validate that socket but do not start host Nix services.
+Start the daemon manually if needed:
+  sudo /nix/var/nix/profiles/default/bin/nix-daemon
 EOF

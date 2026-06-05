@@ -16,7 +16,9 @@ EOF
 if [[ ! -S "$NIX_DAEMON_SOCKET" ]]; then
 	cat <<EOF >&2
 ERROR: expected nix-daemon socket at $NIX_DAEMON_SOCKET
-Start /nix/var/nix/profiles/default/bin/nix-daemon as root, then rerun scripts/env/toolchain/nix/toolchain_install.sh or scripts/env/toolchain/nix/flox_env_init.sh.
+Project scripts do not start host Nix services automatically.
+Start the daemon manually if needed, then rerun scripts/env/toolchain/nix/toolchain_install.sh or scripts/env/toolchain/nix/flox_env_init.sh:
+  sudo /nix/var/nix/profiles/default/bin/nix-daemon
 EOF
 	exit 1
 fi

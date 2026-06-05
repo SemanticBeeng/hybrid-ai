@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-fi
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+export -n PROJECT_ROOT 2>/dev/null || true
 
 if ! declare -F hybrid_ai_assert_under_project >/dev/null 2>&1; then
   # shellcheck disable=SC1090

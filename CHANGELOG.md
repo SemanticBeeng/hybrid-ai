@@ -9,6 +9,10 @@
 - documented `scripts/env/toolchain/vscode_paths.sh` as the VS Code portable path owner and updated runbooks to reflect that `scripts/env/start_vscode.sh` now activates the managed Python venv and Swiftly toolchain before launching VS Code
 - updated use-case docs and setup runbooks to describe the cleaned module boundaries and current Python/Swift/VS Code activation model
 - confirmed `scripts/env/start_vscode.sh --check` exits successfully with the cleaned launcher/module-source design
+- started the Model A root-attached Flox migration by making `.flox/env/manifest.toml` the canonical fullstack environment while keeping `env/base`, `env/python`, `env/swift`, and `env/inference` as reusable module environments
+- updated Flox initialization and wrappers to prefer the root-attached environment and expect root `.flox` cache paths
+- removed the legacy fullstack environment now that the root-attached `.flox/env/manifest.toml` owns canonical fullstack activation
+- updated runbooks and use cases so current Python cache, venv, activation, and verification examples point at root `.flox/cache` instead of the retired fullstack environment cache
 
 ### Linux-first Swift mobile UI proof
 - added a Linux-only GTK/libadwaita mobile chat proof target, `hybrid-ai-mobile-chat`, with a phone-sized single-column chat UI that imports the shared `HybridAI` module and displays the existing `hybrid-ai swift module ready` status
@@ -40,7 +44,7 @@
 - updated the portable dev-environment workflow to reflect the applied setup: Determinate Nix + Flox for environment/Python/native dependencies, and Swiftly for Swift
 - documented Swiftly as the active Swift owner under `/opt/bin/dev/swiftly`, with Swift `6.3.2`, SwiftPM `6.3.2`, `clang`, `sourcekit-lsp`, and `lldb` resolved from Swiftly
 - removed the old Flox/Nix Swift toolchain assumptions from the workflow doc; Flox no longer owns `swift`, `swiftpm`, `swiftPackages.XCTest`, or `clang`
-- verified Flox Python still resolves to the managed venv under `env/hybrid-ai/.flox/cache/python` and passes package/NumPy smoke checks
+- verified Flox Python resolves to the managed venv under `.flox/cache/python` and passes package/NumPy smoke checks
 - verified Swift build, run, and tests through `scripts/env/toolchain/swift/swift_run.sh` using Swiftly Swift `6.3.2`
 - updated and re-verified `docs/usecases/03-swift-build-and-test.md` against the current Swiftly-backed workflow: `swifty_check.sh`, `swift_env_check.sh`, `package resolve`, `build`, `test`, `run hybrid-ai-cli`, native path proof, absence of `src/swift/.build`, and `doctor.sh` all passed
 - documented the current Swift resolution split in the Swift use case: Swift-specific tools from Swiftly, Flox/Nix native build-time paths before host OS defaults, and sanitized/unset `LD_LIBRARY_PATH` for Swiftly runtime execution
@@ -83,8 +87,8 @@
 - added `docs/usecases/03-swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
 ### Python Flox alignment
-- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python/python_env.sh`, with hooks creating and syncing the managed venv under `env/hybrid-ai/.flox/cache/python`
-- added Flox profile activation for the Python venv in both `env/python/manifest.toml` and `env/hybrid-ai/manifest.toml`
+- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python/python_env.sh`, with hooks creating and syncing the managed venv under the Flox environment cache
+- added Flox profile activation for the Python venv in both the Python module and fullstack manifests
 - removed the host-derived `LD_LIBRARY_PATH` mutation from `scripts/env/toolchain/common.sh` and replaced it with Flox-managed runtime activation from the Python helper
 - simplified `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/python/python_server_run.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
 - declared `libgcc` in the active composed Flox environment and verified NumPy imports correctly from the managed venv (`6.0` sum proof)
@@ -93,10 +97,10 @@
 ### Detailed Python workflow changes
 - added `scripts/env/toolchain/python/python_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
 - updated `env/python/manifest.toml` so the Python module now declares `python311`, `poetry`, `uv`, and `libgcc`, boots the managed venv from its hook, and activates it from Flox shell profiles
-- updated `env/hybrid-ai/manifest.toml` so the top-level composed environment also bootstraps and activates the managed Python venv and explicitly exposes `libgcc` in the active runtime
+- updated the then-current top-level composed manifest so it also bootstrapped and activated the managed Python venv and explicitly exposed `libgcc` in the active runtime
 - updated `scripts/env/toolchain/common.sh` to remove Python-specific cache and venv policy from the shared bootstrap and to stop exporting `LD_LIBRARY_PATH` from host `g++`
 - updated `scripts/env/toolchain/nix/flox_with.sh` so no-argument mode enters a native `flox activate` shell instead of forcing `bash --noprofile --norc`
 - updated `scripts/env/toolchain/python/python_run.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
 - updated `scripts/env/toolchain/python/python_server_run.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
-- kept direct shell usage valid by making `flox activate -d env/hybrid-ai` the canonical Python shell entry point while preserving wrappers for non-activated shells and tasks
+- kept direct shell usage valid through the canonical Flox activation path while preserving wrappers for non-activated shells and tasks
 - verified wrapper bootstrap from a clean shell, direct Flox activation with managed venv activation, and NumPy native-extension loading through both paths

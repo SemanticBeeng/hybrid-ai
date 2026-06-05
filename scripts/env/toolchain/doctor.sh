@@ -13,7 +13,7 @@ must_exist=(
   "$PROJECT_ROOT/build"
   "$PROJECT_ROOT/volumes"
   "$PROJECT_ROOT/deps"
-  "$PROJECT_ROOT/env/hybrid-ai/manifest.toml"
+  "$PROJECT_ROOT/.flox/env/manifest.toml"
   "$PROJECT_ROOT/.vscode/settings.json"
 )
 

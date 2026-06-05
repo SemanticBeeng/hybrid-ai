@@ -21,7 +21,7 @@ fi
 
 resolve_included_env_dirs() {
   local manifest_dir
-  manifest_dir="$(dirname "$FLOX_MANIFEST_PATH")"
+  manifest_dir="$FLOX_ENV_DIR"
 
   awk '
     match($0, /dir[[:space:]]*=[[:space:]]*"([^"]+)"/, parts) {
@@ -36,10 +36,12 @@ resolve_included_env_dirs() {
 sync_single_env() {
   local env_dir="$1"
   local env_name="$2"
-  local manifest_path="$env_dir/manifest.toml"
+  local manifest_path=""
 
-  if [[ ! -f "$manifest_path" ]]; then
-    echo "ERROR: Flox manifest not found at $manifest_path" >&2
+  manifest_path="$(hybrid_ai_flox_manifest_path_for "$env_dir" || true)"
+
+  if [[ -z "$manifest_path" ]]; then
+    echo "ERROR: Flox manifest not found under $env_dir" >&2
     exit 1
   fi
 
@@ -50,7 +52,7 @@ sync_single_env() {
     exit 1
   fi
 
-  if [[ ! -f "$env_dir/.flox/env.json" ]]; then
+  if [[ ! -f "$env_dir/.flox/env.json" && ! -f "$env_dir/.flox/env/manifest.toml" ]]; then
     hybrid_ai_flox_tool_env "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
   fi
 
@@ -72,5 +74,10 @@ while IFS= read -r included_env_dir; do
 done < <(resolve_included_env_dirs)
 
 sync_single_env "$FLOX_ENV_DIR" "$FLOX_ENV_NAME"
+
+if [[ -n "$(resolve_included_env_dirs)" ]]; then
+  hybrid_ai_flox_tool_env "$FLOX_BIN" include upgrade -d "$FLOX_ENV_DIR"
+  sync_single_env "$FLOX_ENV_DIR" "$FLOX_ENV_NAME"
+fi
 
 echo "Initialized and synced Flox environment at: $FLOX_ENV_DIR"

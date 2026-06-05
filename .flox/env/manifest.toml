@@ -1,0 +1,14 @@
+schema-version = "1.12.0"
+
+[install]
+libgcc.pkg-path = "libgcc"
+libgcc.systems = ["x86_64-linux"]
+libgcc.outputs = "all"
+
+[include]
+environments = [
+	{ dir = "env/base" },
+	{ dir = "env/python" },
+	{ dir = "env/swift" },
+	{ dir = "env/inference" },
+]
