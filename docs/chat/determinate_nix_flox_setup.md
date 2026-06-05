@@ -164,7 +164,7 @@ Verification commands:
 ```bash
 scripts/env/toolchain/check_env.sh
 scripts/env/toolchain/check_python_env.sh
-scripts/env/toolchain/check_swift_env.sh
+scripts/env/toolchain/swift_env_check.sh
 scripts/env/toolchain/check_nix_isolation.sh
 scripts/env/toolchain/doctor.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
@@ -277,7 +277,7 @@ Dedicated environment verification helpers:
 ```bash
 scripts/env/toolchain/check_env.sh
 scripts/env/toolchain/check_python_env.sh
-scripts/env/toolchain/check_swift_env.sh
+scripts/env/toolchain/swift_env_check.sh
 ```
 
 Canonical Python shell workflow:

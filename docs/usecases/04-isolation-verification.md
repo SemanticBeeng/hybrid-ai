@@ -6,8 +6,8 @@ Primary scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
 - `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/check_swift_env.sh`
-- `scripts/env/toolchain/check_swiftly.sh`
+- `scripts/env/toolchain/swift_env_check.sh`
+- `scripts/env/toolchain/swifty_check.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 - `scripts/env/run_python.sh`
 - `scripts/env/run_swift.sh`
@@ -63,8 +63,8 @@ Verification scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
 - `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/check_swift_env.sh`
-- `scripts/env/toolchain/check_swiftly.sh`
+- `scripts/env/toolchain/swift_env_check.sh`
+- `scripts/env/toolchain/swifty_check.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 
 Runtime scripts used for proof:
@@ -105,7 +105,7 @@ kept consistent with the current environment model.
 Current examples:
 - `scripts/env/toolchain/check_env.sh` should stay focused on the common/shared isolation layer
 - `scripts/env/toolchain/check_python_env.sh` should verify the Python-specific managed Flox venv layer
-- `scripts/env/toolchain/check_swift_env.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
+- `scripts/env/toolchain/swift_env_check.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
 - `scripts/env/toolchain/check_nix_isolation.sh` must follow the current mount policy implemented in `common.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
 
 So host-level verification tooling consistency is satisfied only when the
@@ -187,7 +187,7 @@ Expected outputs include:
 Run:
 
 ```bash
-scripts/env/toolchain/check_swift_env.sh
+scripts/env/toolchain/swift_env_check.sh
 ```
 
 Intended purpose:
@@ -269,7 +269,7 @@ These checks should pass in the current setup:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
 - `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/check_swift_env.sh`
+- `scripts/env/toolchain/swift_env_check.sh`
 - `scripts/env/toolchain/check_nix_isolation.sh`
 - Python wrapper/runtime isolation proofs
 - NumPy import proof
@@ -277,7 +277,7 @@ These checks should pass in the current setup:
 
 Verified on 2026-06-04:
 - `doctor.sh` passed after removing a generated `src/swift/.build` byproduct.
-- `check_env.sh`, `check_python_env.sh`, `check_swift_env.sh`, and `check_nix_isolation.sh` passed.
+- `check_env.sh`, `check_python_env.sh`, `swift_env_check.sh`, and `check_nix_isolation.sh` passed.
 - `check_nix_isolation.sh` emitted the expected mount metadata warning: kernel-reported root `/bin/dev/nix` differs from configured `/opt/bin/dev/nix`, but current policy only requires `/nix` to be mounted and usable.
 - Python proof resolved `sys.executable` to `env/hybrid-ai/.flox/cache/python/bin/python`.
 - NumPy proof printed `6.0`.
@@ -350,7 +350,7 @@ This use case is fully satisfied only when all of the following are true:
 - `scripts/env/toolchain/doctor.sh` passes
 - `scripts/env/toolchain/check_env.sh` passes and prints the common/shared env model correctly
 - `scripts/env/toolchain/check_python_env.sh` passes and prints the Python runtime env correctly
-- `scripts/env/toolchain/check_swift_env.sh` passes and prints the Swiftly-backed Swift runtime env correctly
+- `scripts/env/toolchain/swift_env_check.sh` passes and prints the Swiftly-backed Swift runtime env correctly
 - `scripts/env/toolchain/check_nix_isolation.sh` passes and reflects the current mount-validation model correctly
 - Python runtime proof passes
 - NumPy proof passes

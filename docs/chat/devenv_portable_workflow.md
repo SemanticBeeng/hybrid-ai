@@ -234,7 +234,7 @@ Verification requirements:
 ### 6.3 Swift build and test
 - Command-line: scripts/env/run_swift.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
 - Copilot/VS Code: build tasks call same wrapper.
-- Validation: run `scripts/env/toolchain/check_swift_env.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test`, then ensure no unintended source-adjacent build output is relied on.
+- Validation: run `scripts/env/toolchain/swift_env_check.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test`, then ensure no unintended source-adjacent build output is relied on.
 
 ### 6.4 Inference workflow (Gemma 4 + multi-engine)
 - Local Linux VM: run LiteRT-LM using LITERT_LM_MODELS under volumes/models/litert-lm.
@@ -420,7 +420,7 @@ Verified in this workspace:
 - `scripts/env/toolchain/check_env.sh` confirms project-local HOME/XDG/cache paths and the active daemon socket.
 - `scripts/env/toolchain/check_python_env.sh` confirms Python resolves to `env/hybrid-ai/.flox/cache/python/bin/python`.
 - Python smoke tests pass: `python -m hybrid_ai` prints `hybrid-ai python module ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
-- `scripts/env/toolchain/check_swift_env.sh` confirms Swiftly paths:
+- `scripts/env/toolchain/swift_env_check.sh` confirms Swiftly paths:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
   - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
@@ -514,7 +514,7 @@ Current operating sequence:
   - `flox --version`
   - `scripts/env/with_flox.sh python --version`
   - `scripts/env/toolchain/check_python_env.sh`
-  - `scripts/env/toolchain/check_swift_env.sh`
+  - `scripts/env/toolchain/swift_env_check.sh`
   - `scripts/env/start_vscode.sh --print-env`
   - confirm VS Code tools resolve Python from the managed Flox venv and Swift from Swiftly without a root shell
 

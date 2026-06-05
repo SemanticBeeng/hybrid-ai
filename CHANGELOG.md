@@ -34,7 +34,7 @@
 - removed the old Flox/Nix Swift toolchain assumptions from the workflow doc; Flox no longer owns `swift`, `swiftpm`, `swiftPackages.XCTest`, or `clang`
 - verified Flox Python still resolves to the managed venv under `env/hybrid-ai/.flox/cache/python` and passes package/NumPy smoke checks
 - verified Swift build, run, and tests through `scripts/env/run_swift.sh` using Swiftly Swift `6.3.2`
-- updated and re-verified `docs/usecases/03-swift-build-and-test.md` against the current Swiftly-backed workflow: `check_swiftly.sh`, `check_swift_env.sh`, `package resolve`, `build`, `test`, `run hybrid-ai-cli`, native path proof, absence of `src/swift/.build`, and `doctor.sh` all passed
+- updated and re-verified `docs/usecases/03-swift-build-and-test.md` against the current Swiftly-backed workflow: `swifty_check.sh`, `swift_env_check.sh`, `package resolve`, `build`, `test`, `run hybrid-ai-cli`, native path proof, absence of `src/swift/.build`, and `doctor.sh` all passed
 - documented the current Swift resolution split in the Swift use case: Swift-specific tools from Swiftly, Flox/Nix native build-time paths before host OS defaults, and sanitized/unset `LD_LIBRARY_PATH` for Swiftly runtime execution
 - added `docs/chat/swift_ui_cross_platform_roadmap.md` to capture the Swift UI roadmap: verified Swiftly baseline, shared Swift core, platform-specific Linux/macOS/iOS UI shells, and next implementation checkpoints
 - refined the Swift UI roadmap so the Linux GTK/libadwaita proof targets a mobile-form-factor app shell rather than a conventional desktop UI

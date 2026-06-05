@@ -24,6 +24,7 @@ exec "$PROJECT_ROOT/scripts/env/with_flox.sh" bash -lc '
   printf "SWIFTLY_ROOT=%s\n" "${SWIFTLY_ROOT:-unset}"
   printf "SWIFTLY_HOME_DIR=%s\n" "${SWIFTLY_HOME_DIR:-unset}"
   printf "SWIFTLY_BIN_DIR=%s\n" "${SWIFTLY_BIN_DIR:-unset}"
+  printf "SWIFTLY_TOOLCHAINS_DIR=%s\n" "${SWIFTLY_TOOLCHAINS_DIR:-unset}"
   printf "swift_bin=%s\n" "$(command -v swift)"
   printf "clang_bin=%s\n" "$(command -v clang)"
   printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"

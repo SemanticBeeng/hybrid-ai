@@ -8,7 +8,7 @@ source "$PROJECT_ROOT/scripts/env/toolchain/swiftly_common.sh"
 SWIFTLY_ARCHIVE="$(hybrid_ai_swiftly_archive)"
 SWIFTLY_URL="$(hybrid_ai_swiftly_url)"
 
-run_as_root install -d -m 0755 "$SWIFTLY_ROOT" "$SWIFTLY_HOME_DIR" "$SWIFTLY_BIN_DIR"
+run_as_root install -d -m 0755 "$SWIFTLY_ROOT" "$SWIFTLY_HOME_DIR" "$SWIFTLY_BIN_DIR" "$SWIFTLY_TOOLCHAINS_DIR"
 
 if [[ "$(id -u)" -ne 0 ]]; then
   run_as_root chown -R "$(id -u):$(id -g)" "$SWIFTLY_ROOT"
@@ -32,7 +32,12 @@ if [[ ! -x "$SWIFTLY_BIN_DIR/swiftly" ]]; then
 fi
 
 if [[ ! -r "$SWIFTLY_HOME_DIR/env.sh" ]]; then
+  export SWIFTLY_TOOLCHAINS_DIR
   "$SWIFTLY_BIN_DIR/swiftly" init --quiet-shell-followup
+fi
+
+if grep -q '/\.local/share/swiftly/toolchains' "$SWIFTLY_HOME_DIR/env.sh" 2>/dev/null; then
+  sed -i "s|^export SWIFTLY_TOOLCHAINS_DIR=.*|export SWIFTLY_TOOLCHAINS_DIR=\"$SWIFTLY_TOOLCHAINS_DIR\"|" "$SWIFTLY_HOME_DIR/env.sh"
 fi
 
 hybrid_ai_source_swiftly_env
@@ -50,6 +55,7 @@ Swiftly installation complete.
 Swiftly root: $SWIFTLY_ROOT
 SWIFTLY_HOME_DIR: $SWIFTLY_HOME_DIR
 SWIFTLY_BIN_DIR: $SWIFTLY_BIN_DIR
+SWIFTLY_TOOLCHAINS_DIR: $SWIFTLY_TOOLCHAINS_DIR
 swift: $(command -v swift)
 $(hybrid_ai_swift_version_line)
 EOF

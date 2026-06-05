@@ -144,11 +144,11 @@ Confirm:
 - `sourcekit-lsp --version` works, if provided.
 
 This should be handled by a new bootstrap script, likely:
-- `scripts/env/install_swiftly.sh`
+- `scripts/env/toolchain/swiftly_install.sh`
 
 Execution note:
 - Swiftly was installed under `/opt/bin/dev/swiftly`.
-- `scripts/env/toolchain/check_swiftly.sh` verified:
+- `scripts/env/toolchain/swifty_check.sh` verified:
   - `SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home`
   - `SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin`
   - `swift=/opt/bin/dev/swiftly/bin/swift`
@@ -171,15 +171,15 @@ Modify `scripts/env/toolchain/swift_env.sh`:
 
 Then validate through existing wrappers:
 - `scripts/env/run_swift.sh`
-- `scripts/env/toolchain/check_swift_env.sh`
+- `scripts/env/toolchain/swift_env_check.sh`
 
 Expected result:
-- `scripts/env/toolchain/check_swift_env.sh` prints Swift `6.3.2`.
+- `scripts/env/toolchain/swift_env_check.sh` prints Swift `6.3.2`.
 - `scripts/env/run_swift.sh build` uses Swiftly Swift, not Nix Swift.
 
 Execution note:
 - `scripts/env/toolchain/swift_env.sh` was changed to source the Swiftly helper and validate Swift `6.3.2`.
-- `scripts/env/toolchain/check_swift_env.sh` now reports Swiftly paths and confirmed:
+- `scripts/env/toolchain/swift_env_check.sh` now reports Swiftly paths and confirmed:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
   - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
@@ -310,13 +310,13 @@ Execution note:
 Install or repair Swiftly once:
 
 ```bash
-scripts/env/toolchain/install_swiftly.sh
+scripts/env/toolchain/swiftly_install.sh
 ```
 
 Check Swiftly:
 
 ```bash
-scripts/env/toolchain/check_swiftly.sh
+scripts/env/toolchain/swifty_check.sh
 ```
 
 Enter full project env:

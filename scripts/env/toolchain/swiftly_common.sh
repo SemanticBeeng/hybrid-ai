@@ -8,6 +8,7 @@ hybrid_ai_swiftly_configure() {
   export SWIFTLY_ROOT="${SWIFTLY_ROOT:-/opt/bin/dev/swiftly}"
   export SWIFTLY_HOME_DIR="${SWIFTLY_HOME_DIR:-$SWIFTLY_ROOT/home}"
   export SWIFTLY_BIN_DIR="${SWIFTLY_BIN_DIR:-$SWIFTLY_ROOT/bin}"
+  export SWIFTLY_TOOLCHAINS_DIR="${SWIFTLY_TOOLCHAINS_DIR:-$SWIFTLY_ROOT/toolchains}"
   export SWIFTLY_VERSION="${SWIFTLY_VERSION:-1.1.1}"
   export HYBRID_AI_SWIFT_VERSION="${HYBRID_AI_SWIFT_VERSION:-6.3.2}"
 
@@ -39,7 +40,7 @@ hybrid_ai_swiftly_url() {
 hybrid_ai_require_swiftly_env() {
   if [[ ! -r "$SWIFTLY_HOME_DIR/env.sh" ]]; then
     echo "ERROR: Swiftly env file not found at $SWIFTLY_HOME_DIR/env.sh" >&2
-    echo "Run scripts/env/toolchain/install_swiftly.sh first." >&2
+    echo "Run scripts/env/toolchain/swiftly_install.sh first." >&2
     return 1
   fi
 }
@@ -48,6 +49,9 @@ hybrid_ai_source_swiftly_env() {
   hybrid_ai_require_swiftly_env
   # shellcheck disable=SC1090
   source "$SWIFTLY_HOME_DIR/env.sh"
+  export SWIFTLY_HOME_DIR="$SWIFTLY_ROOT/home"
+  export SWIFTLY_BIN_DIR="$SWIFTLY_ROOT/bin"
+  export SWIFTLY_TOOLCHAINS_DIR="$SWIFTLY_ROOT/toolchains"
   hash -r
 }
 

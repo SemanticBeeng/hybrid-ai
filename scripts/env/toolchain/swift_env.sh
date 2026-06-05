@@ -60,6 +60,14 @@ hybrid_ai_activate_swift_env() {
   hybrid_ai_assert_swift_version
   hybrid_ai_sanitize_swift_ld_library_path
 
+  case "${SWIFTLY_TOOLCHAINS_DIR:-}" in
+    "$SWIFTLY_ROOT"/*) ;;
+    *)
+      echo "ERROR: SWIFTLY_TOOLCHAINS_DIR must stay under SWIFTLY_ROOT, got: ${SWIFTLY_TOOLCHAINS_DIR:-unset}" >&2
+      return 1
+      ;;
+  esac
+
   swiftly_toolchain_bin="${SWIFTLY_TOOLCHAINS_DIR:-}/$HYBRID_AI_SWIFT_VERSION/usr/bin"
 
   if [[ -x "$swiftly_toolchain_bin/clang" ]]; then
