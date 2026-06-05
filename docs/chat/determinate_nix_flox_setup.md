@@ -22,7 +22,7 @@ The host model used by this repository is:
 - physical backing path: `/opt/bin/dev/nix`
 - mount model: bind mount `/opt/bin/dev/nix` onto `/nix`
 - installer mode: Determinate Nix on Linux with `install linux --no-start-daemon`
-- daemon model: the host Determinate Nix runtime must provide the daemon socket; project scripts validate it but do not start host services
+- daemon model: the host Determinate Nix runtime must provide the daemon socket; project scripts validate it but do not start host services automatically
 - Flox model: Flox installed on top of the Determinate Nix install and used through normal-user repository wrappers with `NIX_REMOTE=daemon`
 
 Key constraints:
@@ -97,10 +97,11 @@ What it does:
 - creates a convenience wrapper at `/opt/bin/dev/nix/bin/flox`
 - recreates the `nix` wrapper automatically if the reinstall removed it
 
-### 3.5 Validate Host Nix Runtime
+### 3.5 Validate or Manually Start the Nix Daemon
 
 Before using any normal-user wrapper, make sure the daemon socket exists. The
-repository validates this prerequisite but does not start a host Nix service.
+repository validates this prerequisite but does not start a host Nix service
+automatically.
 
 Check:
 
@@ -109,7 +110,12 @@ test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
 ```
 
 Notes:
-- if the socket is absent, restore the host Determinate Nix runtime before using repository wrappers
+- if the socket is absent, start the daemon manually and keep it running while using normal-user Nix/Flox:
+
+  ```bash
+  sudo /nix/var/nix/profiles/default/bin/nix-daemon
+  ```
+
 - the repository wrappers only require the socket; they do not own the host service lifecycle
 - `--no-start-daemon` means the installer does not launch a host service from this repository workflow
 
@@ -139,8 +145,8 @@ scripts/env/toolchain/nix/toolchain_install.sh
 Expectation:
 - treat this as a convenience/resume helper, not as the primary onboarding path
 - this shortcut now assumes the daemon socket is already available before it reaches `scripts/env/toolchain/nix/flox_env_init.sh`
-- if the socket is absent, the script stops with a host-prerequisite error
-- on a fresh machine this usually means the first run gets through bootstrap, Determinate Nix install, and Flox install, then stops at the daemon-socket check; after the host Determinate Nix runtime provides the socket, rerun `scripts/env/toolchain/nix/toolchain_install.sh` or continue with `scripts/env/toolchain/nix/flox_env_init.sh`
+- if the socket is absent, the script stops with a host-prerequisite error and prints the manual daemon command
+- on a fresh machine this usually means the first run gets through bootstrap, Determinate Nix install, and Flox install, then stops at the daemon-socket check; start the daemon manually with `sudo /nix/var/nix/profiles/default/bin/nix-daemon`, then rerun `scripts/env/toolchain/nix/toolchain_install.sh` or continue with `scripts/env/toolchain/nix/flox_env_init.sh`
 
 It runs, in order:
 1. `scripts/env/toolchain/nix/host_bootstrap.sh`
@@ -253,7 +259,13 @@ Enter the environment:
 scripts/env/toolchain/nix/flox_enter.sh
 ```
 
-If `scripts/env/toolchain/nix/flox_enter.sh` or `scripts/env/toolchain/nix/flox_with.sh` reports a missing daemon socket, restore the host Determinate Nix runtime first. Project scripts do not start host Nix services.
+If `scripts/env/toolchain/nix/flox_enter.sh` or `scripts/env/toolchain/nix/flox_with.sh` reports a missing daemon socket, start the daemon manually first:
+
+```bash
+sudo /nix/var/nix/profiles/default/bin/nix-daemon
+```
+
+Project scripts do not start host Nix services automatically.
 
 Run one command inside the Flox environment:
 
@@ -521,7 +533,7 @@ sudo -v
 scripts/env/toolchain/nix/host_bootstrap.sh
 scripts/env/toolchain/nix/nix_determinate_install.sh
 scripts/env/toolchain/nix/flox_install.sh
-# wait for or restore the host Determinate Nix runtime so /nix/var/nix/daemon-socket/socket exists
+# if needed, manually start: sudo /nix/var/nix/profiles/default/bin/nix-daemon
 scripts/env/toolchain/nix/flox_env_init.sh
 scripts/env/toolchain/nix/nix_isolation_check.sh
 scripts/env/toolchain/doctor.sh
@@ -537,4 +549,4 @@ CONFIRM_WRITE_FSTAB=YES scripts/env/toolchain/nix/nix_fstab_manage.sh install
 
 Fresh-machine note:
 - `scripts/env/toolchain/nix/toolchain_install.sh` is a convenience shortcut, but on a fresh machine the explicit step-by-step sequence above is the most predictable path
-- if you prefer the shortcut and it stops on a missing daemon socket, restore the host Determinate Nix runtime and rerun `scripts/env/toolchain/nix/flox_env_init.sh` or the full shortcut
+- if you prefer the shortcut and it stops on a missing daemon socket, start the daemon manually with `sudo /nix/var/nix/profiles/default/bin/nix-daemon` and rerun `scripts/env/toolchain/nix/flox_env_init.sh` or the full shortcut

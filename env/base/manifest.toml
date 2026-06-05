@@ -14,6 +14,5 @@ curl.pkg-path = "curl"
 
 [hook]
 on-activate = '''
-source scripts/env/toolchain/project_paths.sh
 source scripts/env/toolchain/xdg_env.sh
 '''

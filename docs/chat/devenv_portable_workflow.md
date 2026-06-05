@@ -489,6 +489,7 @@ Current canonical state:
 - logical store path remains `/nix`, physically backed by `/opt/bin/dev/nix`
 - the host Determinate Nix runtime is expected to expose `/nix/var/nix/daemon-socket/socket`
 - normal-user wrappers source `nix-daemon.sh` and use `NIX_REMOTE=daemon`
+- if the socket is absent, start the daemon manually with `sudo /nix/var/nix/profiles/default/bin/nix-daemon`; project scripts do not start host services automatically
 - `scripts/env/toolchain/nix/flox_with.sh`, `scripts/env/toolchain/nix/flox_enter.sh`, and `scripts/env/toolchain/nix/flox_env_init.sh` run as the normal user once the daemon is available
 
 Migration record for this workspace:
@@ -508,7 +509,7 @@ Current operating sequence:
 
 2. Ensure the host Nix runtime is reachable before using normal-user tooling.
   - Preferred check: confirm `/nix/var/nix/daemon-socket/socket` exists.
-  - If it does not exist, restore the host Determinate Nix runtime; project scripts do not start host services.
+  - If it does not exist, start the daemon manually with `sudo /nix/var/nix/profiles/default/bin/nix-daemon`; project scripts do not start host services automatically.
 
 3. Use normal-user wrappers for development.
   - `scripts/env/toolchain/nix/flox_with.sh` sources the daemon profile and activates Flox as the current user.

@@ -269,8 +269,13 @@ Symptom:
 - wrappers fail before Python starts
 
 Recovery:
-- restore the host Determinate Nix runtime so `/nix/var/nix/daemon-socket/socket` exists
-- do not start host Nix services from the project workflow
+- start the daemon manually so `/nix/var/nix/daemon-socket/socket` exists:
+
+	```bash
+	sudo /nix/var/nix/profiles/default/bin/nix-daemon
+	```
+
+- project scripts do not start host Nix services automatically
 - retry the wrapper after the host prerequisite is restored
 
 ### 9.2 Wrong Python Interpreter

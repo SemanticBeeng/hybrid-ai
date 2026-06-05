@@ -225,8 +225,13 @@ Symptom:
 - `scripts/env/start_vscode.sh` fails before launch with a socket error
 
 Recovery:
-- restore the host Determinate Nix runtime so `/nix/var/nix/daemon-socket/socket` exists
-- do not start host Nix services from the project workflow
+- start the daemon manually so `/nix/var/nix/daemon-socket/socket` exists:
+
+	```bash
+	sudo /nix/var/nix/profiles/default/bin/nix-daemon
+	```
+
+- project scripts do not start host Nix services automatically
 - retry the launcher after the host prerequisite is restored
 
 ### 10.2 VS Code Binary Not Found

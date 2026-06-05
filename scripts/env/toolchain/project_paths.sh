@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-export -n PROJECT_ROOT 2>/dev/null || true
-
 hybrid_ai_assert_under_project() {
   local p="$1"
+  local project_root
+
+  project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
   case "$p" in
-    "$PROJECT_ROOT"/*) ;;
+    "$project_root"/*) ;;
     *)
       echo "ERROR: path outside project root: $p" >&2
       return 1
