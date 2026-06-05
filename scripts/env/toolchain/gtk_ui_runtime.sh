@@ -38,6 +38,7 @@ gtk_runtime_library_path() {
   local runtime_path=""
   local glibc_lib=""
   local swift_lib=""
+  local flag=""
   local lib_dir=""
 
   glibc_lib="$(gtk_runtime_glibc_lib_dir || true)"
@@ -50,7 +51,8 @@ gtk_runtime_library_path() {
     runtime_path="${runtime_path:+$runtime_path:}$swift_lib"
   fi
 
-  for lib_dir in ${HYBRID_AI_GTK_LIB_DIRS:-}; do
+  for flag in $(pkg-config --libs-only-L gtk4 libadwaita-1); do
+    lib_dir="${flag#-L}"
     [[ -d "$lib_dir" ]] || continue
     runtime_path="${runtime_path:+$runtime_path:}$lib_dir"
   done

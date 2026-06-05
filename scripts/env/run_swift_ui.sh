@@ -17,20 +17,27 @@ SWIFT_PACKAGE_DIR="$2"
 SWIFT_SUBCOMMAND="$3"
 shift 3
 source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
-hybrid_ai_activate_swift_gtk_env
+hybrid_ai_activate_swift_env
 export HYBRID_AI_ENABLE_GTK_UI=1
 
-if [[ -z "${HYBRID_AI_GTK_CFLAGS:-}" || -z "${HYBRID_AI_GTK_LIBS:-}" ]]; then
-  echo "ERROR: GTK/libadwaita flags were not exported by Swift GTK activation." >&2
-  echo "Re-sync Flox and verify env/swift/manifest.toml provides gtk4, libadwaita, and pkg-config." >&2
+gtk_modules=(gtk4 libadwaita-1)
+
+if ! command -v pkg-config >/dev/null 2>&1; then
+  echo "ERROR: pkg-config is required for the GTK/libadwaita Swift UI workflow." >&2
+  exit 1
+fi
+
+if ! pkg-config --exists "${gtk_modules[@]}"; then
+  echo "ERROR: missing pkg-config modules: ${gtk_modules[*]}" >&2
+  echo "Install GTK/libadwaita through env/swift/manifest.toml and re-sync Flox." >&2
   exit 1
 fi
 
 swiftpm_flags=()
-for flag in $HYBRID_AI_GTK_CFLAGS; do
+for flag in $(pkg-config --cflags "${gtk_modules[@]}"); do
   swiftpm_flags+=("-Xcc" "$flag")
 done
-for flag in $HYBRID_AI_GTK_LIBS; do
+for flag in $(pkg-config --libs "${gtk_modules[@]}"); do
   swiftpm_flags+=("-Xlinker" "$flag")
 done
 

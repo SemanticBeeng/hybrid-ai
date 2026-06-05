@@ -18,59 +18,6 @@ hybrid_ai_export_swift_env() {
   export HYBRID_AI_SWIFT_DIR="$swift_dir"
 }
 
-hybrid_ai_ensure_pkg_config_module() {
-  local module="$1"
-  local pc_file=""
-  local pc_dir=""
-
-  if ! command -v pkg-config >/dev/null 2>&1; then
-    return 1
-  fi
-
-  if pkg-config --exists "$module"; then
-    return 0
-  fi
-
-  pc_file="$(find /nix/store \( -path "*/lib/pkgconfig/$module.pc" -o -path "*/share/pkgconfig/$module.pc" \) 2>/dev/null | head -n 1 || true)"
-  if [[ -z "$pc_file" ]]; then
-    return 1
-  fi
-
-  pc_dir="$(dirname "$pc_file")"
-  export PKG_CONFIG_PATH="$pc_dir${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
-  pkg-config --exists "$module"
-}
-
-hybrid_ai_export_gtk_pkg_config_path() {
-  local module=""
-  local modules=(libsepol libselinux mount fribidi datrie-0.2 libthai expat xdmcp libdeflate Lerc liblzma)
-
-  for module in "${modules[@]}"; do
-    hybrid_ai_ensure_pkg_config_module "$module" || true
-  done
-}
-
-hybrid_ai_export_gtk_env() {
-  local modules=""
-
-  modules="${HYBRID_AI_GTK_PKG_CONFIG_MODULES:-gtk4 libadwaita-1}"
-  export HYBRID_AI_GTK_PKG_CONFIG_MODULES="$modules"
-
-  if ! command -v pkg-config >/dev/null 2>&1; then
-    return 0
-  fi
-
-  hybrid_ai_export_gtk_pkg_config_path
-
-  if ! pkg-config --exists $modules; then
-    return 0
-  fi
-
-  export HYBRID_AI_GTK_CFLAGS="$(pkg-config --cflags $modules)"
-  export HYBRID_AI_GTK_LIBS="$(pkg-config --libs $modules)"
-  export HYBRID_AI_GTK_LIB_DIRS="$(pkg-config --libs-only-L $modules | sed 's/-L//g')"
-}
-
 hybrid_ai_sanitize_swift_ld_library_path() {
   local flox_lib=""
   local sanitized=""
@@ -138,9 +85,4 @@ hybrid_ai_activate_swift_env() {
       export CXX="$clangxx_bin"
     fi
   fi
-}
-
-hybrid_ai_activate_swift_gtk_env() {
-  hybrid_ai_activate_swift_env
-  hybrid_ai_export_gtk_env
 }
