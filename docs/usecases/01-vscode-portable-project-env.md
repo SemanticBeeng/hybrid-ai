@@ -359,7 +359,7 @@ Important distinction:
 - exported variables are inherited by child scripts
 - shell functions are not normally inherited by child scripts unless explicitly exported with `export -f`
 
-Therefore, if scripts stop sourcing modules and only rely on a once-sourced shell, they can rely on variables such as `PROJECT_ROOT`, `XDG_CACHE_HOME`, `FLOX_ENV_DIR`, and `SWIFT_BUILD_PATH`, but not on functions such as `run_as_root`, `use_nix_daemon`, `require_flox_bin`, or `hybrid_ai_assert_under_project` unless those scripts are executed in the same shell context or still source the needed module.
+Therefore, if scripts stop sourcing modules and only rely on a once-sourced shell, they can rely on exported activation values such as `XDG_CACHE_HOME`, `FLOX_ENV_DIR`, and `SWIFT_BUILD_PATH`, but not on functions such as `run_as_root`, `use_nix_daemon`, `require_flox_bin`, or `hybrid_ai_assert_under_project` unless those scripts are executed in the same shell context or still source the needed module.
 
 ### 4. Directory creation and isolation verification can be sufficient once at session start
 
@@ -407,11 +407,11 @@ In that model:
 
 - `.flox/env/manifest.toml` is the canonical fullstack developer environment attached to the repository root
 - `env/base/manifest.toml`, `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` remain reusable module environments
-- activating from the repository root with `flox activate` makes `FLOX_ENV_PROJECT` equal the repository root
+- activating from the repository root with `flox activate` makes the repository root the activation working directory and the canonical Flox environment directory
 - module environments can still be activated directly with `flox activate -d env/python`, `flox activate -d env/swift`, and similar commands
 
-This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, use `$FLOX_ENV_PROJECT` for project-relative paths, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
+This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, keep manifest hooks project-relative, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
 
 The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, `env/swift`, and `env/inference` remain as reusable module environments.
 
-Once the root-attached environment is fully validated, most `PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"` style path recovery can be removed from the canonical fullstack activation path. Module manifests may keep a fallback root-discovery path if direct standalone activation remains supported.
+With the root-attached environment validated, manifest-level root recovery is no longer part of the canonical fullstack activation path. Standalone wrapper scripts may still derive a lowercase local `project_root` from their own location when they need to run from outside the repository root.

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-fi
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 export NIX_ISOLATED_ROOT="${NIX_ISOLATED_ROOT:-/opt/bin/dev/nix}"
 export NIX_MOUNT_POINT="${NIX_MOUNT_POINT:-/nix}"
@@ -33,12 +31,12 @@ hybrid_ai_flox_manifest_path_for() {
 }
 
 hybrid_ai_default_flox_env_dir() {
-  if [[ -f "$PROJECT_ROOT/.flox/env/manifest.toml" ]]; then
-    printf '%s\n' "$PROJECT_ROOT"
+  if [[ -f "$project_root/.flox/env/manifest.toml" ]]; then
+    printf '%s\n' "$project_root"
     return 0
   fi
 
-  echo "ERROR: expected canonical Flox manifest at $PROJECT_ROOT/.flox/env/manifest.toml" >&2
+  echo "ERROR: expected canonical Flox manifest at $project_root/.flox/env/manifest.toml" >&2
   return 1
 }
 
@@ -207,7 +205,7 @@ hybrid_ai_flox_tool_env() {
 
 hybrid_ai_ensure_flox_env_ready() {
   local env_dir="${1:-$FLOX_ENV_DIR}"
-  local init_script="${2:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
+  local init_script="${2:-$project_root/scripts/env/toolchain/nix/flox_env_init.sh}"
   local flox_bin=""
   local activate_output=""
   local status=0

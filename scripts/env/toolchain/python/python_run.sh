@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 if [[ $# -eq 0 ]]; then
   set -- -m hybrid_ai
 fi
 
-if [[ -n "${FLOX_ENV:-}" && "${FLOX_ENV_PROJECT:-}" == "$PROJECT_ROOT" ]]; then
+if [[ "${FLOX_ENV:-}" == "$project_root"/.flox/run/* || "${FLOX_ENV:-}" == "$project_root"/env/*/.flox/run/* ]]; then
   # shellcheck disable=SC1090
-  source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
+  source "$project_root/scripts/env/toolchain/python/python_env.sh"
   hybrid_ai_activate_python_env
-  cd "$PROJECT_ROOT/src/python"
+  cd "$project_root/src/python"
   exec python "$@"
 fi
 
-exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc 'PROJECT_ROOT="$1"; shift; source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"; hybrid_ai_activate_python_env; cd "$PROJECT_ROOT/src/python"; exec python "$@"' bash "$PROJECT_ROOT" "$@"
+exec "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc 'project_root="$1"; shift; source "$project_root/scripts/env/toolchain/python/python_env.sh"; hybrid_ai_activate_python_env; cd "$project_root/src/python"; exec python "$@"' bash "$project_root" "$@"

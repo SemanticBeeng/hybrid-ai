@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-SWIFT_PACKAGE_DIR="$PROJECT_ROOT/src/swift"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+SWIFT_PACKAGE_DIR="$project_root/src/swift"
 
 if [[ $# -eq 0 ]]; then
   set -- build
@@ -14,21 +14,21 @@ shift
 swift_cmd=(
   swift "$SWIFT_SUBCOMMAND"
   --package-path "$SWIFT_PACKAGE_DIR"
-  --build-path "$PROJECT_ROOT/build/swift"
+  --build-path "$project_root/build/swift"
   "$@"
 )
 
-if [[ -n "${FLOX_ENV:-}" && "${FLOX_ENV_PROJECT:-}" == "$PROJECT_ROOT" ]]; then
+if [[ "${FLOX_ENV:-}" == "$project_root"/.flox/run/* || "${FLOX_ENV:-}" == "$project_root"/env/*/.flox/run/* ]]; then
   # shellcheck disable=SC1090
-  source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+  source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
   hybrid_ai_activate_swift_env
   exec "${swift_cmd[@]}"
 fi
 
-exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
-  PROJECT_ROOT="$1"
+exec "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
+  project_root="$1"
   shift
-  source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+  source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
   hybrid_ai_activate_swift_env
   exec "$@"
-' bash "$PROJECT_ROOT" "${swift_cmd[@]}"
+' bash "$project_root" "${swift_cmd[@]}"

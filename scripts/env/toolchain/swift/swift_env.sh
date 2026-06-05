@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-export -n PROJECT_ROOT 2>/dev/null || true
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_paths.sh"
+source "$project_root/scripts/env/toolchain/swift/swift_paths.sh"
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/swift/swiftly_common.sh"
+source "$project_root/scripts/env/toolchain/swift/swiftly_common.sh"
 
 hybrid_ai_swift_dir() {
-  printf '%s\n' "$PROJECT_ROOT/src/swift"
+  printf '%s\n' "$project_root/src/swift"
 }
 
 hybrid_ai_export_swift_env() {

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-export -n PROJECT_ROOT 2>/dev/null || true
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
 hybrid_ai_unset_host_python_env() {
   # Prevent an already-active host virtualenv from leaking into repository Python workflows.
@@ -12,7 +11,7 @@ hybrid_ai_unset_host_python_env() {
 hybrid_ai_unset_host_python_env
 
 hybrid_ai_python_dir() {
-  printf '%s\n' "$PROJECT_ROOT/src/python"
+  printf '%s\n' "$project_root/src/python"
 }
 
 hybrid_ai_python_venv_dir() {

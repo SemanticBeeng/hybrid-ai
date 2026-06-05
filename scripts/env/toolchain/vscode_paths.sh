@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-fi
-
 export HOST_USER="${HOST_USER:-${SUDO_USER:-$(id -un)}}"
 
 hybrid_ai_resolve_host_home() {

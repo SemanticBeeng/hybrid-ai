@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
-  PROJECT_ROOT="$1"
+exec "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
+  project_root="$1"
   shift
-  source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+  source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
   hybrid_ai_activate_swift_env
 
-  printf "PROJECT_ROOT=%s\n" "$PWD"
+  printf "project_root=%s\n" "$PWD"
   printf "FLOX_ENV=%s\n" "${FLOX_ENV:-unset}"
   printf "HOME=%s\n" "$HOME"
   printf "XDG_CONFIG_HOME=%s\n" "$XDG_CONFIG_HOME"
@@ -30,4 +30,4 @@ exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
   printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"
   printf "lldb_bin=%s\n" "$(command -v lldb || true)"
   swift --version | head -n 1
-' bash "$PROJECT_ROOT"
+' bash "$project_root"

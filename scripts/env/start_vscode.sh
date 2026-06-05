@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+source "$project_root/scripts/env/toolchain/common.sh"
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/vscode_paths.sh"
+source "$project_root/scripts/env/toolchain/vscode_paths.sh"
 
 use_nix_daemon
 ensure_nix_bind_mount
 require_nix_daemon_socket
 
-FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT}"
-FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
+FLOX_ENV_DIR="${FLOX_ENV_DIR:-$project_root}"
+FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$project_root/scripts/env/toolchain/nix/flox_env_init.sh}"
 
 usage() {
   cat <<'EOF'
@@ -84,13 +84,13 @@ print_effective_env() {
     RESOLVED_VSCODE_BIN="$resolved_vscode_bin" \
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
-      PROJECT_ROOT="$1"
-      source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
-      source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+      project_root="$1"
+      source "$project_root/scripts/env/toolchain/python/python_env.sh"
+      source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
       hybrid_ai_activate_python_env
       hybrid_ai_activate_swift_env
 
-      printf "project_root=%s\n" "$PROJECT_ROOT"
+      printf "project_root=%s\n" "$project_root"
       printf "host_home=%s\n" "$HOST_HOME"
       printf "editor_home=%s\n" "$HOME"
       printf "xdg_config_home=%s\n" "$XDG_CONFIG_HOME"
@@ -114,7 +114,7 @@ print_effective_env() {
       clang --version | head -n 1
       printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"
       printf "lldb_bin=%s\n" "$(command -v lldb || true)"
-    ' bash "$PROJECT_ROOT"
+    ' bash "$project_root"
 }
 
 case "$mode" in
@@ -144,7 +144,7 @@ if [[ -z "$resolved_vscode_bin" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  set -- "$PROJECT_ROOT"
+  set -- "$project_root"
 fi
 
 exec env \
@@ -155,15 +155,15 @@ exec env \
   "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- \
   bash --noprofile --norc -lc '
     set -euo pipefail
-    PROJECT_ROOT="$1"
+    project_root="$1"
     shift
-    source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
-    source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+    source "$project_root/scripts/env/toolchain/python/python_env.sh"
+    source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
     hybrid_ai_activate_python_env
     hybrid_ai_activate_swift_env
     exec "$@"
   ' bash \
-  "$PROJECT_ROOT" \
+  "$project_root" \
   "$resolved_vscode_bin" \
   --user-data-dir "$VSCODE_USER_DATA_DIR" \
   --extensions-dir "$VSCODE_EXTENSIONS_DIR" \

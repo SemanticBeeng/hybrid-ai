@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
-  PROJECT_ROOT="$1"
+exec "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
+  project_root="$1"
   shift
 
   # shellcheck disable=SC1090
-  source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
+  source "$project_root/scripts/env/toolchain/python/python_env.sh"
   hybrid_ai_activate_python_env
 
-  printf "PROJECT_ROOT=%s\n" "$PROJECT_ROOT"
+  printf "project_root=%s\n" "$project_root"
   printf "FLOX_ENV=%s\n" "${FLOX_ENV:-unset}"
   printf "FLOX_ENV_CACHE=%s\n" "${FLOX_ENV_CACHE:-unset}"
   printf "PYTHON_DIR=%s\n" "$PYTHON_DIR"
@@ -29,4 +29,4 @@ import sys
 print(f"sys.executable={sys.executable}")
 print(f"python_bin_dir={os.path.dirname(sys.executable)}")
 PY
-' bash "$PROJECT_ROOT"
+' bash "$project_root"

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 TARGET_BIN_DIR="$NIX_ISOLATED_ROOT/bin"
 FLOX_FLAKE_REF="${FLOX_FLAKE_REF:-github:flox/flox/v1.12.2}"
-"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_mount_manage.sh" mount
+"$project_root/scripts/env/toolchain/nix/nix_mount_manage.sh" mount
 ensure_nix_bind_mount
 
 run_as_root mkdir -p "$TARGET_BIN_DIR"

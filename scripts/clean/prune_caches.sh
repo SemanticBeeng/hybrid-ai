@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-exec "$PROJECT_ROOT/scripts/env/toolchain/project_cache_cleanup.sh" "$@"
+exec "$project_root/scripts/env/toolchain/project_cache_cleanup.sh" "$@"

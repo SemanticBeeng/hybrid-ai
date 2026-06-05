@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
-mkdir -p "$PROJECT_ROOT/build" "$PROJECT_ROOT/volumes" "$PROJECT_ROOT/deps"
+mkdir -p "$project_root/build" "$project_root/volumes" "$project_root/deps"
 
-"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_mount_manage.sh" prepare
-"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_mount_manage.sh" mount
+"$project_root/scripts/env/toolchain/nix/nix_mount_manage.sh" prepare
+"$project_root/scripts/env/toolchain/nix/nix_mount_manage.sh" mount
 
 run_as_root mkdir -p "$NIX_CONF_DIR"
 

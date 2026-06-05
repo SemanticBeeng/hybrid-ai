@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/project_paths.sh"
+source "$project_root/scripts/env/toolchain/project_paths.sh"
 
 DRY_RUN=0
 INCLUDE_LOGS=0
@@ -51,10 +51,10 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-if [[ "$DRY_RUN" -eq 0 && -n "${FLOX_ENV:-}" && ( "$FLOX_ENV" == "$PROJECT_ROOT"/.flox/run/* || "$FLOX_ENV" == "$PROJECT_ROOT"/env/*/.flox/run/* ) ]]; then
+if [[ "$DRY_RUN" -eq 0 && -n "${FLOX_ENV:-}" && ( "$FLOX_ENV" == "$project_root"/.flox/run/* || "$FLOX_ENV" == "$project_root"/env/*/.flox/run/* ) ]]; then
   echo "ERROR: refusing to remove project Flox runtime state from inside an active project Flox environment." >&2
   echo "Re-run from a clean shell, for example:" >&2
-  echo "  env -u FLOX_ENV -u FLOX_ENV_PROJECT -u FLOX_ENV_CACHE $0" >&2
+  echo "  env -u FLOX_ENV -u FLOX_ENV_CACHE $0" >&2
   exit 1
 fi
 
@@ -98,17 +98,17 @@ remove_children() {
 }
 
 # Canonical project-local cache/build roots from common.sh concern modules.
-remove_children "$PROJECT_ROOT/build"
-remove_children "$PROJECT_ROOT/volumes/cache"
+remove_children "$project_root/build"
+remove_children "$project_root/volumes/cache"
 
 # Flox generated state is project-local and safe to regenerate from manifest.toml.
-if [[ -d "$PROJECT_ROOT/.flox" ]]; then
-  remove_path "$PROJECT_ROOT/.flox/cache"
-  remove_path "$PROJECT_ROOT/.flox/run"
-  remove_path "$PROJECT_ROOT/.flox/env/manifest.lock"
+if [[ -d "$project_root/.flox" ]]; then
+  remove_path "$project_root/.flox/cache"
+  remove_path "$project_root/.flox/run"
+  remove_path "$project_root/.flox/env/manifest.lock"
 fi
 
-for flox_dir in "$PROJECT_ROOT"/env/*/.flox; do
+for flox_dir in "$project_root"/env/*/.flox; do
   [[ -d "$flox_dir" ]] || continue
   remove_path "$flox_dir/cache"
   remove_path "$flox_dir/run"
@@ -116,14 +116,14 @@ for flox_dir in "$PROJECT_ROOT"/env/*/.flox; do
 done
 
 # Source-adjacent byproducts that should never be used by this project layout.
-remove_path "$PROJECT_ROOT/src/swift/.build"
+remove_path "$project_root/src/swift/.build"
 
 while IFS= read -r -d '' cache_dir; do
   remove_path "$cache_dir"
-done < <("$FIND_BIN" "$PROJECT_ROOT/src" -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.mypy_cache' -o -name '.ruff_cache' \) -print0 2>/dev/null || true)
+done < <("$FIND_BIN" "$project_root/src" -type d \( -name '__pycache__' -o -name '.pytest_cache' -o -name '.mypy_cache' -o -name '.ruff_cache' \) -print0 2>/dev/null || true)
 
 if [[ "$INCLUDE_LOGS" -eq 1 ]]; then
-  remove_children "$PROJECT_ROOT/volumes/logs"
+  remove_children "$project_root/volumes/logs"
 fi
 
 if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -131,7 +131,7 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
   # creation: xdg_env.sh, swift_paths.sh, and inference_env.sh.
   hash -r
   # shellcheck disable=SC1090
-  source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+  source "$project_root/scripts/env/toolchain/common.sh"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

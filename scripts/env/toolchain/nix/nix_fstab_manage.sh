@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 FSTAB_PATH="${FSTAB_PATH:-/etc/fstab}"
 FSTAB_ENTRY="$NIX_ISOLATED_ROOT $NIX_MOUNT_POINT none bind 0 0"

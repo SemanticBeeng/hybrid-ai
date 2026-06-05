@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
-printf "PROJECT_ROOT=%s\n" "$PROJECT_ROOT"
+printf "project_root=%s\n" "$project_root"
 printf "NIX_ISOLATED_ROOT=%s\n" "$NIX_ISOLATED_ROOT"
 printf "NIX_MOUNT_POINT=%s\n" "$NIX_MOUNT_POINT"
 printf "NIX_CONF_DIR=%s\n" "$NIX_CONF_DIR"

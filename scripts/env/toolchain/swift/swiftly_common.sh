@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-export -n PROJECT_ROOT 2>/dev/null || true
-
 hybrid_ai_swiftly_configure() {
   export SWIFTLY_ROOT="${SWIFTLY_ROOT:-/opt/bin/dev/swiftly}"
   export SWIFTLY_HOME_DIR="${SWIFTLY_HOME_DIR:-$SWIFTLY_ROOT/home}"

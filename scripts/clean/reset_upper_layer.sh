@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-rm -rf "$PROJECT_ROOT/build"/*
-rm -rf "$PROJECT_ROOT/volumes/cache"/*
-rm -rf "$PROJECT_ROOT/volumes/logs"/*
+rm -rf "$project_root/build"/*
+rm -rf "$project_root/volumes/cache"/*
+rm -rf "$project_root/volumes/logs"/*
 
 mkdir -p \
-  "$PROJECT_ROOT/build/python/cache/pip" \
-  "$PROJECT_ROOT/build/python/cache/poetry" \
-  "$PROJECT_ROOT/build/python/cache/uv" \
-  "$PROJECT_ROOT/build/python/pycache" \
-  "$PROJECT_ROOT/build/swift" \
-  "$PROJECT_ROOT/build/artifacts" \
-  "$PROJECT_ROOT/build/xdg/config" \
-  "$PROJECT_ROOT/build/xdg/cache" \
-  "$PROJECT_ROOT/build/xdg/data" \
-  "$PROJECT_ROOT/build/xdg/state" \
-  "$PROJECT_ROOT/build/home" \
-  "$PROJECT_ROOT/volumes/cache/huggingface" \
-  "$PROJECT_ROOT/volumes/cache/transformers" \
-  "$PROJECT_ROOT/volumes/logs"
+  "$project_root/build/python/cache/pip" \
+  "$project_root/build/python/cache/poetry" \
+  "$project_root/build/python/cache/uv" \
+  "$project_root/build/python/pycache" \
+  "$project_root/build/swift" \
+  "$project_root/build/artifacts" \
+  "$project_root/build/xdg/config" \
+  "$project_root/build/xdg/cache" \
+  "$project_root/build/xdg/data" \
+  "$project_root/build/xdg/state" \
+  "$project_root/build/home" \
+  "$project_root/volumes/cache/huggingface" \
+  "$project_root/volumes/cache/transformers" \
+  "$project_root/volumes/logs"
 
 echo "Reset complete. Preserved volumes/models and deps links."

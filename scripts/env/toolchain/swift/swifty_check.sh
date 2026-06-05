@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
+source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
 
 hybrid_ai_activate_swift_env
 

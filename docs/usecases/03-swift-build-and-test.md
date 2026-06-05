@@ -77,8 +77,8 @@ Repository-managed writable paths used by this workflow:
 - launches through `scripts/env/toolchain/nix/flox_with.sh`
 - sources `scripts/env/toolchain/swift/swift_env.sh`
 - activates Swiftly, validates Swift `6.3.2`, and exports Swift build/cache paths
-- passes `--package-path "$PROJECT_ROOT/src/swift"`
-- passes `--build-path "$PROJECT_ROOT/build/swift"` before forwarded arguments
+- passes `--package-path <repo>/src/swift`
+- passes `--build-path <repo>/build/swift` before forwarded arguments
 
 This means every wrapper-based Swift command uses the repository-local build
 directory even if the caller forgets to provide one.

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 cat <<EOF
 INFO: scripts/env/toolchain/nix/toolchain_install.sh is a convenience/resume helper.
 INFO: On a fresh machine, prefer the explicit step-by-step sequence from docs/chat/determinate_nix_flox_setup.md.
 EOF
 
-"$PROJECT_ROOT/scripts/env/toolchain/nix/host_bootstrap.sh"
-"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_determinate_install.sh"
-"$PROJECT_ROOT/scripts/env/toolchain/nix/flox_install.sh"
+"$project_root/scripts/env/toolchain/nix/host_bootstrap.sh"
+"$project_root/scripts/env/toolchain/nix/nix_determinate_install.sh"
+"$project_root/scripts/env/toolchain/nix/flox_install.sh"
 
 if [[ ! -S "$NIX_DAEMON_SOCKET" ]]; then
 	cat <<EOF >&2
@@ -23,9 +23,9 @@ EOF
 	exit 1
 fi
 
-"$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh"
-"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_isolation_check.sh"
-"$PROJECT_ROOT/scripts/env/toolchain/doctor.sh"
+"$project_root/scripts/env/toolchain/nix/flox_env_init.sh"
+"$project_root/scripts/env/toolchain/nix/nix_isolation_check.sh"
+"$project_root/scripts/env/toolchain/doctor.sh"
 
 cat <<EOF
 Toolchain installation completed.

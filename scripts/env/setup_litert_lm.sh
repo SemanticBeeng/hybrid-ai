@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 # Override if upstream organization/repo changes.
 LITERT_LM_GH_REPO="${LITERT_LM_GH_REPO:-google-ai-edge/LiteRT-LM}"
 LITERT_LM_TAG="${LITERT_LM_TAG:-}"
 
 if [[ -z "$LITERT_LM_TAG" ]]; then
-  LITERT_LM_TAG="$($PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh curl -sS "https://api.github.com/repos/$LITERT_LM_GH_REPO/releases/latest" | $PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh jq -r '.tag_name')"
+  LITERT_LM_TAG="$($project_root/scripts/env/toolchain/nix/flox_with.sh curl -sS "https://api.github.com/repos/$LITERT_LM_GH_REPO/releases/latest" | $project_root/scripts/env/toolchain/nix/flox_with.sh jq -r '.tag_name')"
 fi
 
 if [[ -z "$LITERT_LM_TAG" || "$LITERT_LM_TAG" == "null" ]]; then
@@ -17,13 +17,13 @@ if [[ -z "$LITERT_LM_TAG" || "$LITERT_LM_TAG" == "null" ]]; then
   exit 1
 fi
 
-mkdir -p "$PROJECT_ROOT/build/artifacts"
-printf '%s\n' "$LITERT_LM_TAG" > "$PROJECT_ROOT/build/artifacts/litert-lm.version"
+mkdir -p "$project_root/build/artifacts"
+printf '%s\n' "$LITERT_LM_TAG" > "$project_root/build/artifacts/litert-lm.version"
 
 echo "Using LiteRT-LM release tag: $LITERT_LM_TAG"
 
 echo "Installing Python binding into project Flox Python environment..."
-"$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" python -m pip install --upgrade \
+"$project_root/scripts/env/toolchain/nix/flox_with.sh" python -m pip install --upgrade \
   "git+https://github.com/$LITERT_LM_GH_REPO.git@$LITERT_LM_TAG"
 
 echo "Swift binding setup guidance:"

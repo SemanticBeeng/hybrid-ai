@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 use_nix_daemon
 ensure_nix_bind_mount
@@ -16,9 +16,9 @@ unset VIRTUAL_ENV_PROMPT
 hybrid_ai_require_flox_env "$FLOX_ENV_DIR"
 
 if [[ $# -eq 0 ]]; then
-  cd "$PROJECT_ROOT"
+  cd "$project_root"
   exec "$FLOX_BIN" activate -d "$FLOX_ENV_DIR"
 fi
 
-cd "$PROJECT_ROOT"
+cd "$project_root"
 exec "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- "$@"
