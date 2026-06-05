@@ -48,8 +48,10 @@ Runtime wrappers:
 - `scripts/env/toolchain/python/python_run.sh`
 - `scripts/env/toolchain/python/python_server_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
-- `scripts/env/toolchain/common.sh`
 - `scripts/env/toolchain/python/python_env.sh`
+
+Session support:
+- `scripts/env/toolchain/common.sh` can be sourced once by external shells as the full-session compatibility aggregator, but Python manifests and wrappers use `scripts/env/toolchain/python/python_env.sh` as their narrow runtime source of truth.
 
 Python source:
 - `src/python/pyproject.toml`
@@ -74,7 +76,7 @@ Repository-managed writable paths used by this workflow:
 - defaults to `python -m hybrid_ai` when no explicit arguments are given
 - if already inside the active Flox environment, it activates the managed venv and runs `python` directly
 - otherwise it launches through `scripts/env/toolchain/nix/flox_with.sh` and activates the managed venv in the command shell
-- uses `scripts/env/toolchain/python/python_env.sh` as the single source of truth for venv creation, dependency sync, cache paths, and runtime library activation
+- uses `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, venv creation, dependency sync, cache paths, and runtime library activation
 
 `scripts/env/toolchain/python/python_enter.sh` does the following:
 - activates the composed Flox environment

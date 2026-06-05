@@ -14,7 +14,3 @@ hybrid_ai_assert_under_project() {
       ;;
   esac
 }
-
-assert_under_project() {
-  hybrid_ai_assert_under_project "$@"
-}

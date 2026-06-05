@@ -167,7 +167,7 @@ Modify `scripts/env/toolchain/swift/swift_env.sh`:
 2. Source `/opt/bin/dev/swiftly/home/env.sh`.
 3. Prepend `/opt/bin/dev/swiftly/bin`.
 4. Validate version.
-5. Keep cache variables/project paths.
+5. Source the Swift path/cache module internally so callers only need `swift_env.sh`.
 
 Then validate through existing wrappers:
 - `scripts/env/toolchain/swift/swift_run.sh`
@@ -179,6 +179,7 @@ Expected result:
 
 Execution note:
 - `scripts/env/toolchain/swift/swift_env.sh` was changed to source the Swiftly helper and validate Swift `6.3.2`.
+- `scripts/env/toolchain/swift/swift_env.sh` now also sources the Swift build/cache path module, so `env/swift/manifest.toml`, `env/hybrid-ai/manifest.toml`, wrappers, and checks do not source `swift_paths.sh` directly.
 - `scripts/env/toolchain/swift/swift_env_check.sh` now reports Swiftly paths and confirmed:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
@@ -208,6 +209,7 @@ Expected result:
 
 Execution note:
 - Removed Nix Swift package entries from `env/swift/manifest.toml` and `env/hybrid-ai/manifest.toml`.
+- Flox Swift hooks now source the narrow Swift runtime helper, `scripts/env/toolchain/swift/swift_env.sh`; they do not source the broad `common.sh` aggregator or the internal `swift_paths.sh` helper directly.
 - Re-synced Flox state with `scripts/env/toolchain/nix/flox_env_init.sh`.
 - Refreshed composed includes with `flox include upgrade -d env/hybrid-ai`.
 - `flox list -d env/hybrid-ai` no longer reports `swift`, `swiftpm`, `XCTest`, or `clang` packages from Nix.
@@ -351,6 +353,7 @@ Migration is complete when:
 - `.swift-version` pins `6.3.2`.
 - Flox no longer installs `swift`, `swiftpm`, or `swiftPackages.XCTest`.
 - `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly by default.
+- `scripts/env/toolchain/swift/swift_env.sh` owns Swift build/cache path activation for callers by sourcing the path helper internally.
 - `scripts/env/toolchain/swift/swift_run.sh build` succeeds.
 - `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli` succeeds.
 - `scripts/env/toolchain/swift/swift_run.sh test` succeeds.

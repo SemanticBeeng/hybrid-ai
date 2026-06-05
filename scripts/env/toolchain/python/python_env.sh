@@ -4,6 +4,14 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
   PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fi
 
+hybrid_ai_unset_host_python_env() {
+  # Prevent an already-active host virtualenv from leaking into repository Python workflows.
+  unset VIRTUAL_ENV
+  unset VIRTUAL_ENV_PROMPT
+}
+
+hybrid_ai_unset_host_python_env
+
 hybrid_ai_python_dir() {
   printf '%s\n' "$PROJECT_ROOT/src/python"
 }
@@ -20,6 +28,8 @@ hybrid_ai_python_venv_dir() {
 hybrid_ai_export_python_env() {
   local python_dir=""
   local venv_dir=""
+
+  hybrid_ai_unset_host_python_env
 
   python_dir="$(hybrid_ai_python_dir)"
   venv_dir="$(hybrid_ai_python_venv_dir)"

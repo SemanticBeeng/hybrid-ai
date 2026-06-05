@@ -2,6 +2,14 @@
 
 ## 2026-06-05
 
+### Toolchain source-boundary cleanup
+- clarified the environment design so Flox manifests source narrow concern modules directly while `scripts/env/toolchain/common.sh` remains the full-session compatibility aggregator for external shells and launcher bootstrap
+- folded the former Python path/host-venv cleanup concern into `scripts/env/toolchain/python/python_env.sh`, making it the single Python source of truth for host virtualenv cleanup, managed venv setup, dependency sync, cache paths, and runtime activation
+- made `scripts/env/toolchain/swift/swift_env.sh` source Swift build/cache path setup internally, so manifests and callers no longer need to source `swift_paths.sh` directly
+- documented `scripts/env/toolchain/vscode_paths.sh` as the VS Code portable path owner and updated runbooks to reflect that `scripts/env/start_vscode.sh` now activates the managed Python venv and Swiftly toolchain before launching VS Code
+- updated use-case docs and setup runbooks to describe the cleaned module boundaries and current Python/Swift/VS Code activation model
+- confirmed `scripts/env/start_vscode.sh --check` exits successfully with the cleaned launcher/module-source design
+
 ### Linux-first Swift mobile UI proof
 - added a Linux-only GTK/libadwaita mobile chat proof target, `hybrid-ai-mobile-chat`, with a phone-sized single-column chat UI that imports the shared `HybridAI` module and displays the existing `hybrid-ai swift module ready` status
 - added GTK/libadwaita native UI dependencies to the Flox Swift layer instead of Swiftly or the host OS, keeping the ownership split as Swiftly for Swift tools and Flox/Nix for native GUI dependencies
@@ -56,7 +64,7 @@
 ### Flox environment repair
 - updated `scripts/env/toolchain/nix/flox_env_init.sh` to initialize and sync included module environments before syncing the top-level composed environment
 - removed `pipx` from `env/python/manifest.toml` after it blocked Flox realization with failing Nix package tests
-- re-synced the managed Flox environments and verified the generated activation hook points at `scripts/env/toolchain/common.sh`
+- re-synced the managed Flox environments and verified generated activation hooks for the then-current manifest source layout
 
 ### Repository cleanup
 - removed the empty `scripts/build` shadow tree because the canonical writable tree is `build/`

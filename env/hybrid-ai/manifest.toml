@@ -15,9 +15,10 @@ environments = [
 [hook]
 on-activate = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/xdg_env.sh"
 source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
 source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/inference_env.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-fullstack}
 hybrid_ai_setup_python_env
 hybrid_ai_activate_swift_env

@@ -15,6 +15,10 @@ export NIX_WRAPPER_BIN="${NIX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix}"
 export NIX_INSTALLER_WRAPPER_BIN="${NIX_INSTALLER_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/nix-installer}"
 export FLOX_WRAPPER_BIN="${FLOX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/flox}"
 export FLOX_PROFILE="${FLOX_PROFILE:-$NIX_MOUNT_POINT/var/nix/profiles/flox}"
+export FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
+export FLOX_ENV_NAME="${FLOX_ENV_NAME:-${FLOX_ENV_DIR##*/}}"
+export FLOX_MANIFEST_PATH="${FLOX_MANIFEST_PATH:-$FLOX_ENV_DIR/manifest.toml}"
+export FLOX_DISABLE_METRICS="${FLOX_DISABLE_METRICS:-true}"
 
 case "$NIX_ISOLATED_ROOT" in
   /nix|/nix/*)
@@ -110,4 +114,88 @@ require_nix_daemon_socket() {
   echo "ERROR: expected nix-daemon socket at $NIX_DAEMON_SOCKET" >&2
   echo "Start /nix/var/nix/profiles/default/bin/nix-daemon as root before using non-root Nix or Flox." >&2
   return 1
+}
+
+resolve_flox_bin() {
+  if have_command flox; then
+    command -v flox
+    return 0
+  fi
+
+  if [[ -x "$FLOX_WRAPPER_BIN" ]]; then
+    printf '%s\n' "$FLOX_WRAPPER_BIN"
+    return 0
+  fi
+
+  return 1
+}
+
+require_flox_bin() {
+  local flox_bin=""
+
+  flox_bin="$(resolve_flox_bin || true)"
+  if [[ -n "$flox_bin" ]]; then
+    printf '%s\n' "$flox_bin"
+    return 0
+  fi
+
+  echo "ERROR: flox is required but not installed or not in PATH." >&2
+  return 1
+}
+
+hybrid_ai_require_flox_env() {
+  local env_dir="${1:-$FLOX_ENV_DIR}"
+  local manifest_path="$env_dir/manifest.toml"
+
+  if [[ -f "$manifest_path" ]]; then
+    return 0
+  fi
+
+  echo "ERROR: expected Flox manifest at $manifest_path" >&2
+  return 1
+}
+
+hybrid_ai_flox_tool_env() {
+  env \
+    "XDG_CONFIG_HOME=$XDG_CONFIG_HOME" \
+    "XDG_CACHE_HOME=$XDG_CACHE_HOME" \
+    "XDG_DATA_HOME=$XDG_DATA_HOME" \
+    "HOME=$HOME" \
+    "FLOX_DISABLE_METRICS=$FLOX_DISABLE_METRICS" \
+    "$@"
+}
+
+hybrid_ai_ensure_flox_env_ready() {
+  local env_dir="${1:-$FLOX_ENV_DIR}"
+  local init_script="${2:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
+  local flox_bin=""
+  local activate_output=""
+  local status=0
+
+  hybrid_ai_require_flox_env "$env_dir" || return
+  flox_bin="$(require_flox_bin)" || return
+
+  set +e
+  activate_output="$(hybrid_ai_flox_tool_env "$flox_bin" activate -d "$env_dir" -- bash --noprofile --norc -lc 'exit 0' 2>&1)"
+  status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ "$activate_output" == *"manifest and lockfile are out of sync"* ]]; then
+    if [[ ! -x "$init_script" ]]; then
+      echo "ERROR: Flox environment state is stale, and sync helper is not executable: $init_script" >&2
+      printf '%s\n' "$activate_output" >&2
+      return "$status"
+    fi
+
+    echo "INFO: Flox environment state is stale; syncing manifests." >&2
+    FLOX_ENV_DIR="$env_dir" "$init_script" >/dev/null
+    return 0
+  fi
+
+  printf '%s\n' "$activate_output" >&2
+  return "$status"
 }

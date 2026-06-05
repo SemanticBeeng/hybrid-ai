@@ -42,12 +42,15 @@ Runtime wrappers:
 - `scripts/env/toolchain/swift/swift_run.sh`
 - `scripts/env/toolchain/swift/swift_ui_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
-- `scripts/env/toolchain/common.sh`
 - `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/swift/gtk_ui_runtime.sh`
 - `scripts/env/toolchain/swift/swiftly_common.sh`
 - `scripts/env/toolchain/swift/swift_env_check.sh`
 - `scripts/env/toolchain/swift/swifty_check.sh`
+
+Session support:
+- `scripts/env/toolchain/common.sh` can be sourced once by external shells as the full-session compatibility aggregator, but Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
+- `scripts/env/toolchain/swift/swift_env.sh` sources the Swift path/cache module internally, so callers do not need to source `swift_paths.sh` directly.
 
 Swift package files:
 - `src/swift/Package.swift`
@@ -73,7 +76,7 @@ Repository-managed writable paths used by this workflow:
 - defaults to `swift build` when no explicit arguments are provided
 - launches through `scripts/env/toolchain/nix/flox_with.sh`
 - sources `scripts/env/toolchain/swift/swift_env.sh`
-- activates Swiftly and validates Swift `6.3.2`
+- activates Swiftly, validates Swift `6.3.2`, and exports Swift build/cache paths
 - passes `--package-path "$PROJECT_ROOT/src/swift"`
 - passes `--build-path "$PROJECT_ROOT/build/swift"` before forwarded arguments
 
@@ -85,7 +88,7 @@ It does the following:
 - defaults to `swift build --product hybrid-ai-mobile-chat` when no explicit arguments are provided
 - launches through `scripts/env/toolchain/nix/flox_with.sh`
 - sources `scripts/env/toolchain/swift/swift_env.sh`
-- activates Swiftly and validates Swift `6.3.2`
+- activates Swiftly, validates Swift `6.3.2`, and exports Swift build/cache paths
 - sets `HYBRID_AI_ENABLE_GTK_UI=1` so the Linux UI targets are visible to SwiftPM
 - verifies `pkg-config` can resolve `gtk4` and `libadwaita-1`
 - converts `pkg-config --cflags gtk4 libadwaita-1` into SwiftPM `-Xcc` arguments

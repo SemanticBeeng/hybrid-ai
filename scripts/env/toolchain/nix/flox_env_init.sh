@@ -8,20 +8,8 @@ use_nix_daemon
 ensure_nix_bind_mount
 require_nix_daemon_socket
 
-FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
-FLOX_ENV_NAME="${FLOX_ENV_NAME:-$(basename "$FLOX_ENV_DIR")}"
-FLOX_MANIFEST_PATH="${FLOX_MANIFEST_PATH:-$FLOX_ENV_DIR/manifest.toml}"
-FLOX_DISABLE_METRICS=true
-
-FLOX_BIN=""
-if command -v flox >/dev/null 2>&1; then
-  FLOX_BIN="$(command -v flox)"
-elif [[ -x "$FLOX_WRAPPER_BIN" ]]; then
-  FLOX_BIN="$FLOX_WRAPPER_BIN"
-fi
-
+FLOX_BIN="$(require_flox_bin || true)"
 if [[ -z "$FLOX_BIN" ]]; then
-  echo "ERROR: flox is required but not installed or not in PATH." >&2
   echo "Run scripts/env/toolchain/nix/flox_install.sh first." >&2
   exit 1
 fi
@@ -30,14 +18,6 @@ if [[ ! -f "$FLOX_MANIFEST_PATH" ]]; then
   echo "ERROR: Flox manifest not found at $FLOX_MANIFEST_PATH" >&2
   exit 1
 fi
-
-flox_env=(
-  "XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
-  "XDG_CACHE_HOME=$XDG_CACHE_HOME"
-  "XDG_DATA_HOME=$XDG_DATA_HOME"
-  "HOME=$HOME"
-  "FLOX_DISABLE_METRICS=$FLOX_DISABLE_METRICS"
-)
 
 resolve_included_env_dirs() {
   local manifest_dir
@@ -71,10 +51,10 @@ sync_single_env() {
   fi
 
   if [[ ! -f "$env_dir/.flox/env.json" ]]; then
-    env "${flox_env[@]}" "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
+    hybrid_ai_flox_tool_env "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
   fi
 
-  env "${flox_env[@]}" "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
+  hybrid_ai_flox_tool_env "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
 }
 
 for flox_dir in "$XDG_CONFIG_HOME/flox" "$XDG_CACHE_HOME/flox" "$XDG_DATA_HOME/flox"; do

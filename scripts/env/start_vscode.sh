@@ -1,24 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HOST_USER="${SUDO_USER:-$(id -un)}"
-HOST_HOME=""
-
-if command -v getent >/dev/null 2>&1; then
-  HOST_HOME="$(getent passwd "$HOST_USER" | cut -d: -f6)"
-fi
-
-if [[ -z "$HOST_HOME" ]]; then
-  HOST_HOME="$(eval echo "~$HOST_USER")"
-fi
-
-if [[ -z "$HOST_HOME" || ! -d "$HOST_HOME" ]]; then
-  echo "ERROR: could not resolve host home for user $HOST_USER" >&2
-  exit 1
-fi
-
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1090
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+# shellcheck disable=SC1090
+source "$PROJECT_ROOT/scripts/env/toolchain/vscode_paths.sh"
 
 use_nix_daemon
 ensure_nix_bind_mount
@@ -26,10 +13,6 @@ require_nix_daemon_socket
 
 FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
 FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
-VSCODE_PORTABLE_ROOT="${VSCODE_PORTABLE_ROOT:-$HOST_HOME/appdata/.vscode}"
-VSCODE_USER_DATA_DIR="${VSCODE_USER_DATA_DIR:-$VSCODE_PORTABLE_ROOT/data}"
-VSCODE_EXTENSIONS_DIR="${VSCODE_EXTENSIONS_DIR:-$VSCODE_USER_DATA_DIR/extensions}"
-VSCODE_SETTINGS_PATH="${VSCODE_SETTINGS_PATH:-$VSCODE_USER_DATA_DIR/User/settings.json}"
 
 usage() {
   cat <<'EOF'
@@ -52,85 +35,7 @@ Modes:
 EOF
 }
 
-resolve_flox_bin() {
-  if command -v flox >/dev/null 2>&1; then
-    command -v flox
-    return 0
-  fi
-
-  if [[ -x "$FLOX_WRAPPER_BIN" ]]; then
-    printf '%s\n' "$FLOX_WRAPPER_BIN"
-    return 0
-  fi
-
-  return 1
-}
-
-resolve_vscode_bin() {
-  if [[ -n "${VSCODE_BIN:-}" ]]; then
-    [[ -x "$VSCODE_BIN" ]] || {
-      echo "ERROR: VSCODE_BIN is not executable: $VSCODE_BIN" >&2
-      return 1
-    }
-    printf '%s\n' "$VSCODE_BIN"
-    return 0
-  fi
-
-  local candidate
-  for candidate in code code-insiders codium; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      command -v "$candidate"
-      return 0
-    fi
-  done
-
-  for candidate in \
-    "$HOST_HOME/appdata/.vscode/bin/code" \
-    "$HOST_HOME/appdata/.vscode/bin/code-insiders" \
-    "$HOST_HOME/appdata/.vscode/code" \
-    "$HOST_HOME/appdata/.vscode/code-insiders"; do
-    if [[ -x "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-ensure_flox_env_ready() {
-  local activate_output=""
-  local status=0
-
-  set +e
-  activate_output="$("$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc 'exit 0' 2>&1)"
-  status=$?
-  set -e
-
-  if [[ "$status" -eq 0 ]]; then
-    return 0
-  fi
-
-  if [[ "$activate_output" == *"manifest and lockfile are out of sync"* ]]; then
-    if [[ ! -x "$FLOX_ENV_INIT_SCRIPT" ]]; then
-      echo "ERROR: Flox environment state is stale, and sync helper is not executable: $FLOX_ENV_INIT_SCRIPT" >&2
-      printf '%s\n' "$activate_output" >&2
-      return "$status"
-    fi
-
-    echo "INFO: Flox environment state is stale; syncing manifests before launching VS Code." >&2
-    "$FLOX_ENV_INIT_SCRIPT" >/dev/null
-    return 0
-  fi
-
-  printf '%s\n' "$activate_output" >&2
-  return "$status"
-}
-
-if [[ ! -f "$FLOX_ENV_DIR/manifest.toml" ]]; then
-  echo "ERROR: expected Flox manifest at $FLOX_ENV_DIR/manifest.toml" >&2
-  exit 1
-fi
+hybrid_ai_require_flox_env "$FLOX_ENV_DIR"
 
 FLOX_BIN="$(resolve_flox_bin || true)"
 if [[ -z "$FLOX_BIN" ]]; then
@@ -138,9 +43,9 @@ if [[ -z "$FLOX_BIN" ]]; then
   exit 1
 fi
 
-ensure_flox_env_ready
+hybrid_ai_ensure_flox_env_ready "$FLOX_ENV_DIR" "$FLOX_ENV_INIT_SCRIPT"
 
-mkdir -p "$VSCODE_USER_DATA_DIR" "$VSCODE_EXTENSIONS_DIR"
+hybrid_ai_ensure_vscode_dirs
 
 mode="launch"
 while [[ $# -gt 0 ]]; do

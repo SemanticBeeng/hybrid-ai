@@ -12,9 +12,9 @@ instead of the host machine defaults.
 
 For this repository, that means:
 - the editor is launched through the composed Flox environment at `env/hybrid-ai`
-- Python resolves to the Flox-managed interpreter from the active Flox environment
-- Python CLI and native-extension workflows still rely on the managed venv helper under `env/hybrid-ai/.flox/cache/python`
-- Swift resolves to the Flox-managed Swift toolchain
+- Python resolves to the managed venv under `env/hybrid-ai/.flox/cache/python`
+- Python CLI, server, editor, and native-extension workflows share the same managed venv activation helper
+- Swift resolves to the Swiftly-managed Swift toolchain activated inside the Flox project environment
 - the portable VS Code user-data root remains under `$HOME/appdata/.vscode/data`
 - workspace-level VS Code settings continue to route task execution through the repository wrappers
 
@@ -66,8 +66,19 @@ Portable VS Code state:
 
 Supporting environment files:
 - `scripts/env/toolchain/common.sh`
+- `scripts/env/toolchain/vscode_paths.sh`
+- `scripts/env/toolchain/nix/nix_flox_env.sh`
+- `scripts/env/toolchain/python/python_env.sh`
+- `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `env/hybrid-ai/manifest.toml`
+
+Design boundary:
+- `common.sh` is the full-session compatibility aggregator used by the launcher and interactive shells.
+- `vscode_paths.sh` owns portable VS Code paths and binary resolution.
+- `python_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
+- `swift_env.sh` owns Swiftly activation and sources the Swift build/cache path module internally.
+- Flox manifests source the narrow concern modules they need instead of sourcing `common.sh`.
 
 ## 5. Effective Behavior
 
@@ -78,21 +89,22 @@ following before the editor opens:
 2. Sources `scripts/env/toolchain/common.sh`.
 3. Enforces the active bind-mounted Determinate Nix layout.
 4. Requires the nix daemon socket.
-5. Resolves Flox and activates `env/hybrid-ai`.
+5. Resolves Flox and ensures `env/hybrid-ai` is ready.
 6. Forces the portable VS Code user-data and extensions directories.
-7. Launches the real VS Code binary inside the activated Flox environment.
+7. Activates `env/hybrid-ai`, then sources `python_env.sh` and `swift_env.sh` inside that activation.
+8. Activates the managed Python venv and Swiftly toolchain before launching the real VS Code binary.
 
 As a result:
-- `python` inside the editor environment comes from Flox
-- `swift` inside the editor environment comes from Flox
+- `python` inside the editor environment comes from `env/hybrid-ai/.flox/cache/python`
+- `swift` inside the editor environment comes from `/opt/bin/dev/swiftly/bin` after Swiftly activation
 - integrated terminals still inherit the repository workspace terminal environment settings
 - Python and Swift extension paths remain pinned by `.vscode/settings.json`
 
 Important current split:
 - the editor process starts inside the composed Flox environment
-- the managed Python venv under `env/hybrid-ai/.flox/cache/python` is the canonical runtime for Python CLI, server, and native-extension workflows
-- wrapper-based Python commands and activated Flox shells explicitly source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
-- `scripts/env/start_vscode.sh` does not currently source the Python helper itself before launching VS Code, so editor-side Python extension discovery is Flox-based but not yet managed-venv-specific
+- the managed Python venv under `env/hybrid-ai/.flox/cache/python` is the canonical runtime for Python CLI, server, editor, and native-extension workflows
+- wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
+- Swift workflows source `scripts/env/toolchain/swift/swift_env.sh`, which activates Swiftly and applies Swift build/cache path policy
 
 ## 6. Required VS Code Settings Context
 
@@ -158,7 +170,7 @@ This should show:
 - `vscode_user_data_dir=/home/.../appdata/.vscode/data`
 - `vscode_extensions_dir=/home/.../appdata/.vscode/data/extensions`
 - a Flox-managed Python binary
-- a Flox-managed Swift binary
+- a Swiftly-managed Swift binary activated inside the Flox project environment
 
 Run the explicit preflight:
 
@@ -174,8 +186,8 @@ binary can actually be resolved.
 After the editor opens:
 
 1. Run the task `vscode:print-env`.
-2. Confirm the printed `python_bin` and `python_executable` point into `env/hybrid-ai/.flox/run/...`.
-3. Confirm `swift_bin` points into `env/hybrid-ai/.flox/run/...`.
+2. Confirm the printed `python_bin` and `python_executable` point into `env/hybrid-ai/.flox/cache/python`.
+3. Confirm `swift_bin` points into `/opt/bin/dev/swiftly/bin`.
 4. Confirm `vscode_user_data_dir` and `vscode_extensions_dir` point at the portable root under `$HOME/appdata/.vscode/data`.
 
 ### 8.3 Verify Workspace-Level Tool Pinning
@@ -185,25 +197,25 @@ Check these workspace settings:
 - `.vscode/settings.json` sets `swift.path` to `swift`
 
 This means:
-- extension-launched Python actions resolve to the Flox-managed Python interpreter from the activated editor `PATH`
-- extension-launched Swift actions resolve to the Flox-managed Swift binary from the activated editor `PATH`
+- extension-launched Python actions resolve to the managed venv interpreter from the activated editor `PATH`
+- extension-launched Swift actions resolve to the Swiftly-managed Swift binary from the activated editor `PATH`
 - Copilot-generated tasks remain aligned with repository scripts rather than host binaries
 
 Current Python nuance:
 - `.vscode/settings.json` intentionally points to `python`, not directly to `env/hybrid-ai/.flox/cache/python/bin/python`
-- this keeps the editor aligned with the activated Flox environment while avoiding direct extension reliance on the CLI/server wrapper scripts
-- the managed venv remains the canonical runtime for wrapper-based Python commands and for validated native-extension behavior such as NumPy
+- this keeps the editor aligned with the activated launcher environment while avoiding direct extension reliance on the CLI/server wrapper scripts
+- the launcher activates the managed venv before starting VS Code, so `python` resolves to the same runtime used by wrapper-based Python commands and native-extension checks such as NumPy
 
 ## 9. Expected Outcomes
 
 When this workflow is working correctly:
 - the editor process is launched from a shell that already activated Flox
-- editor-side Python resolves to the project Flox environment
-- editor-side Swift resolves to the project environment
+- editor-side Python resolves to the managed Flox venv
+- editor-side Swift resolves to the Swiftly-managed toolchain inside the project environment
 - user settings such as `remote.SSH.serverInstallPath` still come from the portable user settings file
 - workspace settings override only the repository-specific keys that need pinning
 - Copilot suggestions and generated commands are grounded in the same repository toolchain used by the wrappers and tasks
-- Python CLI/server commands remain reproducible because the repository wrappers and activated Flox shells both source the managed Python helper before running Python code
+- Python CLI/server commands remain reproducible because the repository wrappers, activated Flox shells, and VS Code launcher all source the managed Python helper before running Python code
 
 ## 10. Failure Modes And Recovery
 
@@ -255,17 +267,18 @@ Recovery:
 - relaunch the editor with `scripts/env/start_vscode.sh`
 - do not open the workspace from a host-launched editor window that bypasses the launcher
 
-### 10.5 Editor Python Uses Flox But Not Managed Venv
+### 10.5 Editor Python Is Not The Managed Venv
 
 Symptom:
-- editor-side Python features resolve the Flox interpreter, but CLI/runtime checks that depend on the managed venv are not identical to `scripts/env/toolchain/python/python_run.sh`
+- editor-side Python features resolve a Flox run interpreter or host interpreter instead of `env/hybrid-ai/.flox/cache/python/bin/python`
 
 Meaning:
-- the editor was launched inside Flox as designed, but `scripts/env/start_vscode.sh` does not yet source `scripts/env/toolchain/python/python_env.sh` before launching VS Code
+- the editor was not launched through the current `scripts/env/start_vscode.sh` path, or an existing VS Code window/terminal was reused after environment scripts changed
 
 Recovery:
-- use `scripts/env/toolchain/python/python_run.sh` or an activated Flox shell for authoritative Python CLI and runtime verification
-- if editor-side managed-venv parity becomes required, update the launcher to source the Python helper before launching VS Code
+- close stale VS Code windows and relaunch with `scripts/env/start_vscode.sh`
+- run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `env/hybrid-ai/.flox/cache/python`
+- use `scripts/env/toolchain/python/python_run.sh` as the authoritative CLI runtime check if editor state is still unclear
 
 ## 11. Relationship To The Other Docs
 
@@ -286,4 +299,100 @@ Implemented now:
 
 Known limitation:
 - the launcher can only auto-resolve the VS Code binary if it is on `PATH` or matches one of the expected portable locations; otherwise `VSCODE_BIN` must be provided explicitly
-- the launcher currently guarantees the composed Flox toolchain for the editor process, but it does not yet pre-activate the managed Python venv used by the repository Python wrappers
+- already-open VS Code windows and integrated terminals do not retroactively pick up launcher or activation changes; restart the editor after environment script changes
+
+----
+
+# Design Work
+
+## Q: If `start_vscode.sh` is canonical and `common.sh` is sourced once, what can scripts assume?
+
+Assumptions under discussion:
+
+1. `scripts/env/start_vscode.sh` is the canonical entrypoint when using VS Code and GitHub Copilot.
+2. `scripts/env/toolchain/common.sh` is sourced once in every external shell session before running project scripts.
+
+Under that model, the following conclusions hold.
+
+### 1. `start_vscode.sh` inherits `common.sh` environment variables and activates Flox
+
+Yes.
+
+`scripts/env/start_vscode.sh` sources the project environment aggregator and then launches VS Code through the composed Flox environment.
+
+The launcher is responsible for:
+
+- loading the common project environment
+- loading VS Code portable path defaults
+- validating the Nix daemon and `/nix` mount assumptions
+- ensuring the Flox environment is ready
+- launching the editor through `flox activate -d env/hybrid-ai`
+
+The `--check` path confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
+
+### 2. VS Code terminals and Copilot inherit that environment
+
+Mostly yes.
+
+When VS Code is launched through `scripts/env/start_vscode.sh`, the editor process inherits the project/Flox environment. VS Code extension hosts, including GitHub Copilot, generally inherit the editor process environment. Integrated terminals inherit the editor process environment plus explicit workspace terminal overrides from `.vscode/settings.json`.
+
+Important caveats:
+
+- already-open VS Code windows do not retroactively inherit launcher changes
+- already-open integrated terminals do not retroactively inherit environment changes
+- after changing environment scripts, restart VS Code or create a new terminal
+
+### 3. External shells can inherit `common.sh` state once
+
+Yes, if the shell uses `source`, not script execution:
+
+```bash
+source scripts/env/toolchain/common.sh
+```
+
+After that, child processes inherit exported variables from the common project environment, including XDG/HOME isolation, Nix/Flox path defaults, Swift build/cache paths, and inference/model/cache paths.
+
+Important distinction:
+
+- exported variables are inherited by child scripts
+- shell functions are not normally inherited by child scripts unless explicitly exported with `export -f`
+
+Therefore, if scripts stop sourcing modules and only rely on a once-sourced shell, they can rely on variables such as `PROJECT_ROOT`, `XDG_CACHE_HOME`, `FLOX_ENV_DIR`, and `SWIFT_BUILD_PATH`, but not on functions such as `run_as_root`, `use_nix_daemon`, `require_flox_bin`, or `hybrid_ai_assert_under_project` unless those scripts are executed in the same shell context or still source the needed module.
+
+### 4. Directory creation and isolation verification can be sufficient once at session start
+
+Mostly yes, for a stable session.
+
+Sourcing `scripts/env/toolchain/common.sh` creates the project-local directory structure through the concern modules:
+
+- `xdg_env.sh` creates project-local XDG and HOME directories
+- `swift_env.sh` sources the Swift path module, which creates Swift build/cache directories
+- `inference_env.sh` creates model/cache/log/artifact/dependency directories
+
+`scripts/env/start_vscode.sh` performs the startup isolation checks needed for the editor session:
+
+- checks the Nix daemon profile
+- checks the `/nix` mount
+- checks the Nix daemon socket
+- ensures the Flox environment is activatable or syncs stale state
+
+For normal VS Code usage, doing this once at editor startup is sufficient.
+
+Important caveats:
+
+- if `/nix` is unmounted later, the daemon stops, or caches are pruned during the session, assumptions can become stale
+- destructive scripts such as cache cleanup and Nix mount management should keep local safety checks
+- if the project later supports discretionary module-specific Flox activation, each module activation boundary should verify the module environment it is about to activate
+
+### Design implication
+
+This supports a session-initialization model:
+
+- `scripts/env/start_vscode.sh` is the canonical VS Code/Copilot session initializer
+- external shells should source `scripts/env/toolchain/common.sh` once before running project workflows
+- scripts can gradually reduce repeated environment discovery if they are only intended to run inside initialized sessions
+- scripts that require helper functions should still source the specific concern module they use, or a narrower concern aggregator
+
+The guiding rule becomes:
+
+> Variables can be inherited once from `common.sh`; functions and destructive safety checks should remain explicitly sourced or verified at the boundary that uses them.

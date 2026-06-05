@@ -176,14 +176,14 @@ scripts/env/toolchain/nix/flox_with.sh swift --version
 Expected outcomes:
 - the shared isolation layer reports project-local `HOME` and `XDG_*` paths
 - the Python runtime verifier reports the managed Flox venv under `env/hybrid-ai/.flox/cache/python`
-- the Swift runtime verifier reports the Flox-managed Swift toolchain and `build/swift` paths
+- the Swift runtime verifier reports the Swiftly-managed Swift toolchain and `build/swift` paths inside the Flox project environment
 - `/nix` is bind-mounted from `/opt/bin/dev/nix`
 - `/nix/nix-installer` exists
 - `/nix/receipt.json` exists
 - the daemon socket is present
 - Python resolves to the managed Flox venv under `env/hybrid-ai/.flox/cache/python`
 - NumPy native extensions load successfully from the Flox-managed runtime (`6.0` proof)
-- `swift` resolves inside the Flox environment
+- `swift` resolves to `/opt/bin/dev/swiftly/bin` inside the Flox environment
 
 ## 4. Bind-Mount Persistence
 
@@ -333,10 +333,11 @@ scripts/env/start_vscode.sh --check
 
 Inside VS Code, the repository workspace settings and tasks continue to pin tool
 execution to the repository wrappers:
-- `.vscode/settings.json` points editor extensions at `python` and `swift` from the Flox-activated `PATH`
+- `.vscode/settings.json` points editor extensions at `python` and `swift` from the launcher-activated `PATH`
 - `.vscode/tasks.json` keeps task execution pinned to repository wrappers such as `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/swift/swift_run.sh`
 - `.vscode/tasks.json` exposes `vscode:print-env` to print the live editor toolchain and portable data roots after launch
-- Python CLI/server and native-extension verification should still be treated as wrapper-or-activated-shell workflows because `scripts/env/start_vscode.sh` does not currently source `scripts/env/toolchain/python/python_env.sh` before launching the editor
+- `scripts/env/start_vscode.sh` activates `env/hybrid-ai`, then sources `scripts/env/toolchain/python/python_env.sh` and `scripts/env/toolchain/swift/swift_env.sh` before launching the editor, so editor-side `python` resolves to the managed venv and `swift` resolves to Swiftly
+- Python CLI/server and native-extension verification should still use the wrappers for repeatable command-line checks, but the editor launch path now shares the same managed Python venv activation model
 
 ### 6.2 Learnings and Pitfalls From This Session
 

@@ -5,6 +5,8 @@ if [[ -z "${PROJECT_ROOT:-}" ]]; then
 fi
 
 # shellcheck disable=SC1090
+source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_paths.sh"
+# shellcheck disable=SC1090
 source "$PROJECT_ROOT/scripts/env/toolchain/swift/swiftly_common.sh"
 
 hybrid_ai_swift_dir() {

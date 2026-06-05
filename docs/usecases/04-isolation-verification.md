@@ -106,7 +106,7 @@ Current examples:
 - `scripts/env/toolchain/check_env.sh` should stay focused on the common/shared isolation layer
 - `scripts/env/toolchain/python/python_env_check.sh` should verify the Python-specific managed Flox venv layer
 - `scripts/env/toolchain/swift/swift_env_check.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
-- `scripts/env/toolchain/nix/nix_isolation_check.sh` must follow the current mount policy implemented in `common.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
+- `scripts/env/toolchain/nix/nix_isolation_check.sh` must follow the current mount policy implemented in `scripts/env/toolchain/nix/nix_flox_env.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
 
 So host-level verification tooling consistency is satisfied only when the
 verification scripts reflect the current live workflow instead of older design
@@ -160,7 +160,7 @@ Intended purpose:
 
 Current status:
 - this script is now generic/common again
-- it inspects the shared isolation layer from `scripts/env/toolchain/common.sh`
+- it inspects the shared isolation layer aggregated by `scripts/env/toolchain/common.sh`
 - it does not claim to prove Python or Swift runtime state by itself
 
 ### 6.3 Python Runtime Environment Check
