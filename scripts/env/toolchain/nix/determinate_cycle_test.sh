@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 DETERMINATE_INSTALLER_URL="${DETERMINATE_INSTALLER_URL:-https://install.determinate.systems/nix}"
@@ -51,7 +51,7 @@ elif [[ -x "$NIX_INSTALLER_WRAPPER_BIN" ]]; then
   installer_bin="$NIX_INSTALLER_WRAPPER_BIN"
 fi
 
-"$PROJECT_ROOT/scripts/env/toolchain/manage_nix_mount.sh" status
+"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_mount_manage.sh" status
 ensure_nix_bind_mount
 
 echo "NIX_MOUNT_POINT=$NIX_MOUNT_POINT"

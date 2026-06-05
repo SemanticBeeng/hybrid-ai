@@ -14,7 +14,7 @@ libgcc.systems = ["x86_64-linux"]
 on-activate = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
 export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-python-dev}
 hybrid_ai_setup_python_env
 '''
@@ -22,12 +22,12 @@ hybrid_ai_setup_python_env
 [profile]
 bash = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
 hybrid_ai_activate_python_env
 '''
 
 zsh = '''
 PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
 hybrid_ai_activate_python_env
 '''

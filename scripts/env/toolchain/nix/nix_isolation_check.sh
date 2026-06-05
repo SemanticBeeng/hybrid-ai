@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 if [[ "$NIX_ISOLATED_ROOT" != "/opt/bin/dev/nix" ]]; then

@@ -5,13 +5,13 @@ Status: Implemented
 Primary scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/swift_env_check.sh`
-- `scripts/env/toolchain/swifty_check.sh`
-- `scripts/env/toolchain/check_nix_isolation.sh`
-- `scripts/env/run_python.sh`
-- `scripts/env/run_swift.sh`
-- `scripts/env/with_flox.sh`
+- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/swift/swift_env_check.sh`
+- `scripts/env/toolchain/swift/swifty_check.sh`
+- `scripts/env/toolchain/nix/nix_isolation_check.sh`
+- `scripts/env/toolchain/python/python_run.sh`
+- `scripts/env/toolchain/swift/swift_run.sh`
+- `scripts/env/toolchain/nix/flox_with.sh`
 
 ## 1. Goal
 
@@ -52,7 +52,7 @@ Key requirements:
 - Swift uses Swiftly-managed Swift `6.3.2` under `/opt/bin/dev/swiftly`, activated from inside the Flox environment
 - Swift build outputs stay under `build/swift`
 - Swift native build-time dependency resolution sees Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` before host OS defaults
-- Swift runtime dynamic library resolution does not inherit Flox/Nix `LD_LIBRARY_PATH`; `scripts/env/toolchain/swift_env.sh` sanitizes or unsets it
+- Swift runtime dynamic library resolution does not inherit Flox/Nix `LD_LIBRARY_PATH`; `scripts/env/toolchain/swift/swift_env.sh` sanitizes or unsets it
 - `/nix` is mounted and usable for the Determinate Nix + Flox workflow
 - normal-user wrappers require the daemon socket
 - verification tooling itself stays aligned with the actual live workflow
@@ -62,16 +62,16 @@ Key requirements:
 Verification scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/swift_env_check.sh`
-- `scripts/env/toolchain/swifty_check.sh`
-- `scripts/env/toolchain/check_nix_isolation.sh`
+- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/swift/swift_env_check.sh`
+- `scripts/env/toolchain/swift/swifty_check.sh`
+- `scripts/env/toolchain/nix/nix_isolation_check.sh`
 
 Runtime scripts used for proof:
-- `scripts/env/run_python.sh`
-- `scripts/env/run_py_server.sh`
-- `scripts/env/with_flox.sh`
-- `scripts/env/run_swift.sh`
+- `scripts/env/toolchain/python/python_run.sh`
+- `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/nix/flox_with.sh`
+- `scripts/env/toolchain/swift/swift_run.sh`
 
 Reference docs:
 - `docs/chat/devenv_portable_workflow.md`
@@ -104,9 +104,9 @@ kept consistent with the current environment model.
 
 Current examples:
 - `scripts/env/toolchain/check_env.sh` should stay focused on the common/shared isolation layer
-- `scripts/env/toolchain/check_python_env.sh` should verify the Python-specific managed Flox venv layer
-- `scripts/env/toolchain/swift_env_check.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
-- `scripts/env/toolchain/check_nix_isolation.sh` must follow the current mount policy implemented in `common.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
+- `scripts/env/toolchain/python/python_env_check.sh` should verify the Python-specific managed Flox venv layer
+- `scripts/env/toolchain/swift/swift_env_check.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
+- `scripts/env/toolchain/nix/nix_isolation_check.sh` must follow the current mount policy implemented in `common.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
 
 So host-level verification tooling consistency is satisfied only when the
 verification scripts reflect the current live workflow instead of older design
@@ -168,7 +168,7 @@ Current status:
 Run:
 
 ```bash
-scripts/env/toolchain/check_python_env.sh
+scripts/env/toolchain/python/python_env_check.sh
 ```
 
 Intended purpose:
@@ -187,7 +187,7 @@ Expected outputs include:
 Run:
 
 ```bash
-scripts/env/toolchain/swift_env_check.sh
+scripts/env/toolchain/swift/swift_env_check.sh
 ```
 
 Intended purpose:
@@ -208,7 +208,7 @@ This check proves that Swift-specific tools come from Swiftly, not from Nix Swif
 Run:
 
 ```bash
-scripts/env/toolchain/check_nix_isolation.sh
+scripts/env/toolchain/nix/nix_isolation_check.sh
 ```
 
 Intended purpose:
@@ -223,8 +223,8 @@ Current status:
 Run:
 
 ```bash
-scripts/env/run_python.sh -c 'import sys, os; print(sys.executable); print(os.environ["VIRTUAL_ENV"]); print(os.environ["PIP_CACHE_DIR"])'
-scripts/env/run_python.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
+scripts/env/toolchain/python/python_run.sh -c 'import sys, os; print(sys.executable); print(os.environ["VIRTUAL_ENV"]); print(os.environ["PIP_CACHE_DIR"])'
+scripts/env/toolchain/python/python_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
 ```
 
 Expected results:
@@ -238,10 +238,10 @@ Expected results:
 Run:
 
 ```bash
-scripts/env/run_swift.sh build
-scripts/env/run_swift.sh run hybrid-ai-cli
-scripts/env/run_swift.sh test
-scripts/env/with_flox.sh bash -lc 'source scripts/env/toolchain/swift_env.sh; hybrid_ai_activate_swift_env; command -v swift; command -v clang; printf "%s\n" "$SWIFT_BUILD_PATH"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
+scripts/env/toolchain/swift/swift_run.sh build
+scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli
+scripts/env/toolchain/swift/swift_run.sh test
+scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; command -v swift; command -v clang; printf "%s\n" "$SWIFT_BUILD_PATH"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
 ```
 
 Expected results:
@@ -254,7 +254,7 @@ Expected results:
 Native build-time dependency proof:
 
 ```bash
-flox activate -d env/hybrid-ai -- bash -lc 'source scripts/env/toolchain/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
+flox activate -d env/hybrid-ai -- bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
 ```
 
 Expected result:
@@ -268,22 +268,22 @@ Expected result:
 These checks should pass in the current setup:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/check_python_env.sh`
-- `scripts/env/toolchain/swift_env_check.sh`
-- `scripts/env/toolchain/check_nix_isolation.sh`
+- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/swift/swift_env_check.sh`
+- `scripts/env/toolchain/nix/nix_isolation_check.sh`
 - Python wrapper/runtime isolation proofs
 - NumPy import proof
 - Swift path/build-path proof
 
 Verified on 2026-06-04:
 - `doctor.sh` passed after removing a generated `src/swift/.build` byproduct.
-- `check_env.sh`, `check_python_env.sh`, `swift_env_check.sh`, and `check_nix_isolation.sh` passed.
-- `check_nix_isolation.sh` emitted the expected mount metadata warning: kernel-reported root `/bin/dev/nix` differs from configured `/opt/bin/dev/nix`, but current policy only requires `/nix` to be mounted and usable.
+- `check_env.sh`, `python_env_check.sh`, `swift_env_check.sh`, and `nix_isolation_check.sh` passed.
+- `nix_isolation_check.sh` emitted the expected mount metadata warning: kernel-reported root `/bin/dev/nix` differs from configured `/opt/bin/dev/nix`, but current policy only requires `/nix` to be mounted and usable.
 - Python proof resolved `sys.executable` to `env/hybrid-ai/.flox/cache/python/bin/python`.
 - NumPy proof printed `6.0`.
 - Swift proof resolved `swift`, `swiftc`, and `clang` to `/opt/bin/dev/swiftly/bin/...`.
 - Swift native build-time paths exposed Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH`; `LD_LIBRARY_PATH` was unset.
-- `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test` passed.
+- `scripts/env/toolchain/swift/swift_run.sh build`, `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`, and `scripts/env/toolchain/swift/swift_run.sh test` passed.
 
 ## 8. Interpreting Results
 
@@ -330,11 +330,11 @@ Meaning:
 - the verification flow is no longer aligned with the managed Flox Python env or with the current shell state
 
 Recovery:
-- confirm Python runtime isolation with `scripts/env/run_python.sh`
+- confirm Python runtime isolation with `scripts/env/toolchain/python/python_run.sh`
 - verify Flox activation and daemon socket state
 - update the verification script only if the live Python env model changes again
 
-### 9.3 `check_nix_isolation.sh` Fails On Missing Function Or Source-Path Mismatch
+### 9.3 `nix_isolation_check.sh` Fails On Missing Function Or Source-Path Mismatch
 
 Meaning:
 - either the host mount/daemon prerequisites are genuinely broken or the host reports mount metadata that differs from the configured isolated-root path
@@ -349,9 +349,9 @@ Recovery:
 This use case is fully satisfied only when all of the following are true:
 - `scripts/env/toolchain/doctor.sh` passes
 - `scripts/env/toolchain/check_env.sh` passes and prints the common/shared env model correctly
-- `scripts/env/toolchain/check_python_env.sh` passes and prints the Python runtime env correctly
-- `scripts/env/toolchain/swift_env_check.sh` passes and prints the Swiftly-backed Swift runtime env correctly
-- `scripts/env/toolchain/check_nix_isolation.sh` passes and reflects the current mount-validation model correctly
+- `scripts/env/toolchain/python/python_env_check.sh` passes and prints the Python runtime env correctly
+- `scripts/env/toolchain/swift/swift_env_check.sh` passes and prints the Swiftly-backed Swift runtime env correctly
+- `scripts/env/toolchain/nix/nix_isolation_check.sh` passes and reflects the current mount-validation model correctly
 - Python runtime proof passes
 - NumPy proof passes
 - Swift runtime proof passes

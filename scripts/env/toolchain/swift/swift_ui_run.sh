@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 SWIFT_PACKAGE_DIR="$PROJECT_ROOT/src/swift"
 HYBRID_AI_SWIFT_UI_PRODUCT="${HYBRID_AI_SWIFT_UI_PRODUCT:-hybrid-ai-mobile-chat}"
 
@@ -16,7 +16,7 @@ run_swift_ui_command='PROJECT_ROOT="$1"
 SWIFT_PACKAGE_DIR="$2"
 SWIFT_SUBCOMMAND="$3"
 shift 3
-source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
 hybrid_ai_activate_swift_env
 export HYBRID_AI_ENABLE_GTK_UI=1
 
@@ -58,7 +58,7 @@ if [[ "$SWIFT_SUBCOMMAND" == "run" ]]; then
     --build-path "$PROJECT_ROOT/build/swift" \
     --show-bin-path)"
 
-  source "$PROJECT_ROOT/scripts/env/toolchain/gtk_ui_runtime.sh"
+  source "$PROJECT_ROOT/scripts/env/toolchain/swift/gtk_ui_runtime.sh"
   runtime_path="$(gtk_runtime_library_path)"
   runtime_loader="$(gtk_runtime_loader || true)"
 
@@ -90,4 +90,4 @@ if [[ -n "${FLOX_ENV:-}" ]]; then
   exec bash -lc "$run_swift_ui_command" bash "$PROJECT_ROOT" "$SWIFT_PACKAGE_DIR" "$SWIFT_SUBCOMMAND" "$@"
 fi
 
-exec "$PROJECT_ROOT/scripts/env/with_flox.sh" bash -lc "$run_swift_ui_command" bash "$PROJECT_ROOT" "$SWIFT_PACKAGE_DIR" "$SWIFT_SUBCOMMAND" "$@"
+exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc "$run_swift_ui_command" bash "$PROJECT_ROOT" "$SWIFT_PACKAGE_DIR" "$SWIFT_SUBCOMMAND" "$@"

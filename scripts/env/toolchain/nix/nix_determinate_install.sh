@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 DETERMINATE_INSTALLER_URL="${DETERMINATE_INSTALLER_URL:-https://install.determinate.systems/nix}"
@@ -12,7 +12,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-"$PROJECT_ROOT/scripts/env/toolchain/manage_nix_mount.sh" mount
+"$PROJECT_ROOT/scripts/env/toolchain/nix/nix_mount_manage.sh" mount
 ensure_nix_bind_mount
 
 run_as_root mkdir -p "$TARGET_BIN_DIR"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
 
 use_nix_daemon
@@ -22,7 +22,7 @@ fi
 
 if [[ -z "$FLOX_BIN" ]]; then
   echo "ERROR: flox is required but not installed or not in PATH." >&2
-  echo "Run scripts/env/toolchain/install_flox.sh first." >&2
+  echo "Run scripts/env/toolchain/nix/flox_install.sh first." >&2
   exit 1
 fi
 

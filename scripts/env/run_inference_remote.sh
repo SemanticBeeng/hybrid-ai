@@ -10,7 +10,7 @@ PROMPT="${1:-Hello from hybrid-ai remote inference}"
 MODEL="${MODEL:-gemma4:e4b}"
 
 # Uses curl intentionally to keep provider integration generic.
-exec "$PROJECT_ROOT/scripts/env/with_flox.sh" curl -sS \
+exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" curl -sS \
   -H "Authorization: Bearer $REMOTE_INFERENCE_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"model\":\"$MODEL\",\"prompt\":\"$PROMPT\"}" \

@@ -14,22 +14,22 @@
     {
       "label": "python:run",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/run_python.sh"
+      "command": "${workspaceFolder}/scripts/env/toolchain/python/python_run.sh"
     },
     {
       "label": "python:server",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/run_py_server.sh"
+      "command": "${workspaceFolder}/scripts/env/toolchain/python/python_server_run.sh"
     },
     {
       "label": "swift:build",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/run_swift.sh build"
+      "command": "${workspaceFolder}/scripts/env/toolchain/swift/swift_run.sh build"
     },
     {
       "label": "swift:test",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/run_swift.sh test"
+      "command": "${workspaceFolder}/scripts/env/toolchain/swift/swift_run.sh test"
     },
     {
       "label": "inference:local",

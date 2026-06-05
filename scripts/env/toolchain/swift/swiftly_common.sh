@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fi
 
 hybrid_ai_swiftly_configure() {
@@ -40,7 +40,7 @@ hybrid_ai_swiftly_url() {
 hybrid_ai_require_swiftly_env() {
   if [[ ! -r "$SWIFTLY_HOME_DIR/env.sh" ]]; then
     echo "ERROR: Swiftly env file not found at $SWIFTLY_HOME_DIR/env.sh" >&2
-    echo "Run scripts/env/toolchain/swiftly_install.sh first." >&2
+    echo "Run scripts/env/toolchain/swift/swiftly_install.sh first." >&2
     return 1
   fi
 }

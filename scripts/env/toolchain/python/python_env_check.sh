@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-exec "$PROJECT_ROOT/scripts/env/with_flox.sh" bash -lc '
+exec "$PROJECT_ROOT/scripts/env/toolchain/nix/flox_with.sh" bash -lc '
   PROJECT_ROOT="$1"
   shift
 
   # shellcheck disable=SC1090
-  source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
+  source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
   hybrid_ai_activate_python_env
 
   printf "PROJECT_ROOT=%s\n" "$PROJECT_ROOT"

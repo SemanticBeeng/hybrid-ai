@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fi
 
 export NIX_ISOLATED_ROOT="${NIX_ISOLATED_ROOT:-/opt/bin/dev/nix}"
@@ -74,6 +74,10 @@ is_nix_mount_active() {
   fi
 
   [[ -n "$(nix_mount_root)" ]]
+}
+
+is_nix_bind_mounted_to_isolated_root() {
+  [[ "$(nix_mount_root)" == "$NIX_ISOLATED_ROOT" ]]
 }
 
 ensure_nix_bind_mount() {

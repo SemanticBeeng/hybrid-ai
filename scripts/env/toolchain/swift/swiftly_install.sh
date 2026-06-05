@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-source "$PROJECT_ROOT/scripts/env/toolchain/swiftly_common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift/swiftly_common.sh"
 
 SWIFTLY_ARCHIVE="$(hybrid_ai_swiftly_archive)"
 SWIFTLY_URL="$(hybrid_ai_swiftly_url)"

@@ -43,7 +43,7 @@ Requirement: Python integrated with Flox, with room for stricter Nix packaging l
 Design:
 - Python module has pyproject.toml + poetry.lock as canonical dependency inputs.
 - Flox environment exposes Python executable and packaging tooling for repository workflows.
-- The canonical Python runtime is a Flox-managed venv under `env/hybrid-ai/.flox/cache/python`, created and synced by hook logic in `scripts/env/toolchain/python_env.sh`.
+- The canonical Python runtime is a Flox-managed venv under `env/hybrid-ai/.flox/cache/python`, created and synced by hook logic in `scripts/env/toolchain/python/python_env.sh`.
 - Interactive shell use is expected to start with `flox activate -d env/hybrid-ai`; wrapper-based CLI/server use activates the same managed venv explicitly when the shell is not already activated.
 - If CI or release packaging later needs a Nix-built Python artifact, that should be added as a separate explicit path rather than assumed by the default developer workflow.
 - Python package caches and bytecode are redirected under `env/hybrid-ai/.flox/cache/`.
@@ -54,7 +54,7 @@ Requirement: Swift module via SwiftPM using Swift 6.3.2 while retaining Flox as 
 Design:
 - Swift package defined with Package.swift.
 - Swiftly owns the active Swift toolchain under `/opt/bin/dev/swiftly`.
-- `scripts/env/toolchain/swift_env.sh` activates Swiftly and validates Swift `6.3.2` inside Flox-launched shells and wrappers.
+- `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly and validates Swift `6.3.2` inside Flox-launched shells and wrappers.
 - Flox `env/swift` no longer installs Nix `swift`, `swiftpm`, or `swiftPackages.XCTest`; it only carries native support dependencies such as `cmake`.
 - If reproducible Nix packaging for Swift becomes necessary later, introduce it as an explicit follow-on track, not as dormant scaffolding or a default developer path.
 - Swift build artifacts redirected to `build/swift`; source-adjacent `.build` directories are ignored and treated as cleanup targets.
@@ -209,8 +209,8 @@ Policy:
 - Launch VS Code through `scripts/env/start_vscode.sh`, which activates the composed Flox environment before the editor process starts.
 - The launcher keeps the editor, extension host, Copilot, and language tools on the project Python venv and Swiftly-backed Swift toolchain while forcing the portable user-data and extensions directories.
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
-- Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/python_env.sh`.
-- Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift_env.sh` activates Swiftly.
+- Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/python/python_env.sh`.
+- Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly.
 - The VS Code launcher explicitly sources both `python_env.sh` and `swift_env.sh` before launching the editor.
 
 Verification requirements:
@@ -222,19 +222,19 @@ Verification requirements:
 ## 6. Execution Scenarios to Validate
 
 ### 6.1 Python CLI execution
-- Command-line: run through `scripts/env/run_python.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
+- Command-line: run through `scripts/env/toolchain/python/python_run.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
 - Activated shell: `flox activate -d env/hybrid-ai`, then run Python directly from `src/python`.
 - Copilot/VS Code: tasks should continue to invoke the repository wrapper for authoritative CLI/runtime behavior.
-- Validation: run `scripts/env/toolchain/check_python_env.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `env/hybrid-ai/.flox/cache/`.
+- Validation: run `scripts/env/toolchain/python/python_env_check.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `env/hybrid-ai/.flox/cache/`.
 
 ### 6.2 Python server execution
-- Launch server via scripts/env/run_py_server.sh.
+- Launch server via scripts/env/toolchain/python/python_server_run.sh.
 - Validate logs to volumes/logs and temp/cache under build/ or volumes/cache.
 
 ### 6.3 Swift build and test
-- Command-line: scripts/env/run_swift.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
+- Command-line: scripts/env/toolchain/swift/swift_run.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
 - Copilot/VS Code: build tasks call same wrapper.
-- Validation: run `scripts/env/toolchain/swift_env_check.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test`, then ensure no unintended source-adjacent build output is relied on.
+- Validation: run `scripts/env/toolchain/swift/swift_env_check.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/toolchain/swift/swift_run.sh build`, `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`, and `scripts/env/toolchain/swift/swift_run.sh test`, then ensure no unintended source-adjacent build output is relied on.
 
 ### 6.4 Inference workflow (Gemma 4 + multi-engine)
 - Local Linux VM: run LiteRT-LM using LITERT_LM_MODELS under volumes/models/litert-lm.
@@ -265,8 +265,8 @@ Phase 1: Host prerequisites and bootstrap
 4. Verify the root filesystem contains no persistent Nix payload outside the `/nix` mountpoint and related minimal config files.
 
 Deliverables:
-- scripts/env/toolchain/bootstrap_host.sh
-- scripts/env/toolchain/check_nix_isolation.sh
+- scripts/env/toolchain/nix/host_bootstrap.sh
+- scripts/env/toolchain/nix/nix_isolation_check.sh
 
 Phase 2: Flox composition scaffolding
 1. Create env/base, env/python, env/swift, env/inference manifests.
@@ -281,7 +281,7 @@ Deliverables:
 Phase 3: Python module reproducibility
 1. Initialize src/python package and pyproject.toml + poetry.lock.
 2. Keep the Flox-managed runtime aligned with locked Python dependencies.
-3. Add wrappers: run_python.sh, run_py_server.sh, run_py_tests.sh.
+3. Add wrappers: python_run.sh, python_server_run.sh, run_py_tests.sh.
 4. Add verification script for Python path/caches/bytecode policy.
 
 Deliverables:
@@ -291,7 +291,7 @@ Deliverables:
 Phase 4: Swift module reproducibility
 1. Initialize src/swift package with Package.swift.
 2. Keep SwiftPM inputs and build behavior explicit under the Swiftly-managed Swift `6.3.2` toolchain activated by Flox wrappers.
-3. Add wrappers: run_swift.sh, run_swift_tests.sh.
+3. Add wrappers: swift_run.sh, run_swift_tests.sh.
 4. Ensure all Swift artifacts route to build/swift.
 
 Deliverables:
@@ -353,16 +353,16 @@ Recommended immediate scaffold:
 - env/swift/manifest.toml
 - env/inference/manifest.toml
 - env/hybrid-ai/manifest.toml
-- scripts/env/toolchain/bootstrap_host.sh
-- scripts/env/enter.sh
+- scripts/env/toolchain/nix/host_bootstrap.sh
+- scripts/env/toolchain/nix/flox_enter.sh
 - scripts/env/start_vscode.sh
-- scripts/env/run_python.sh
-- scripts/env/run_py_server.sh
-- scripts/env/run_swift.sh
+- scripts/env/toolchain/python/python_run.sh
+- scripts/env/toolchain/python/python_server_run.sh
+- scripts/env/toolchain/swift/swift_run.sh
 - scripts/env/run_inference_local.sh
 - scripts/env/run_inference_remote.sh
-- scripts/env/toolchain/manage_nix_fstab.sh
-- scripts/env/toolchain/test_determinate_cycle.sh
+- scripts/env/toolchain/nix/nix_fstab_manage.sh
+- scripts/env/toolchain/nix/determinate_cycle_test.sh
 - scripts/env/setup_litert_lm.sh
 - scripts/env/toolchain/doctor.sh
 - scripts/env/toolchain/check_env.sh
@@ -418,15 +418,15 @@ Implemented now:
 
 Verified in this workspace:
 - `scripts/env/toolchain/check_env.sh` confirms project-local HOME/XDG/cache paths and the active daemon socket.
-- `scripts/env/toolchain/check_python_env.sh` confirms Python resolves to `env/hybrid-ai/.flox/cache/python/bin/python`.
+- `scripts/env/toolchain/python/python_env_check.sh` confirms Python resolves to `env/hybrid-ai/.flox/cache/python/bin/python`.
 - Python smoke tests pass: `python -m hybrid_ai` prints `hybrid-ai python module ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
-- `scripts/env/toolchain/swift_env_check.sh` confirms Swiftly paths:
+- `scripts/env/toolchain/swift/swift_env_check.sh` confirms Swiftly paths:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
   - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
   - `lldb_bin=/opt/bin/dev/swiftly/bin/lldb`
   - `Swift version 6.3.2 (swift-6.3.2-RELEASE)`
-- `scripts/env/run_swift.sh build`, `scripts/env/run_swift.sh run hybrid-ai-cli`, and `scripts/env/run_swift.sh test` all pass.
+- `scripts/env/toolchain/swift/swift_run.sh build`, `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`, and `scripts/env/toolchain/swift/swift_run.sh test` all pass.
 - Swift tests use Swift 6 built-in `Testing`, not manual Linux `XCTest` manifests.
 - Flox no longer installs Nix `swift`, `swiftpm`, `XCTest`, or `clang`; `env/swift` currently resolves only `cmake`.
 - `flake.nix` and `flake.lock` have been removed from the canonical workflow.
@@ -439,8 +439,8 @@ Pending prerequisites before full execution:
 Important note:
 - The current env/hybrid-ai/manifest.toml composes the module manifests via Flox `[include]`. Keep project-specific overrides in the top-level manifest and keep shared toolchain logic in the module-local manifests.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
-- The Python workflow now relies on `scripts/env/toolchain/python_env.sh` as the single source of truth for managed-venv creation, dependency sync, cache paths, and runtime-library activation.
-- The Swift workflow now relies on `scripts/env/toolchain/swift_env.sh` and `scripts/env/toolchain/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization.
+- The Python workflow now relies on `scripts/env/toolchain/python/python_env.sh` as the single source of truth for managed-venv creation, dependency sync, cache paths, and runtime-library activation.
+- The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization.
 
 ## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
 
@@ -460,7 +460,7 @@ Python module setup (src/python):
 Swift module setup (src/swift):
 1. Use the resolved tag in build/artifacts/litert-lm.version.
 2. Add LiteRT-LM Swift package dependency in src/swift/Package.swift with exact tag pinning.
-3. Run scripts/env/run_swift.sh package resolve and scripts/env/run_swift.sh build.
+3. Run scripts/env/toolchain/swift/swift_run.sh package resolve and scripts/env/toolchain/swift/swift_run.sh build.
 
 Release pinning policy:
 - Default is latest release for bootstrap.
@@ -483,7 +483,7 @@ Current canonical state:
 - logical store path remains `/nix`, physically backed by `/opt/bin/dev/nix`
 - `nix-daemon` is expected to expose `/nix/var/nix/daemon-socket/socket`
 - normal-user wrappers source `nix-daemon.sh` and use `NIX_REMOTE=daemon`
-- `scripts/env/with_flox.sh`, `scripts/env/enter.sh`, and `scripts/env/toolchain/init_flox_env.sh` run as the normal user once the daemon is available
+- `scripts/env/toolchain/nix/flox_with.sh`, `scripts/env/toolchain/nix/flox_enter.sh`, and `scripts/env/toolchain/nix/flox_env_init.sh` run as the normal user once the daemon is available
 
 Migration record for this workspace:
 
@@ -505,24 +505,24 @@ Current operating sequence:
   - If it does not exist, start `/nix/var/nix/profiles/default/bin/nix-daemon` as `root`.
 
 3. Use normal-user wrappers for development.
-  - `scripts/env/with_flox.sh` sources the daemon profile and activates Flox as the current user.
-  - `scripts/env/enter.sh` opens a normal-user shell inside the Flox environment.
-  - `scripts/env/toolchain/init_flox_env.sh` syncs the managed Flox environment as the normal user and fails fast if stale root-owned state needs repair.
+  - `scripts/env/toolchain/nix/flox_with.sh` sources the daemon profile and activates Flox as the current user.
+  - `scripts/env/toolchain/nix/flox_enter.sh` opens a normal-user shell inside the Flox environment.
+  - `scripts/env/toolchain/nix/flox_env_init.sh` syncs the managed Flox environment as the normal user and fails fast if stale root-owned state needs repair.
 
 4. Verify the environment after daemon availability is established.
   - `nix --version`
   - `flox --version`
-  - `scripts/env/with_flox.sh python --version`
-  - `scripts/env/toolchain/check_python_env.sh`
-  - `scripts/env/toolchain/swift_env_check.sh`
+  - `scripts/env/toolchain/nix/flox_with.sh python --version`
+  - `scripts/env/toolchain/python/python_env_check.sh`
+  - `scripts/env/toolchain/swift/swift_env_check.sh`
   - `scripts/env/start_vscode.sh --print-env`
   - confirm VS Code tools resolve Python from the managed Flox venv and Swift from Swiftly without a root shell
 
 Repository implications now in force:
-- `scripts/env/toolchain/install_nix_determinate.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.
-- `scripts/env/with_flox.sh` prefers user-mode activation with `NIX_REMOTE=daemon` and fails when the daemon socket is absent.
-- `scripts/env/enter.sh` is a normal-user interactive shell entrypoint.
-- `scripts/env/toolchain/init_flox_env.sh` treats user-owned managed Flox state as the normal path and only asks for `sudo chown` when repairing stale ownership.
+- `scripts/env/toolchain/nix/nix_determinate_install.sh` installs a daemon-capable multi-user layout with `--no-start-daemon`.
+- `scripts/env/toolchain/nix/flox_with.sh` prefers user-mode activation with `NIX_REMOTE=daemon` and fails when the daemon socket is absent.
+- `scripts/env/toolchain/nix/flox_enter.sh` is a normal-user interactive shell entrypoint.
+- `scripts/env/toolchain/nix/flox_env_init.sh` treats user-owned managed Flox state as the normal path and only asks for `sudo chown` when repairing stale ownership.
 
 Operational caveats:
 - This is still a daemon-capable multi-user install even though daemon startup is manual.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fi
 
 hybrid_ai_python_dir() {

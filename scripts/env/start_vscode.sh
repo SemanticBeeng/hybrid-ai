@@ -147,8 +147,8 @@ print_effective_env() {
     RESOLVED_VSCODE_BIN="$resolved_vscode_bin" \
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
-      source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
-      source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+      source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
+      source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
       hybrid_ai_activate_python_env
       hybrid_ai_activate_swift_env
 
@@ -218,8 +218,8 @@ exec env \
   "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- \
   bash --noprofile --norc -lc '
     set -euo pipefail
-    source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
-    source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+    source "$PROJECT_ROOT/scripts/env/toolchain/python/python_env.sh"
+    source "$PROJECT_ROOT/scripts/env/toolchain/swift/swift_env.sh"
     hybrid_ai_activate_python_env
     hybrid_ai_activate_swift_env
     exec "$@"

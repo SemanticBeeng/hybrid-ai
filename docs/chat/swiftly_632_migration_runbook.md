@@ -115,11 +115,11 @@ Decision:
 
 Execution note:
 - Current working Swift commands to preserve during migration:
-  - `scripts/env/run_swift.sh build`
-  - `scripts/env/run_swift.sh run hybrid-ai-cli`
-  - `scripts/env/run_swift.sh test`
+  - `scripts/env/toolchain/swift/swift_run.sh build`
+  - `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`
+  - `scripts/env/toolchain/swift/swift_run.sh test`
 - Current working Python verification command:
-  - `scripts/env/toolchain/check_python_env.sh`
+  - `scripts/env/toolchain/python/python_env_check.sh`
 - Manual Linux XCTest workaround remains in place temporarily:
   - `src/swift/Tests/LinuxMain.swift`
   - `src/swift/Tests/HybridAITests/XCTestManifests.swift`
@@ -144,11 +144,11 @@ Confirm:
 - `sourcekit-lsp --version` works, if provided.
 
 This should be handled by a new bootstrap script, likely:
-- `scripts/env/toolchain/swiftly_install.sh`
+- `scripts/env/toolchain/swift/swiftly_install.sh`
 
 Execution note:
 - Swiftly was installed under `/opt/bin/dev/swiftly`.
-- `scripts/env/toolchain/swifty_check.sh` verified:
+- `scripts/env/toolchain/swift/swifty_check.sh` verified:
   - `SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home`
   - `SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin`
   - `swift=/opt/bin/dev/swiftly/bin/swift`
@@ -162,7 +162,7 @@ Execution note:
 
 Goal: every project entry point sees Swift `6.3.2`.
 
-Modify `scripts/env/toolchain/swift_env.sh`:
+Modify `scripts/env/toolchain/swift/swift_env.sh`:
 1. Remove reliance on Nix `swift-wrapper`.
 2. Source `/opt/bin/dev/swiftly/home/env.sh`.
 3. Prepend `/opt/bin/dev/swiftly/bin`.
@@ -170,16 +170,16 @@ Modify `scripts/env/toolchain/swift_env.sh`:
 5. Keep cache variables/project paths.
 
 Then validate through existing wrappers:
-- `scripts/env/run_swift.sh`
-- `scripts/env/toolchain/swift_env_check.sh`
+- `scripts/env/toolchain/swift/swift_run.sh`
+- `scripts/env/toolchain/swift/swift_env_check.sh`
 
 Expected result:
-- `scripts/env/toolchain/swift_env_check.sh` prints Swift `6.3.2`.
-- `scripts/env/run_swift.sh build` uses Swiftly Swift, not Nix Swift.
+- `scripts/env/toolchain/swift/swift_env_check.sh` prints Swift `6.3.2`.
+- `scripts/env/toolchain/swift/swift_run.sh build` uses Swiftly Swift, not Nix Swift.
 
 Execution note:
-- `scripts/env/toolchain/swift_env.sh` was changed to source the Swiftly helper and validate Swift `6.3.2`.
-- `scripts/env/toolchain/swift_env_check.sh` now reports Swiftly paths and confirmed:
+- `scripts/env/toolchain/swift/swift_env.sh` was changed to source the Swiftly helper and validate Swift `6.3.2`.
+- `scripts/env/toolchain/swift/swift_env_check.sh` now reports Swiftly paths and confirmed:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
   - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
@@ -208,7 +208,7 @@ Expected result:
 
 Execution note:
 - Removed Nix Swift package entries from `env/swift/manifest.toml` and `env/hybrid-ai/manifest.toml`.
-- Re-synced Flox state with `scripts/env/toolchain/init_flox_env.sh`.
+- Re-synced Flox state with `scripts/env/toolchain/nix/flox_env_init.sh`.
 - Refreshed composed includes with `flox include upgrade -d env/hybrid-ai`.
 - `flox list -d env/hybrid-ai` no longer reports `swift`, `swiftpm`, `XCTest`, or `clang` packages from Nix.
 - `flox activate -d env/hybrid-ai -- bash -lc 'command -v swift && swift --version | head -n 1'` reports Swiftly Swift `6.3.2`.
@@ -230,10 +230,10 @@ Expected result:
 - `Testing` is available as a built-in Swift 6 module.
 
 Execution note:
-- `scripts/env/run_swift.sh build` succeeded with Swiftly Swift `6.3.2`.
-- `scripts/env/run_swift.sh run hybrid-ai-cli` succeeded and printed `hybrid-ai swift module ready`.
-- `scripts/env/run_swift.sh test` succeeded: 1 test executed, 0 failures.
-- During Stage 4 validation, Swiftly initially failed because Flox-provided `LD_LIBRARY_PATH` caused the official Swift toolchain to load incompatible Nix/Flox libraries. `scripts/env/toolchain/swift_env.sh` now preserves the original value in `HYBRID_AI_ORIGINAL_LD_LIBRARY_PATH` and sanitizes `LD_LIBRARY_PATH` for Swiftly tools.
+- `scripts/env/toolchain/swift/swift_run.sh build` succeeded with Swiftly Swift `6.3.2`.
+- `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli` succeeded and printed `hybrid-ai swift module ready`.
+- `scripts/env/toolchain/swift/swift_run.sh test` succeeded: 1 test executed, 0 failures.
+- During Stage 4 validation, Swiftly initially failed because Flox-provided `LD_LIBRARY_PATH` caused the official Swift toolchain to load incompatible Nix/Flox libraries. `scripts/env/toolchain/swift/swift_env.sh` now preserves the original value in `HYBRID_AI_ORIGINAL_LD_LIBRARY_PATH` and sanitizes `LD_LIBRARY_PATH` for Swiftly tools.
 
 ## Stage 5: Decide Test Framework
 
@@ -276,7 +276,7 @@ Execution note:
 - Removed the manual Linux XCTest discovery files:
   - `src/swift/Tests/LinuxMain.swift`
   - `src/swift/Tests/HybridAITests/XCTestManifests.swift`
-- `scripts/env/run_swift.sh test` succeeded with Swift Testing: 1 test, 0 failures.
+- `scripts/env/toolchain/swift/swift_run.sh test` succeeded with Swift Testing: 1 test, 0 failures.
 
 ## Stage 6: Decide Fate Of `flake.nix`
 
@@ -301,7 +301,7 @@ Recommendation:
 > Remove the flake unless there is a concrete need for non-Flox contributors.
 
 Execution note:
-- `scripts/env/toolchain/check_python_env.sh` was used to verify the Flox-managed Python environment.
+- `scripts/env/toolchain/python/python_env_check.sh` was used to verify the Flox-managed Python environment.
 - `flake.nix` and `flake.lock` were removed from the repository.
 - Stage 6 was re-verified after the Swiftly migration: no `flake.*` files remain, Flox Python still resolves to `env/hybrid-ai/.flox/cache/python/bin/python`, and Swift resolves to `/opt/bin/dev/swiftly/bin/swift` with Swift `6.3.2`.
 
@@ -310,13 +310,13 @@ Execution note:
 Install or repair Swiftly once:
 
 ```bash
-scripts/env/toolchain/swiftly_install.sh
+scripts/env/toolchain/swift/swiftly_install.sh
 ```
 
 Check Swiftly:
 
 ```bash
-scripts/env/toolchain/swifty_check.sh
+scripts/env/toolchain/swift/swifty_check.sh
 ```
 
 Enter full project env:
@@ -328,19 +328,19 @@ flox activate -d env/hybrid-ai
 Build Swift package:
 
 ```bash
-scripts/env/run_swift.sh build
+scripts/env/toolchain/swift/swift_run.sh build
 ```
 
 Run CLI:
 
 ```bash
-scripts/env/run_swift.sh run hybrid-ai-cli
+scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli
 ```
 
 Run tests:
 
 ```bash
-scripts/env/run_swift.sh test
+scripts/env/toolchain/swift/swift_run.sh test
 ```
 
 ## 7. Acceptance Criteria
@@ -350,10 +350,10 @@ Migration is complete when:
 - Swiftly is installed under `/opt/bin/dev/swiftly`.
 - `.swift-version` pins `6.3.2`.
 - Flox no longer installs `swift`, `swiftpm`, or `swiftPackages.XCTest`.
-- `scripts/env/toolchain/swift_env.sh` activates Swiftly by default.
-- `scripts/env/run_swift.sh build` succeeds.
-- `scripts/env/run_swift.sh run hybrid-ai-cli` succeeds.
-- `scripts/env/run_swift.sh test` succeeds.
+- `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly by default.
+- `scripts/env/toolchain/swift/swift_run.sh build` succeeds.
+- `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli` succeeds.
+- `scripts/env/toolchain/swift/swift_run.sh test` succeeds.
 - `swift --version` inside activated Flox reports Swift 6.3.2.
 - Active `swift` path is from Swiftly, not a Nix Swift wrapper.
 - `flake.nix` and `flake.lock` are removed or explicitly marked as temporary fallback only.
@@ -393,9 +393,9 @@ The final environment matches the purpose of combining Swiftly with Nix/Flox:
 
 The effective resolution model is:
 
-1. Project Swift entry points use `scripts/env/run_swift.sh`.
+1. Project Swift entry points use `scripts/env/toolchain/swift/swift_run.sh`.
 2. The wrapper enters `env/hybrid-ai` through Flox when needed.
-3. `scripts/env/toolchain/swift_env.sh` activates Swiftly and validates Swift `6.3.2`.
+3. `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly and validates Swift `6.3.2`.
 4. Swiftly paths win for `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, `lldb`, Swift runtime libraries, Swift standard libraries, Swift Testing, XCTest, and toolchain internals.
 5. Build-time native resolution prefers Flox/Nix before the host OS through `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH`.
 6. Runtime dynamic library resolution does not prefer Flox/Nix by default because `LD_LIBRARY_PATH` is sanitized or unset for Swiftly tools.

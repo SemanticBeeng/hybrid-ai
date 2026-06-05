@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 if [[ -z "${PROJECT_ROOT:-}" ]]; then
-  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 fi
 
 # shellcheck disable=SC1090
-source "$PROJECT_ROOT/scripts/env/toolchain/swiftly_common.sh"
+source "$PROJECT_ROOT/scripts/env/toolchain/swift/swiftly_common.sh"
 
 hybrid_ai_swift_dir() {
   printf '%s\n' "$PROJECT_ROOT/src/swift"

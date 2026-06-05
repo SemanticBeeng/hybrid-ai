@@ -23,10 +23,10 @@ For this repository, that means:
 This repository deliberately isolates developer tooling from the host machine.
 
 The normal command-line wrappers already do this:
-- `scripts/env/run_python.sh`
-- `scripts/env/run_py_server.sh`
-- `scripts/env/run_swift.sh`
-- `scripts/env/with_flox.sh`
+- `scripts/env/toolchain/python/python_run.sh`
+- `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/swift/swift_run.sh`
+- `scripts/env/toolchain/nix/flox_with.sh`
 
 However, editor extensions do not automatically inherit those wrappers just
 because the workspace contains `.vscode/settings.json`.
@@ -66,7 +66,7 @@ Portable VS Code state:
 
 Supporting environment files:
 - `scripts/env/toolchain/common.sh`
-- `scripts/env/with_flox.sh`
+- `scripts/env/toolchain/nix/flox_with.sh`
 - `env/hybrid-ai/manifest.toml`
 
 ## 5. Effective Behavior
@@ -91,7 +91,7 @@ As a result:
 Important current split:
 - the editor process starts inside the composed Flox environment
 - the managed Python venv under `env/hybrid-ai/.flox/cache/python` is the canonical runtime for Python CLI, server, and native-extension workflows
-- wrapper-based Python commands and activated Flox shells explicitly source `scripts/env/toolchain/python_env.sh` to activate that managed venv
+- wrapper-based Python commands and activated Flox shells explicitly source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
 - `scripts/env/start_vscode.sh` does not currently source the Python helper itself before launching VS Code, so editor-side Python extension discovery is Flox-based but not yet managed-venv-specific
 
 ## 6. Required VS Code Settings Context
@@ -258,13 +258,13 @@ Recovery:
 ### 10.5 Editor Python Uses Flox But Not Managed Venv
 
 Symptom:
-- editor-side Python features resolve the Flox interpreter, but CLI/runtime checks that depend on the managed venv are not identical to `scripts/env/run_python.sh`
+- editor-side Python features resolve the Flox interpreter, but CLI/runtime checks that depend on the managed venv are not identical to `scripts/env/toolchain/python/python_run.sh`
 
 Meaning:
-- the editor was launched inside Flox as designed, but `scripts/env/start_vscode.sh` does not yet source `scripts/env/toolchain/python_env.sh` before launching VS Code
+- the editor was launched inside Flox as designed, but `scripts/env/start_vscode.sh` does not yet source `scripts/env/toolchain/python/python_env.sh` before launching VS Code
 
 Recovery:
-- use `scripts/env/run_python.sh` or an activated Flox shell for authoritative Python CLI and runtime verification
+- use `scripts/env/toolchain/python/python_run.sh` or an activated Flox shell for authoritative Python CLI and runtime verification
 - if editor-side managed-venv parity becomes required, update the launcher to source the Python helper before launching VS Code
 
 ## 11. Relationship To The Other Docs
