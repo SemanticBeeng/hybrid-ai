@@ -2,6 +2,20 @@ version = 1
 
 [install]
 cmake.pkg-path = "cmake"
+gtk4.pkg-path = "gtk4"
+libadwaita.pkg-path = "libadwaita"
+pkg-config.pkg-path = "pkg-config"
+gobject-introspection.pkg-path = "gobject-introspection"
+libsysprof-capture.pkg-path = "libsysprof-capture"
+pcre2.pkg-path = "pcre2"
+util-linux.pkg-path = "util-linux"
+libselinux.pkg-path = "libselinux"
+libselinux.systems = ["x86_64-linux", "aarch64-linux"]
+libsepol.pkg-path = "libsepol"
+libsepol.systems = ["x86_64-linux", "aarch64-linux"]
+fribidi.pkg-path = "fribidi"
+libthai.pkg-path = "libthai"
+libdatrie.pkg-path = "libdatrie"
 
 [hook]
 on-activate = '''

@@ -28,7 +28,7 @@ So the practical architecture is:
 |---|---|---|---|
 | Shared app/domain logic | Swift Package | Swift Package | Swift Package |
 | Shared state/view models | Swift Package | Swift Package | Swift Package |
-| UI layer | GTK/libadwaita, Qt, or cross-platform Swift UI framework | SwiftUI/AppKit or cross-platform framework | SwiftUI/UIKit or cross-platform framework |
+| UI layer | GTK/libadwaita mobile-form-factor shell, Qt, or cross-platform Swift UI framework | SwiftUI/AppKit or cross-platform framework | SwiftUI/UIKit or cross-platform framework |
 | Build host | Linux OK | macOS required for Apple UI | macOS + Xcode required |
 
 Important: iOS cannot be built from Linux in the normal Apple toolchain path. iOS builds require macOS + Xcode/iOS SDK.
@@ -55,7 +55,7 @@ src/swift/
     HybridAICLI/
       current CLI
     HybridAILinuxApp/
-      Linux desktop UI shell
+      Linux mobile-form-factor UI shell
   Tests/
     HybridAITests/
 
@@ -70,7 +70,7 @@ apps/
 
 This gives:
 - maximum native UI quality on Apple platforms with `SwiftUI`
-- a real Linux desktop app using GTK/libadwaita or Qt
+- a real Linux-hosted app using GTK/libadwaita or Qt, designed to look and behave like a mobile app rather than a conventional desktop utility
 - shared Swift logic and tests across all platforms
 - no attempt to force Linux to pretend it has Apple `SwiftUI`
 
@@ -78,9 +78,9 @@ This gives:
 
 ### 4.1 Option 1: SwiftUI On Apple + GTK/libadwaita On Linux
 
-Best if Linux UX matters.
+Best if Linux UX matters and the prototype should visually match a mobile app.
 
-- Linux: GTK 4 / libadwaita via Swift bindings or C interop
+- Linux: GTK 4 / libadwaita via Swift bindings or C interop, using an adaptive/mobile layout
 - macOS/iOS: SwiftUI
 - Shared: Swift package with domain logic and view models
 
@@ -88,6 +88,7 @@ Pros:
 - best native feel per platform
 - realistic Linux support
 - clean iOS path
+- libadwaita is designed for adaptive layouts, so a Linux window can approximate a phone-sized app shell during development
 
 Cons:
 - UI views are written twice
@@ -150,7 +151,7 @@ Given the current setup and goals, use this path:
 1. Keep `HybridAI` as the shared Swift package.
 2. Add shared app state/view models to `HybridAI`.
 3. Keep `HybridAICLI` as the CLI smoke target.
-4. Add a Linux UI target only after choosing GTK/libadwaita or Qt.
+4. Add a Linux UI target only after choosing GTK/libadwaita or Qt; for the first proof, make it a mobile-form-factor shell, not a desktop-style app.
 5. Add macOS/iOS SwiftUI app projects on macOS that import the same `HybridAI` Swift package.
 6. Use CI/build matrix:
    - Linux: `scripts/env/run_swift.sh build/test` plus Linux UI target if added
@@ -163,7 +164,7 @@ To prove “Swift app with UI” from this repository, the next concrete checkpo
 
 ### 6.1 Linux-First Proof
 
-Add a small GTK/libadwaita Swift desktop app target that imports `HybridAI` and shows:
+Add a small GTK/libadwaita Swift app target that imports `HybridAI` and presents a mobile-form-factor UI showing:
 
 ```text
 hybrid-ai swift module ready
@@ -172,8 +173,15 @@ hybrid-ai swift module ready
 Then verify:
 
 ```text
-scripts/env/run_swift.sh build
+scripts/env/run_swift_ui.sh build --product hybrid-ai-mobile-chat
 ```
+
+Design constraints for this proof:
+- make the Linux window phone-sized by default
+- use a single-column layout
+- prefer large touch-friendly controls
+- avoid desktop-first UI patterns such as menu bars, dense toolbars, sidebars, and multi-pane layouts
+- structure state and actions so the same model can be reused by future SwiftUI iOS/macOS shells
 
 ### 6.2 Apple-First Proof
 

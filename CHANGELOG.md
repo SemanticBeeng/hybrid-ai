@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-06-05
+
+### Linux-first Swift mobile UI proof
+- added a Linux-only GTK/libadwaita mobile chat proof target, `hybrid-ai-mobile-chat`, with a phone-sized single-column chat UI that imports the shared `HybridAI` module and displays the existing `hybrid-ai swift module ready` status
+- added GTK/libadwaita native UI dependencies to the Flox Swift layer instead of Swiftly or the host OS, keeping the ownership split as Swiftly for Swift tools and Flox/Nix for native GUI dependencies
+- added `scripts/env/run_swift_ui.sh` as the dedicated UI wrapper for GTK/libadwaita builds and runs, separate from the generic `scripts/env/run_swift.sh` wrapper
+- made the GTK/libadwaita SwiftPM targets opt-in through `HYBRID_AI_ENABLE_GTK_UI=1` so generic Swift build/test workflows do not compile UI C targets or require GTK flags
+- confirmed the generic Swift CLI/test workflow remains independent of the UI target while the dedicated UI wrapper can build and launch `hybrid-ai-mobile-chat`
+
+### GTK/libadwaita trials, errors, and fixes
+- first UI build failed because SwiftPM did not automatically apply GTK/libadwaita `pkg-config` flags to the C shim target; fixed in `run_swift_ui.sh` by converting `pkg-config --cflags/--libs gtk4 libadwaita-1` into SwiftPM `-Xcc` and `-Xlinker` flags
+- hit `Circular swiftly proxy invocation` when C compilation used Swiftly proxy shims for `clang`/`clang++`; fixed `scripts/env/toolchain/swift_env.sh` so `CC` and `CXX` point to the real Swiftly toolchain binaries under the selected Swift `6.3.2` toolchain
+- generic `swift test` initially tried to build the GTK UI target and failed on missing GTK headers; fixed by gating the UI target in `Package.swift` behind `HYBRID_AI_ENABLE_GTK_UI=1`
+- running the UI binary directly produced a glibc mismatch: host `/lib/x86_64-linux-gnu/libc.so.6` was mixed with Nix/Flox `libresolv.so.2`; fixed the UI wrapper to run the app through a matching Nix glibc dynamic loader with an explicit GTK/Flox/Swiftly runtime library path
+- improved Nix loader selection so `run_swift_ui.sh` derives the glibc lib directory from the active Flox GTK/glib runtime closure instead of choosing an arbitrary glibc from `/nix/store`; added `HYBRID_AI_SWIFT_UI_GLIBC_LIB_DIR` as an override escape hatch
+- cleared `LD_AUDIT` and `LD_PRELOAD` before launching the UI app to avoid Flox audit/preload libraries being loaded against the wrong glibc runtime
+- hit a libadwaita runtime abort, `gtk_window_set_child() is not supported for AdwApplicationWindow`; fixed the C UI shim to use `adw_application_window_set_content()`
+- iteratively added transitive GTK/Pango/pkg-config dependencies to the Flox Swift layer (`libsysprof-capture`, `pcre2`, `util-linux`, `libselinux`, `libsepol`, `fribidi`, `libthai`, and `libdatrie`) and taught the UI wrapper to discover missing `.pc` directories from the Nix store when Flox does not expose them directly
+
+### Final GTK/libadwaita conclusion
+- final command-line run path is `scripts/env/run_swift_ui.sh run hybrid-ai-mobile-chat`
+- the app now launches successfully from the command line as a Linux-hosted, mobile-form-factor LLM chatbot proof using GTK/libadwaita
+- the original host-glibc/Nix-libresolv mismatch is resolved by enforcing the Nix loader path in the UI wrapper
+- the `AdwApplicationWindow` core dump is resolved by using the correct libadwaita content API
+- source-adjacent SwiftPM output remains forbidden; `src/swift/.build` is not used by the wrapper-based UI workflow
+
 ## 2026-06-04
 
 ### Swiftly 6.3.2 migration and workflow verification
@@ -11,6 +37,8 @@
 - updated and re-verified `docs/usecases/03-swift-build-and-test.md` against the current Swiftly-backed workflow: `check_swiftly.sh`, `check_swift_env.sh`, `package resolve`, `build`, `test`, `run hybrid-ai-cli`, native path proof, absence of `src/swift/.build`, and `doctor.sh` all passed
 - documented the current Swift resolution split in the Swift use case: Swift-specific tools from Swiftly, Flox/Nix native build-time paths before host OS defaults, and sanitized/unset `LD_LIBRARY_PATH` for Swiftly runtime execution
 - added `docs/chat/swift_ui_cross_platform_roadmap.md` to capture the Swift UI roadmap: verified Swiftly baseline, shared Swift core, platform-specific Linux/macOS/iOS UI shells, and next implementation checkpoints
+- refined the Swift UI roadmap so the Linux GTK/libadwaita proof targets a mobile-form-factor app shell rather than a conventional desktop UI
+- added `scripts/env/run_swift_ui.sh` as the dedicated GTK/libadwaita Swift UI wrapper, injecting `pkg-config` flags through SwiftPM `-Xcc` and `-Xlinker` while keeping the generic Swift wrapper product-agnostic
 - updated VS Code workflow documentation to match `scripts/env/start_vscode.sh`, which now activates both the managed Python venv and Swiftly-backed Swift before editor launch
 - confirmed `scripts/env/toolchain/doctor.sh` passes after removing forbidden source-adjacent SwiftPM `.build` output
 

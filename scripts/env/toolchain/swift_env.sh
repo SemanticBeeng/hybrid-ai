@@ -53,20 +53,36 @@ hybrid_ai_sanitize_swift_ld_library_path() {
 hybrid_ai_activate_swift_env() {
   local clang_bin=""
   local clangxx_bin=""
+  local swiftly_toolchain_bin=""
 
   hybrid_ai_export_swift_env
   hybrid_ai_source_swiftly_env
   hybrid_ai_assert_swift_version
   hybrid_ai_sanitize_swift_ld_library_path
 
-  clang_bin="$(command -v clang 2>/dev/null || true)"
-  clangxx_bin="$(command -v clang++ 2>/dev/null || true)"
+  swiftly_toolchain_bin="${SWIFTLY_TOOLCHAINS_DIR:-}/$HYBRID_AI_SWIFT_VERSION/usr/bin"
+
+  if [[ -x "$swiftly_toolchain_bin/clang" ]]; then
+    clang_bin="$swiftly_toolchain_bin/clang"
+  else
+    clang_bin="$(command -v clang 2>/dev/null || true)"
+  fi
+
+  if [[ -x "$swiftly_toolchain_bin/clang++" ]]; then
+    clangxx_bin="$swiftly_toolchain_bin/clang++"
+  else
+    clangxx_bin="$(command -v clang++ 2>/dev/null || true)"
+  fi
 
   if [[ -n "$clang_bin" ]]; then
-    export CC="${CC:-$clang_bin}"
+    if [[ -z "${CC:-}" || "${CC:-}" == "$SWIFTLY_BIN_DIR/clang" ]]; then
+      export CC="$clang_bin"
+    fi
   fi
 
   if [[ -n "$clangxx_bin" ]]; then
-    export CXX="${CXX:-$clangxx_bin}"
+    if [[ -z "${CXX:-}" || "${CXX:-}" == "$SWIFTLY_BIN_DIR/clang++" ]]; then
+      export CXX="$clangxx_bin"
+    fi
   fi
 }
