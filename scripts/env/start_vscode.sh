@@ -25,6 +25,7 @@ ensure_nix_bind_mount
 require_nix_daemon_socket
 
 FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
+FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$PROJECT_ROOT/scripts/env/toolchain/nix/flox_env_init.sh}"
 VSCODE_PORTABLE_ROOT="${VSCODE_PORTABLE_ROOT:-$HOST_HOME/appdata/.vscode}"
 VSCODE_USER_DATA_DIR="${VSCODE_USER_DATA_DIR:-$VSCODE_PORTABLE_ROOT/data}"
 VSCODE_EXTENSIONS_DIR="${VSCODE_EXTENSIONS_DIR:-$VSCODE_USER_DATA_DIR/extensions}"
@@ -97,6 +98,35 @@ resolve_vscode_bin() {
   return 1
 }
 
+ensure_flox_env_ready() {
+  local activate_output=""
+  local status=0
+
+  set +e
+  activate_output="$("$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc 'exit 0' 2>&1)"
+  status=$?
+  set -e
+
+  if [[ "$status" -eq 0 ]]; then
+    return 0
+  fi
+
+  if [[ "$activate_output" == *"manifest and lockfile are out of sync"* ]]; then
+    if [[ ! -x "$FLOX_ENV_INIT_SCRIPT" ]]; then
+      echo "ERROR: Flox environment state is stale, and sync helper is not executable: $FLOX_ENV_INIT_SCRIPT" >&2
+      printf '%s\n' "$activate_output" >&2
+      return "$status"
+    fi
+
+    echo "INFO: Flox environment state is stale; syncing manifests before launching VS Code." >&2
+    "$FLOX_ENV_INIT_SCRIPT" >/dev/null
+    return 0
+  fi
+
+  printf '%s\n' "$activate_output" >&2
+  return "$status"
+}
+
 if [[ ! -f "$FLOX_ENV_DIR/manifest.toml" ]]; then
   echo "ERROR: expected Flox manifest at $FLOX_ENV_DIR/manifest.toml" >&2
   exit 1
@@ -107,6 +137,8 @@ if [[ -z "$FLOX_BIN" ]]; then
   echo "ERROR: flox is required but was not found on PATH or at $FLOX_WRAPPER_BIN" >&2
   exit 1
 fi
+
+ensure_flox_env_ready
 
 mkdir -p "$VSCODE_USER_DATA_DIR" "$VSCODE_EXTENSIONS_DIR"
 
@@ -139,6 +171,7 @@ print_effective_env() {
   local resolved_vscode_bin="${1:-unresolved}"
 
   env \
+    HOST_HOME="$HOST_HOME" \
     PROJECT_ROOT="$PROJECT_ROOT" \
     VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
     VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
@@ -152,8 +185,8 @@ print_effective_env() {
       hybrid_ai_activate_python_env
       hybrid_ai_activate_swift_env
 
-      printf "project_root=%s\n" "$PWD"
-      printf "host_home=%s\n" "'$HOST_HOME'"
+      printf "project_root=%s\n" "$PROJECT_ROOT"
+      printf "host_home=%s\n" "$HOST_HOME"
       printf "editor_home=%s\n" "$HOME"
       printf "xdg_config_home=%s\n" "$XDG_CONFIG_HOME"
       printf "xdg_cache_home=%s\n" "$XDG_CACHE_HOME"

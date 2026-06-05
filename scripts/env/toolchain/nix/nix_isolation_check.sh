@@ -25,7 +25,7 @@ fi
 
 detected_mount_root="$(nix_mount_root)"
 if [[ -n "$detected_mount_root" && "$detected_mount_root" != "$NIX_ISOLATED_ROOT" ]]; then
-  echo "WARN: kernel mount metadata reports root '$detected_mount_root', expected '$NIX_ISOLATED_ROOT'." >&2
+  echo "WARN: mount verification=root_mismatch detected_root='$detected_mount_root' expected_root='$NIX_ISOLATED_ROOT'." >&2
   echo "WARN: current wrapper policy only requires that $NIX_MOUNT_POINT is mounted and usable." >&2
 fi
 

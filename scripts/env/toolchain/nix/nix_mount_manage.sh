@@ -67,7 +67,7 @@ status_mount() {
     return
   fi
 
-  echo "status=unexpected mountpoint=$NIX_MOUNT_POINT detected_root=$(nix_mount_root) expected_root=$NIX_ISOLATED_ROOT"
+  echo "status=mounted mountpoint=$NIX_MOUNT_POINT detected_root=$(nix_mount_root) expected_root=$NIX_ISOLATED_ROOT verification=root_mismatch"
 }
 
 unmount_bind() {
