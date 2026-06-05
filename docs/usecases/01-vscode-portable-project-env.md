@@ -79,6 +79,7 @@ Design boundary:
 - `python_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
 - `swift_env.sh` owns Swiftly activation and sources the Swift build/cache path module internally.
 - `xdg_env.sh` owns project-local `HOME`/`XDG_*` setup and is sourced only from `env/base/manifest.toml`; module manifests include `env/base` instead of duplicating XDG setup.
+- Flox `[vars]` own static activation constants such as Nix/Flox daemon defaults, Python behavior flags, and Swiftly version/path constants.
 - Flox manifests source the narrow concern modules they need instead of sourcing `common.sh`.
 
 ## 5. Effective Behavior
@@ -413,6 +414,7 @@ In that model:
 - `env/base/manifest.toml`, `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` remain reusable module environments
 - activating from the repository root with `flox activate` makes the repository root the activation working directory and the canonical Flox environment directory
 - module environments can still be activated directly with `flox activate -d env/python`, `flox activate -d env/swift`, and similar commands
+- static environment constants live in Flox `[vars]`; scripts only retain dynamic values that depend on the checkout path, `FLOX_ENV_CACHE`, host account discovery, or runtime probing
 
 This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, keep manifest hooks project-relative, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
 

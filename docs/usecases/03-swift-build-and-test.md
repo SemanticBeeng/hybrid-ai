@@ -51,6 +51,7 @@ Runtime wrappers:
 Session support:
 - `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Swift activation.
 - Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
+- `env/swift/manifest.toml` uses Flox `[vars]` for static Swiftly constants: `SWIFTLY_ROOT`, `SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, and the default `GTK_A11Y` value.
 - Normal Swift wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
 - `scripts/env/toolchain/swift/swift_env.sh` sources the Swift path/cache module internally, so callers do not need to source `swift_paths.sh` directly.
 
@@ -71,6 +72,8 @@ Repository-managed writable paths used by this workflow:
 - `build/swift`
 - `build/swift/clang-module-cache`
 - `build/swift/package-cache`
+
+These paths remain in shell helpers rather than Flox `[vars]` because they are checkout-relative and must work from both the root composed environment and direct `env/swift` module activation.
 
 ## 5. Effective Runtime Behavior
 

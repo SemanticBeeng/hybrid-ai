@@ -15,6 +15,11 @@ environments = [
 	{ dir = "../base" },
 ]
 
+[vars]
+PYTHONDONTWRITEBYTECODE = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+POETRY_VIRTUALENVS_CREATE = "false"
+
 [hook]
 on-activate = '''
 source scripts/env/toolchain/python/python_env.sh

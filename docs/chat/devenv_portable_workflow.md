@@ -67,6 +67,7 @@ Requirement: Make all build/runtime paths explicit, justify exceptions.
 Design:
 - There is no central manifest policy script. Flox modules source narrow concern helpers directly.
 - `env/base/manifest.toml` owns project-local `HOME`/`XDG_*` setup by sourcing `scripts/env/toolchain/xdg_env.sh`; `env/python`, `env/swift`, and `env/inference` include `env/base`.
+- Flox `[vars]` own static constants: base Nix/Flox defaults, Python behavior flags, and Swiftly version/path defaults. Shell helpers keep dynamic values that depend on checkout location, `FLOX_ENV_CACHE`, host account discovery, or runtime probing.
 - PYTHONPATH intentionally not globally forced by default to avoid import ambiguity; only set in module wrappers when required for controlled local package execution.
 
 ### 1.7 Isolation and cleanliness constraints
@@ -445,6 +446,7 @@ Important note:
 - The current `.flox/env/manifest.toml` composes the module manifests via Flox `[include]`. Keep project-specific overrides in the root top-level manifest and keep shared toolchain logic in the module-local manifests.
 - Flox manifest hooks source narrow concern modules directly instead of sourcing `scripts/env/toolchain/common.sh`; `common.sh` is a compatibility aggregator for broad external-shell/launcher setup, not the central environment policy.
 - `env/base/manifest.toml` is the single owner of `xdg_env.sh`; module manifests include `env/base` rather than duplicating `HOME`/`XDG_*` setup.
+- Static activation values now live in Flox `[vars]`: base sets Nix/Flox daemon defaults, Python sets packaging/runtime flags, and Swift sets Swiftly constants. Scripts retain fallbacks only for host-side setup or execution outside an activated Flox shell.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
 - The Python workflow now relies on `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
 - The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization; `swift_env.sh` sources Swift path setup internally.

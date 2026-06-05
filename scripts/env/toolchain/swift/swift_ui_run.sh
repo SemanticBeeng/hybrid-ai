@@ -74,7 +74,8 @@ if [[ "$SWIFT_SUBCOMMAND" == "run" ]]; then
     printf "runtime_binary=%s\n" "$bin_path/$product" >&2
   fi
 
-  export GTK_A11Y="${GTK_A11Y:-none}"
+  : "${GTK_A11Y:=none}"
+  export GTK_A11Y
   unset LD_AUDIT
   unset LD_PRELOAD
   exec "$runtime_loader" --library-path "$runtime_path" "$bin_path/$product" "$@"

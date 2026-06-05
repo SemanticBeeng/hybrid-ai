@@ -53,6 +53,7 @@ Runtime wrappers:
 Session support:
 - `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Python activation.
 - Python manifests and wrappers use `scripts/env/toolchain/python/python_env.sh` as their narrow runtime source of truth.
+- `env/python/manifest.toml` uses Flox `[vars]` for static Python behavior flags: `PYTHONDONTWRITEBYTECODE`, `PIP_DISABLE_PIP_VERSION_CHECK`, and `POETRY_VIRTUALENVS_CREATE`.
 - Normal Python wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
 
 Python source:
@@ -78,6 +79,7 @@ Repository-managed writable paths used by this workflow:
 - defaults to `python -m hybrid_ai` when no explicit arguments are given
 - if already inside the active Flox environment, it activates the managed venv and runs `python` directly
 - otherwise it launches through `scripts/env/toolchain/nix/flox_with.sh` and activates the managed venv in the command shell
+- dynamic paths such as `PYTHON_DIR`, `HYBRID_AI_PYTHON_VENV`, and cache directories remain in `python_env.sh` because they depend on the checkout path or `FLOX_ENV_CACHE`
 - uses `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, venv creation, dependency sync, cache paths, and runtime library activation
 
 `scripts/env/toolchain/python/python_enter.sh` does the following:

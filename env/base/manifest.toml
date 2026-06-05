@@ -12,6 +12,13 @@ yq.pkg-path = "yq"
 just.pkg-path = "just"
 curl.pkg-path = "curl"
 
+[vars]
+NIX_ISOLATED_ROOT = "/opt/bin/dev/nix"
+NIX_MOUNT_POINT = "/nix"
+NIX_CONF_DIR = "/etc/nix"
+NIX_REMOTE = "daemon"
+FLOX_DISABLE_METRICS = "true"
+
 [hook]
 on-activate = '''
 source scripts/env/toolchain/xdg_env.sh

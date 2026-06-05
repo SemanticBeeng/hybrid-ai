@@ -2,9 +2,9 @@
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-export NIX_ISOLATED_ROOT="${NIX_ISOLATED_ROOT:-/opt/bin/dev/nix}"
-export NIX_MOUNT_POINT="${NIX_MOUNT_POINT:-/nix}"
-export NIX_CONF_DIR="${NIX_CONF_DIR:-/etc/nix}"
+: "${NIX_ISOLATED_ROOT:=/opt/bin/dev/nix}"
+: "${NIX_MOUNT_POINT:=/nix}"
+: "${NIX_CONF_DIR:=/etc/nix}"
 export DETERMINATE_NIX_BIN="${DETERMINATE_NIX_BIN:-$NIX_MOUNT_POINT/var/nix/profiles/default/bin/nix}"
 export DETERMINATE_NIX_INSTALLER_BIN="${DETERMINATE_NIX_INSTALLER_BIN:-$NIX_MOUNT_POINT/nix-installer}"
 export NIX_DAEMON_PROFILE_SCRIPT="${NIX_DAEMON_PROFILE_SCRIPT:-$NIX_MOUNT_POINT/var/nix/profiles/default/etc/profile.d/nix-daemon.sh}"
@@ -53,7 +53,8 @@ if [[ -z "${FLOX_MANIFEST_PATH:-}" ]]; then
 else
   export FLOX_MANIFEST_PATH
 fi
-export FLOX_DISABLE_METRICS="${FLOX_DISABLE_METRICS:-true}"
+: "${FLOX_DISABLE_METRICS:=true}"
+export NIX_ISOLATED_ROOT NIX_MOUNT_POINT NIX_CONF_DIR FLOX_DISABLE_METRICS
 
 case "$NIX_ISOLATED_ROOT" in
   /nix|/nix/*)
@@ -138,7 +139,8 @@ source_nix_daemon_profile() {
 
 use_nix_daemon() {
   source_nix_daemon_profile
-  export NIX_REMOTE="${NIX_REMOTE:-daemon}"
+  : "${NIX_REMOTE:=daemon}"
+  export NIX_REMOTE
 }
 
 require_nix_daemon_socket() {

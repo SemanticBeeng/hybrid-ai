@@ -161,6 +161,7 @@ Intended purpose:
 Current status:
 - this script prints the broad compatibility/isolation view used by repository wrappers
 - it sources `scripts/env/toolchain/common.sh`, which is a compatibility aggregator and not the central Flox manifest policy
+- static Nix/Flox defaults such as `NIX_ISOLATED_ROOT`, `NIX_MOUNT_POINT`, `NIX_CONF_DIR`, `NIX_REMOTE`, and `FLOX_DISABLE_METRICS` are declared in `env/base/manifest.toml` `[vars]`, with script fallbacks for host-side setup commands run outside Flox
 - it does not claim to prove Python or Swift runtime state by itself
 
 ### 6.3 Python Runtime Environment Check
