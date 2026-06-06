@@ -3,6 +3,14 @@
 #include <adwaita.h>
 #include <gtk/gtk.h>
 
+typedef struct {
+    char *title;
+    char *subtitle;
+    char *assistant_intro;
+    char *user_message;
+    char *assistant_reply;
+} HybridAIChatContent;
+
 static void add_css(void) {
     GtkCssProvider *provider = gtk_css_provider_new();
     const char *css =
@@ -65,7 +73,7 @@ static GtkWidget *chat_bubble(const char *text, gboolean from_user) {
 }
 
 static void activate(GtkApplication *app, gpointer user_data) {
-    (void)user_data;
+    HybridAIChatContent *content = (HybridAIChatContent *)user_data;
     add_css();
 
     GtkWidget *window = adw_application_window_new(app);
@@ -82,8 +90,8 @@ static void activate(GtkApplication *app, gpointer user_data) {
     adw_application_window_set_content(ADW_APPLICATION_WINDOW(window), shell);
 
     GtkWidget *header = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-    GtkWidget *title = label_with_class("Hybrid AI", "title");
-    GtkWidget *subtitle = label_with_class("Mobile chat prototype · Swift + GTK/libadwaita", "subtitle");
+    GtkWidget *title = label_with_class(content->title, "title");
+    GtkWidget *subtitle = label_with_class(content->subtitle, "subtitle");
     gtk_box_append(GTK_BOX(header), title);
     gtk_box_append(GTK_BOX(header), subtitle);
     gtk_box_append(GTK_BOX(shell), header);
@@ -98,9 +106,9 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_widget_set_margin_start(messages, 2);
     gtk_widget_set_margin_end(messages, 2);
 
-    gtk_box_append(GTK_BOX(messages), chat_bubble("Hello — I am your local Hybrid AI assistant.", FALSE));
-    gtk_box_append(GTK_BOX(messages), chat_bubble("Can you confirm the Swift UI proof is wired up?", TRUE));
-    gtk_box_append(GTK_BOX(messages), chat_bubble("Yes. This mobile-shaped GTK/libadwaita shell is built from SwiftPM and imports the shared HybridAI module.", FALSE));
+    gtk_box_append(GTK_BOX(messages), chat_bubble(content->assistant_intro, FALSE));
+    gtk_box_append(GTK_BOX(messages), chat_bubble(content->user_message, TRUE));
+    gtk_box_append(GTK_BOX(messages), chat_bubble(content->assistant_reply, FALSE));
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroller), messages);
     gtk_box_append(GTK_BOX(shell), scroller);
@@ -121,8 +129,38 @@ static void activate(GtkApplication *app, gpointer user_data) {
 }
 
 void hybrid_ai_mobile_chat_run(void) {
+    hybrid_ai_mobile_chat_run_with_messages(
+        "Hybrid AI",
+        "Mobile chat prototype · Swift + GTK/libadwaita",
+        "Hybrid AI runtime ready. Inference abstractions are connected.",
+        "Can you confirm the Swift UI proof is wired up?",
+        "Yes. This shell now renders messages prepared through the shared inference app model."
+    );
+}
+
+void hybrid_ai_mobile_chat_run_with_messages(
+    const char *title,
+    const char *subtitle,
+    const char *assistant_intro,
+    const char *user_message,
+    const char *assistant_reply
+) {
+    HybridAIChatContent content = {
+        .title = g_strdup(title),
+        .subtitle = g_strdup(subtitle),
+        .assistant_intro = g_strdup(assistant_intro),
+        .user_message = g_strdup(user_message),
+        .assistant_reply = g_strdup(assistant_reply),
+    };
+
     AdwApplication *app = adw_application_new("dev.hybridai.MobileChat", G_APPLICATION_DEFAULT_FLAGS);
-    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
+    g_signal_connect(app, "activate", G_CALLBACK(activate), &content);
     g_application_run(G_APPLICATION(app), 0, NULL);
     g_object_unref(app);
+
+    g_free(content.title);
+    g_free(content.subtitle);
+    g_free(content.assistant_intro);
+    g_free(content.user_message);
+    g_free(content.assistant_reply);
 }
