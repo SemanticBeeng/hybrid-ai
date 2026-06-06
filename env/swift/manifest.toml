@@ -8,7 +8,6 @@ pkg-config.pkg-path = "pkg-config"
 gobject-introspection.pkg-path = "gobject-introspection"
 libsysprof-capture.pkg-path = "libsysprof-capture"
 pcre2.pkg-path = "pcre2"
-util-linux.pkg-path = "util-linux"
 libselinux.pkg-path = "libselinux"
 libselinux.systems = ["x86_64-linux", "aarch64-linux"]
 libsepol.pkg-path = "libsepol"
@@ -16,25 +15,34 @@ libsepol.systems = ["x86_64-linux", "aarch64-linux"]
 fribidi.pkg-path = "fribidi"
 libthai.pkg-path = "libthai"
 libdatrie.pkg-path = "libdatrie"
+expat.pkg-path = "expat"
+libXdmcp.pkg-path = "xorg.libXdmcp"
+libdeflate.pkg-path = "libdeflate"
+lerc.pkg-path = "lerc"
+xz.pkg-path = "xz"
+
+[include]
+environments = [
+	{ dir = "../base" },
+]
+
+[vars]
+SWIFTLY_ROOT = "/opt/bin/dev/swiftly"
+SWIFTLY_HOME_DIR = "/opt/bin/dev/swiftly/home"
+SWIFTLY_BIN_DIR = "/opt/bin/dev/swiftly/bin"
+SWIFTLY_TOOLCHAINS_DIR = "/opt/bin/dev/swiftly/toolchains"
+SWIFTLY_VERSION = "1.1.1"
+HYBRID_AI_SWIFT_VERSION = "6.3.2"
+GTK_A11Y = "none"
 
 [hook]
 on-activate = '''
-PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
-export HYBRID_AI_PROFILE=${HYBRID_AI_PROFILE:-swift-dev}
+source scripts/env/toolchain/swift/swift_env.sh
 hybrid_ai_activate_swift_env
 '''
 
 [profile]
-bash = '''
-PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
-hybrid_ai_activate_swift_env
-'''
-
-zsh = '''
-PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+common = '''
+source scripts/env/toolchain/swift/swift_env.sh
 hybrid_ai_activate_swift_env
 '''

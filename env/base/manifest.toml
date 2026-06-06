@@ -12,9 +12,14 @@ yq.pkg-path = "yq"
 just.pkg-path = "just"
 curl.pkg-path = "curl"
 
+[vars]
+NIX_ISOLATED_ROOT = "/opt/bin/dev/nix"
+NIX_MOUNT_POINT = "/nix"
+NIX_CONF_DIR = "/etc/nix"
+NIX_REMOTE = "daemon"
+FLOX_DISABLE_METRICS = "true"
+
 [hook]
 on-activate = '''
-PROJECT_ROOT="$(cd "$FLOX_ENV_PROJECT/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
-export HYBRID_AI_PROFILE=base
+source scripts/env/toolchain/xdg_env.sh
 '''

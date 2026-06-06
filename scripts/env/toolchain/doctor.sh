@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+source "$project_root/scripts/env/toolchain/common.sh"
 
 fail() {
   echo "ERROR: $1" >&2
@@ -10,11 +10,11 @@ fail() {
 }
 
 must_exist=(
-  "$PROJECT_ROOT/build"
-  "$PROJECT_ROOT/volumes"
-  "$PROJECT_ROOT/deps"
-  "$PROJECT_ROOT/env/hybrid-ai/manifest.toml"
-  "$PROJECT_ROOT/.vscode/settings.json"
+  "$project_root/build"
+  "$project_root/volumes"
+  "$project_root/deps"
+  "$project_root/.flox/env/manifest.toml"
+  "$project_root/.vscode/settings.json"
 )
 
 for p in "${must_exist[@]}"; do
@@ -23,7 +23,7 @@ done
 
 for p in "$HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"; do
   case "$p" in
-    "$PROJECT_ROOT"/*) ;;
+    "$project_root"/*) ;;
     *) fail "Path is outside project root: $p" ;;
   esac
 done
@@ -33,7 +33,7 @@ if [[ -x "$DETERMINATE_NIX_BIN" || -x "$NIX_WRAPPER_BIN" || -x "$FLOX_WRAPPER_BI
   [[ -S "$NIX_DAEMON_SOCKET" ]] || fail "Missing nix-daemon socket: $NIX_DAEMON_SOCKET"
 fi
 
-for forbidden in "$PROJECT_ROOT/src/python/__pycache__" "$PROJECT_ROOT/src/swift/.build"; do
+for forbidden in "$project_root/src/python/__pycache__" "$project_root/src/swift/.build"; do
   [[ ! -e "$forbidden" ]] || fail "Forbidden byproduct detected: $forbidden"
 done
 

@@ -1,34 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-HOST_USER="${SUDO_USER:-$(id -un)}"
-HOST_HOME=""
-
-if command -v getent >/dev/null 2>&1; then
-  HOST_HOME="$(getent passwd "$HOST_USER" | cut -d: -f6)"
-fi
-
-if [[ -z "$HOST_HOME" ]]; then
-  HOST_HOME="$(eval echo "~$HOST_USER")"
-fi
-
-if [[ -z "$HOST_HOME" || ! -d "$HOST_HOME" ]]; then
-  echo "ERROR: could not resolve host home for user $HOST_USER" >&2
-  exit 1
-fi
-
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-source "$PROJECT_ROOT/scripts/env/toolchain/common.sh"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck disable=SC1090
+source "$project_root/scripts/env/toolchain/common.sh"
+# shellcheck disable=SC1090
+source "$project_root/scripts/env/toolchain/vscode_paths.sh"
 
 use_nix_daemon
 ensure_nix_bind_mount
 require_nix_daemon_socket
 
-FLOX_ENV_DIR="${FLOX_ENV_DIR:-$PROJECT_ROOT/env/hybrid-ai}"
-VSCODE_PORTABLE_ROOT="${VSCODE_PORTABLE_ROOT:-$HOST_HOME/appdata/.vscode}"
-VSCODE_USER_DATA_DIR="${VSCODE_USER_DATA_DIR:-$VSCODE_PORTABLE_ROOT/data}"
-VSCODE_EXTENSIONS_DIR="${VSCODE_EXTENSIONS_DIR:-$VSCODE_USER_DATA_DIR/extensions}"
-VSCODE_SETTINGS_PATH="${VSCODE_SETTINGS_PATH:-$VSCODE_USER_DATA_DIR/User/settings.json}"
+FLOX_ENV_DIR="${FLOX_ENV_DIR:-$project_root}"
+FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$project_root/scripts/env/toolchain/nix/flox_env_init.sh}"
 
 usage() {
   cat <<'EOF'
@@ -43,7 +27,7 @@ Environment overrides:
   VSCODE_PORTABLE_ROOT   Portable root, default: $HOST_HOME/appdata/.vscode
   VSCODE_USER_DATA_DIR   VS Code user-data dir, default: $VSCODE_PORTABLE_ROOT/data
   VSCODE_EXTENSIONS_DIR  VS Code extensions dir, default: $VSCODE_USER_DATA_DIR/extensions
-  FLOX_ENV_DIR           Flox env dir, default: env/hybrid-ai
+  FLOX_ENV_DIR           Flox env dir, default: repository root
 
 Modes:
   --print-env            Print the effective editor/toolchain environment.
@@ -51,56 +35,7 @@ Modes:
 EOF
 }
 
-resolve_flox_bin() {
-  if command -v flox >/dev/null 2>&1; then
-    command -v flox
-    return 0
-  fi
-
-  if [[ -x "$FLOX_WRAPPER_BIN" ]]; then
-    printf '%s\n' "$FLOX_WRAPPER_BIN"
-    return 0
-  fi
-
-  return 1
-}
-
-resolve_vscode_bin() {
-  if [[ -n "${VSCODE_BIN:-}" ]]; then
-    [[ -x "$VSCODE_BIN" ]] || {
-      echo "ERROR: VSCODE_BIN is not executable: $VSCODE_BIN" >&2
-      return 1
-    }
-    printf '%s\n' "$VSCODE_BIN"
-    return 0
-  fi
-
-  local candidate
-  for candidate in code code-insiders codium; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      command -v "$candidate"
-      return 0
-    fi
-  done
-
-  for candidate in \
-    "$HOST_HOME/appdata/.vscode/bin/code" \
-    "$HOST_HOME/appdata/.vscode/bin/code-insiders" \
-    "$HOST_HOME/appdata/.vscode/code" \
-    "$HOST_HOME/appdata/.vscode/code-insiders"; do
-    if [[ -x "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-if [[ ! -f "$FLOX_ENV_DIR/manifest.toml" ]]; then
-  echo "ERROR: expected Flox manifest at $FLOX_ENV_DIR/manifest.toml" >&2
-  exit 1
-fi
+hybrid_ai_require_flox_env "$FLOX_ENV_DIR"
 
 FLOX_BIN="$(resolve_flox_bin || true)"
 if [[ -z "$FLOX_BIN" ]]; then
@@ -108,7 +43,9 @@ if [[ -z "$FLOX_BIN" ]]; then
   exit 1
 fi
 
-mkdir -p "$VSCODE_USER_DATA_DIR" "$VSCODE_EXTENSIONS_DIR"
+hybrid_ai_ensure_flox_env_ready "$FLOX_ENV_DIR" "$FLOX_ENV_INIT_SCRIPT"
+
+hybrid_ai_ensure_vscode_dirs
 
 mode="launch"
 while [[ $# -gt 0 ]]; do
@@ -139,7 +76,7 @@ print_effective_env() {
   local resolved_vscode_bin="${1:-unresolved}"
 
   env \
-    PROJECT_ROOT="$PROJECT_ROOT" \
+    HOST_HOME="$HOST_HOME" \
     VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
     VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
     VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
@@ -147,13 +84,14 @@ print_effective_env() {
     RESOLVED_VSCODE_BIN="$resolved_vscode_bin" \
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
-      source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
-      source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+      project_root="$1"
+      source "$project_root/scripts/env/toolchain/python/python_env.sh"
+      source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
       hybrid_ai_activate_python_env
       hybrid_ai_activate_swift_env
 
-      printf "project_root=%s\n" "$PWD"
-      printf "host_home=%s\n" "'$HOST_HOME'"
+      printf "project_root=%s\n" "$project_root"
+      printf "host_home=%s\n" "$HOST_HOME"
       printf "editor_home=%s\n" "$HOME"
       printf "xdg_config_home=%s\n" "$XDG_CONFIG_HOME"
       printf "xdg_cache_home=%s\n" "$XDG_CACHE_HOME"
@@ -176,7 +114,7 @@ print_effective_env() {
       clang --version | head -n 1
       printf "sourcekit_lsp_bin=%s\n" "$(command -v sourcekit-lsp || true)"
       printf "lldb_bin=%s\n" "$(command -v lldb || true)"
-    '
+    ' bash "$project_root"
 }
 
 case "$mode" in
@@ -206,11 +144,10 @@ if [[ -z "$resolved_vscode_bin" ]]; then
 fi
 
 if [[ $# -eq 0 ]]; then
-  set -- "$PROJECT_ROOT"
+  set -- "$project_root"
 fi
 
 exec env \
-  PROJECT_ROOT="$PROJECT_ROOT" \
   VSCODE_PORTABLE_ROOT="$VSCODE_PORTABLE_ROOT" \
   VSCODE_USER_DATA_DIR="$VSCODE_USER_DATA_DIR" \
   VSCODE_EXTENSIONS_DIR="$VSCODE_EXTENSIONS_DIR" \
@@ -218,12 +155,15 @@ exec env \
   "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- \
   bash --noprofile --norc -lc '
     set -euo pipefail
-    source "$PROJECT_ROOT/scripts/env/toolchain/python_env.sh"
-    source "$PROJECT_ROOT/scripts/env/toolchain/swift_env.sh"
+    project_root="$1"
+    shift
+    source "$project_root/scripts/env/toolchain/python/python_env.sh"
+    source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
     hybrid_ai_activate_python_env
     hybrid_ai_activate_swift_env
     exec "$@"
   ' bash \
+  "$project_root" \
   "$resolved_vscode_bin" \
   --user-data-dir "$VSCODE_USER_DATA_DIR" \
   --extensions-dir "$VSCODE_EXTENSIONS_DIR" \
