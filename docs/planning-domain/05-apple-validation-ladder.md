@@ -8,6 +8,10 @@ This document isolates the staged validation path from Linux approximation to Ap
 
 Companion validation workstream.
 
+## Status
+
+Planned companion validation workstream.
+
 ## Requirements Served
 
 - [[01-br-sandboxed-on-device-inference-target]]

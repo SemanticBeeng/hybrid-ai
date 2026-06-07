@@ -8,6 +8,10 @@ This document isolates the implementation sequence for the shared Swift core and
 
 Primary UI implementation workstream.
 
+## Status
+
+Active supporting Linux-first UI workstream.
+
 ## Requirements Served
 
 - [[02-br-cross-platform-swift-ui-delivery-target]]
@@ -51,6 +55,7 @@ Primary UI implementation workstream.
 1. Shared app logic remains testable without any specific shell.
 2. Linux and Apple shells can reuse the same core abstractions without duplicating business logic.
 3. Platform shells stay thin enough that future UI choice changes do not require re-owning app state.
+4. Multiple session and conversation flows remain owned by the shared core rather than by shell-local state.
 
 ## Planning Constraint
 

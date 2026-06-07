@@ -8,6 +8,10 @@ This document isolates the workstream for evaluating and proving the platform-sh
 
 Alternative UI evaluation workstream.
 
+## Status
+
+Deferred until the current Linux-first proof path needs reevaluation.
+
 ## Requirements Served
 
 - [[02-br-cross-platform-swift-ui-delivery-target]]

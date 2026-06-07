@@ -8,6 +8,10 @@ This document isolates the Apple-native direct LiteRT runtime workstream from th
 
 Alternative Apple implementation workstream.
 
+## Status
+
+Deferred until Apple-hosted implementation becomes the active execution path.
+
 ## Requirements Served
 
 - [[01-br-sandboxed-on-device-inference-target]]

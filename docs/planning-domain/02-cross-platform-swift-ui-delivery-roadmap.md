@@ -15,6 +15,7 @@ The planning cluster is now split into two main tracks:
 
 - [[06-shared-core-to-shell-delivery-sequence]]
 - [[07-platform-shell-decision-and-proof-workstream]]
+- [[09-current-chosen-workstreams]]
 
 ## Workstream Relationships
 

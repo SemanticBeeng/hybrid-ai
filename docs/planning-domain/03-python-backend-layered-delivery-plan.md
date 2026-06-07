@@ -8,6 +8,10 @@ This document isolates the layered backend-first execution path from the broader
 
 Primary alternative Linux-start implementation workstream.
 
+## Status
+
+Secondary follow-on workstream.
+
 ## Requirements Served
 
 - [[04-br-linux-sandbox-approximation-requirements]]
@@ -52,6 +56,7 @@ Primary alternative Linux-start implementation workstream.
 1. The Linux backend satisfies the shared runtime contract through the Swift adapter.
 2. Contract, transport, and error behavior remain stable as the real LiteRT runtime replaces the fake one.
 3. The workstream leaves the Apple deployment path intact rather than optimizing only for Linux convenience.
+4. Multiple session and conversation semantics remain first-class rather than collapsing into one-shot request handling.
 
 ## Dependencies
 

@@ -19,6 +19,7 @@ The planning cluster is now split into narrower workstreams:
 - [[04-litert-runtime-viability-spike-plan]]
 - [[08-apple-native-direct-runtime-delivery-plan]]
 - [[05-apple-validation-ladder]]
+- [[09-current-chosen-workstreams]]
 
 ## Workstream Relationships
 
@@ -32,6 +33,7 @@ The planning cluster is now split into narrower workstreams:
 2. Preserve a path to sandbox-compatible Apple deployment.
 3. Avoid coupling Linux development decisions too tightly to unconstrained desktop assumptions.
 4. Choose one primary Linux-start workstream, then use Apple-native delivery and validation workstreams to confirm the path back to the canonical target.
+5. Preserve one-runtime-many-conversations semantics even in the Linux viability spike.
 
 ## Companion Domain Documents
 
