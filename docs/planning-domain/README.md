@@ -16,6 +16,7 @@ Content rules:
 - allow multiple competing roadmaps to coexist
 - treat plans as mutable execution artifacts
 - cross-reference business and design documents when a plan depends on them
+- each meaningful workstream should identify the requirements it serves, the design decisions it relies on, and the task slices that make it executable
 
 Current seeded documents:
 - [[01-litert-lm-gemma4-spike-and-delivery-roadmap]]
@@ -26,3 +27,5 @@ Additional detailed documents:
 - [[04-litert-runtime-viability-spike-plan]]
 - [[05-apple-validation-ladder]]
 - [[06-shared-core-to-shell-delivery-sequence]]
+- [[07-platform-shell-decision-and-proof-workstream]]
+- [[08-apple-native-direct-runtime-delivery-plan]]
