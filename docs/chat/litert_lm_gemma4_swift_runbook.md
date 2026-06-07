@@ -4,6 +4,102 @@ Date: 2026-06-05
 Status: Review and implementation roadmap
 Scope: Introduce an LLM endpoint using Google LiteRT-LM, serve Gemma 4 E4B through it, expose Swift bindings, and call it from the Swift UI app.
 
+## Target Deployment Model
+
+The primary product target is a real iOS application where:
+- the app runs inside the iOS application sandbox
+- the inference engine runs under the same app sandbox constraints
+- the bundled or provisioned LLM assets must obey iOS storage, memory, and runtime restrictions
+- the final user experience is constrained by actual iPhone or iPad hardware characteristics
+
+This means the architecture should be designed first for the constraints of on-device Apple deployment, not for unconstrained desktop Linux development.
+
+### Apple-Side Approximation Strategy
+
+There are two Apple-side deployment modes to reason about:
+
+1. iOS on real iPhone or iPad hardware
+	- this is the canonical target
+	- sandbox, memory pressure, thermal behavior, and accelerator availability are authoritative here
+
+2. macOS via Mac Catalyst
+	- this is an approximation of iOS deployment, not the final truth
+	- it is useful for validating app structure, entitlement shape, sandbox assumptions, bundle/resource handling, and native Swift/LiteRT integration patterns
+	- it is not a substitute for final validation on iPhone hardware because memory ceilings, thermal limits, GPU architecture, and runtime scheduling differ materially
+
+The correct interpretation is:
+- iOS hardware is the real target
+- Mac Catalyst is the closest Apple-hosted approximation for development and deployment rehearsal
+
+### Linux Approximation Strategy
+
+Linux is the current development focus, but it must be treated as an approximation environment with explicit compensating constraints.
+
+When building and deploying on Linux, the project should preserve awareness that:
+- Linux is not the final deployment sandbox model
+- the current machine GPU is not the same architecture as Apple mobile GPU or Apple Silicon neural/graphics execution paths
+- Linux may provide more filesystem freedom, process freedom, and observability than the eventual iOS deployment
+
+Therefore Linux work should deliberately approximate two things:
+
+1. the target hardware envelope
+2. the target sandbox and runtime isolation model
+
+### GPU Approximation Principles On Linux
+
+The Linux GPU should not be treated as a direct stand-in for iPhone hardware. It is only useful as an approximation if work is evaluated through constraints that resemble the target device.
+
+Reason about the Linux GPU using these questions:
+- does the model fit within a memory budget that is plausibly portable to the intended iPhone-class hardware?
+- what is the end-to-end startup latency relative to a user-acceptable mobile launch path?
+- what is the steady-state token generation speed under mobile-like concurrency expectations?
+- what happens under constrained cache locations and limited writable space?
+- what happens when initialization or inference is retried, cancelled, or restarted under resource pressure?
+
+Practical guidance:
+- prioritize bounded memory behavior over peak desktop throughput
+- prefer one-runtime-many-conversations designs that can be reasoned about under mobile limits
+- avoid designing around assumptions that depend on abundant desktop VRAM, unconstrained swap, or unrestricted background processing
+- capture startup cost, model load cost, and cache footprint as first-class metrics because those often matter more than raw desktop benchmark speed
+
+The Linux GPU is useful for proving viability and relative performance shape, but not for claiming equivalence with Apple mobile hardware.
+
+### Sandbox Approximation Principles On Linux
+
+When building on Linux, the project should deliberately approximate iOS-style confinement by design and tooling discipline.
+
+The goal is not perfect emulation of iOS sandbox internals. The goal is to preserve the important architectural consequences of sandboxing:
+- constrained writable locations
+- explicit ownership of models, caches, and logs
+- no reliance on host-global mutable state
+- no assumption that arbitrary sibling processes or user-global resources are available
+- clear process boundaries between app and backend where those boundaries matter for the target design
+
+For this repository, Linux sandbox approximation should mean:
+- keep writable runtime state under repository-controlled roots such as `build/`, `volumes/`, `.flox/`, and other approved project-local paths
+- avoid host-global cache and config leakage
+- keep model bootstrap, cache population, and logs explicit and inspectable
+- prefer backend process boundaries over in-process interpreter shortcuts when validating the Linux path meant to approximate a sandboxed deployment architecture
+- treat transport, startup, and runtime lifecycle as part of the product design, not just local development convenience
+
+### Design Consequence
+
+The project should be evaluated against this deployment ladder:
+
+1. iOS on device is the true target
+2. Mac Catalyst is the closest Apple-side approximation
+3. Linux is a deliberate approximation environment for rapid development, backend validation, and sandbox rehearsal
+
+That means Linux implementation choices should be judged partly by how well they preserve a path to:
+- sandbox-compatible resource ownership
+- mobile-realistic runtime limits
+- eventual direct LiteRT-LM integration on Apple platforms
+
+This also reinforces the current architectural preference:
+- shared Swift abstractions across platforms
+- Apple-native inference integration where supported
+- Linux backend/service integration designed in a way that still respects the eventual sandboxed deployment goals
+
 ## Findings
 
 1. The current Swift UI target and the upstream LiteRT-LM Swift bindings do not line up on platform support.
@@ -481,3 +577,528 @@ For Linux:
 3. Bind the Linux UI to the same `ChatAppModel`.
 
 This yields a single Swift-first integration design that works across Apple and Linux without forcing the Linux build to depend on Apple-only LiteRT-LM Swift packaging.
+
+## Python Backend Roadmap
+
+Build the Python backend in two layers:
+
+1. an internal Python runtime layer that matches the Swift mental model
+2. an HTTP API layer that exposes that runtime cleanly to Swift
+
+That keeps the backend implementation honest and makes the transport replaceable later.
+
+The Swift side already gives the contract to target in:
+- `src/swift/Sources/HybridAI/Core/InferenceRuntime.swift`
+- `src/swift/Sources/HybridAI/Core/ConversationHandle.swift`
+
+The Swift runtime contract tests should become the acceptance target for the Python-backed runtime:
+- `src/swift/Tests/HybridAITests/InferenceRuntimeContractTests.swift`
+
+### Phase 1: Freeze the Backend Contract
+
+Define the Python-side semantic model before choosing framework details.
+
+Mirror the Swift model:
+- one backend runtime process
+- many conversations
+- each conversation has an id
+- `prepare()` initializes runtime/model state
+- `createConversation(systemPrompt:)` creates a new conversation
+- `send(text)` returns one assistant message
+- `stream(text)` yields incremental text chunks
+- `removeConversation(id)` deletes backend state
+- `listConversationIDs()` reports current live conversation ids
+
+Suggested internal Python interface shape:
+
+```python
+class ConversationHandle(Protocol):
+		id: str
+		async def send(self, text: str) -> ChatMessage: ...
+		async def stream(self, text: str) -> AsyncIterator[str]: ...
+
+class InferenceRuntime(Protocol):
+		async def prepare(self) -> None: ...
+		async def create_conversation(self, system_prompt: str | None) -> ConversationHandle: ...
+		async def list_conversation_ids(self) -> list[str]: ...
+		async def remove_conversation(self, conversation_id: str) -> None: ...
+```
+
+Do not start with HTTP handlers calling LiteRT directly.
+
+### Phase 2: Add a Python Domain/Runtime Package
+
+Create a backend package under the Python source tree that isolates runtime behavior from web concerns.
+
+Suggested modules:
+- `runtime/models.py`
+- `runtime/protocols.py`
+- `runtime/errors.py`
+- `runtime/conversations.py`
+- `runtime/litert_runtime.py`
+- `runtime/store.py`
+
+Responsibilities:
+- `models.py`: request/domain objects like `ChatMessage`, `ConversationState`
+- `protocols.py`: Python runtime interfaces
+- `errors.py`: typed failures
+- `store.py`: in-memory conversation registry
+- `litert_runtime.py`: LiteRT-LM-backed implementation
+- `conversations.py`: per-conversation logic
+
+This separation is important. Without it, the backend will harden around FastAPI handler shape instead of the runtime contract.
+
+### Phase 3: Build a Fake Runtime First
+
+Before touching LiteRT-LM, build a Python preview or fake runtime that behaves like the Swift `PreviewInferenceRuntime`.
+
+Why:
+- proves the backend API shape
+- lets the Swift backend client implementation start earlier
+- gives stable tests before model/bootstrap complexity enters
+
+This fake runtime should satisfy the same semantic contract:
+- create conversation ids
+- remember per-conversation state
+- support send/stream
+- delete conversations cleanly
+
+### Phase 4: Expose HTTP API Matching the Swift Protocol
+
+Use FastAPI for the transport layer.
+
+Recommended endpoints:
+1. `POST /runtime/prepare`
+2. `GET /runtime/conversations`
+3. `POST /runtime/conversations`
+4. `DELETE /runtime/conversations/{id}`
+5. `POST /runtime/conversations/{id}/messages`
+6. `POST /runtime/conversations/{id}/messages/stream`
+
+Minimal request/response mapping:
+
+- `POST /runtime/conversations`
+	- request: `{ "system_prompt": "..." }`
+	- response: `{ "id": "..." }`
+
+- `GET /runtime/conversations`
+	- response: `{ "ids": ["...", "..."] }`
+
+- `POST /runtime/conversations/{id}/messages`
+	- request: `{ "text": "..." }`
+	- response: `{ "role": "assistant", "text": "..." }`
+
+- `POST /runtime/conversations/{id}/messages/stream`
+	- request: `{ "text": "..." }`
+	- response: streamed chunks
+
+This maps cleanly to the Swift protocol without inventing extra app semantics too early.
+
+### Phase 5: Implement the Real LiteRT Runtime
+
+After the fake runtime and HTTP layer are stable, replace the fake implementation with a real LiteRT-backed runtime.
+
+Responsibilities of the real runtime:
+- perform `prepare()` once
+- resolve model path and backend config
+- own one engine/runtime instance for the process
+- create conversation/session objects per conversation id
+- keep conversation registry in memory
+- translate backend responses into a stable backend message model
+
+This is where the existing repo inference work should be incorporated:
+- `scripts/env/run_inference_local.sh`
+- `scripts/env/setup_litert_lm.sh`
+- this runbook
+
+### Phase 6: Build the Swift Backend Adapter
+
+Once HTTP is live, implement the Swift `HybridAIBackend` target as a transport-backed runtime.
+
+That module should contain:
+- `BackendClient`
+- `PythonBackendRuntime`
+- `PythonBackendConversation`
+- transport request/response DTOs
+
+Its job is to satisfy:
+- `src/swift/Sources/HybridAI/Core/InferenceRuntime.swift`
+- `src/swift/Sources/HybridAI/Core/ConversationHandle.swift`
+
+by translating Swift calls into HTTP calls.
+
+### Phase 7: Use the Contract Test as the Driver
+
+The preview runtime already passes the Swift runtime contract. The Python backend runtime should pass the same tests.
+
+Once `PythonBackendRuntime` exists, add the same contract harness against it in:
+- `src/swift/Tests/HybridAITests/InferenceRuntimeContractTests.swift`
+
+That turns the contract into the design driver, not just documentation.
+
+## Key Decisions
+
+### 1. Transport Choice
+
+Choose `HTTP + JSON` first.
+
+Recommendation:
+- normal request/response: JSON over HTTP
+- streaming: SSE or chunked text stream
+
+Why:
+- easiest to inspect and debug
+- easiest to run locally
+- easiest to exercise from curl and tests
+- compatible with future non-Swift clients
+
+Do not start with:
+- PythonKit
+- gRPC
+- Unix sockets only
+- custom binary protocol
+
+### 2. Runtime Ownership Model
+
+Choose:
+- one backend runtime process
+- one prepared model/engine per process
+- many in-memory conversations
+
+This matches the Swift design already in the runbook and code.
+
+Do not start with:
+- one process per conversation
+- one model load per request
+- stateless message-only API
+
+### 3. Conversation Identity
+
+Use backend-generated opaque ids, likely UUID strings.
+
+Keep them transport-safe and independent of LiteRT internals.
+
+Do not encode model/backend details into ids.
+
+### 4. State Persistence
+
+Start with in-memory conversation state only.
+
+That is enough to prove:
+- one runtime, many conversations
+- transcript isolation
+- lifecycle semantics
+
+Do not start with database persistence unless the product needs restore/history immediately.
+
+### 5. Streaming Format
+
+Pick one and commit early.
+
+Recommendation:
+- SSE for streamed token/text events
+
+Possible event types:
+- `chunk`
+- `done`
+- `error`
+
+Why SSE:
+- easy from FastAPI
+- easy from Swift URLSession streams
+- easy to inspect
+
+### 6. Error Model
+
+Define a stable backend error envelope before LiteRT integration.
+
+Example categories:
+- `runtime_not_prepared`
+- `conversation_not_found`
+- `model_not_found`
+- `engine_init_failed`
+- `inference_failed`
+- `invalid_request`
+
+Keep transport status codes conventional:
+- `400` invalid input
+- `404` conversation missing
+- `409` runtime state conflict
+- `500` backend/runtime failure
+- `503` model/runtime unavailable
+
+Swift backend adapter should translate these into Swift errors later.
+
+### 7. Prepare Semantics
+
+Decide whether `prepare()` is:
+- explicit and required
+or
+- implicit on first use
+
+Recommendation:
+- support explicit `POST /runtime/prepare`
+- allow runtime to lazily prepare on first create/send if not prepared
+
+### 8. System Prompt Semantics
+
+Recommendation:
+- fix system prompt at conversation creation for now
+
+That maps directly to `createConversation(systemPrompt:)` and keeps state reasoning clean.
+
+### 9. Message Model
+
+Keep the backend message payload minimal initially:
+
+```json
+{
+	"role": "assistant",
+	"text": "..."
+}
+```
+
+Do not add tool calls, token accounting, multimodal fields, or metadata unless the first real LiteRT integration demands them.
+
+### 10. Testing Strategy
+
+Split tests into three layers.
+
+1. Python runtime unit tests
+	 - fake runtime
+	 - conversation registry
+	 - state deletion
+	 - send/stream semantics
+
+2. Python API tests
+	 - endpoint behavior
+	 - status codes
+	 - streaming behavior
+	 - error mapping
+
+3. Swift contract tests
+	 - backend adapter satisfies `InferenceRuntime`
+	 - same contract as preview runtime
+
+Swift should not be the first line of backend debugging.
+
+## Suggested Implementation Order
+
+1. Write Python backend domain models and protocols.
+2. Implement fake Python runtime.
+3. Expose FastAPI endpoints over the fake runtime.
+4. Add Python tests for lifecycle/send/stream.
+5. Implement Swift `BackendClient`.
+6. Implement Swift `PythonBackendRuntime`.
+7. Point Swift contract tests at backend runtime.
+8. Replace fake runtime with real LiteRT runtime.
+9. Add LiteRT bootstrap/model wiring.
+10. Add streaming and richer errors if needed.
+
+This sequence reduces risk because the transport and protocol settle before LiteRT complexity enters.
+
+## Most Important Choices To Settle Now
+
+1. HTTP + JSON + SSE, not PythonKit.
+2. One process runtime, many in-memory conversations.
+3. Explicit backend-generated conversation ids.
+4. Fixed system prompt at conversation creation.
+5. Fake runtime first, real LiteRT second.
+6. Swift contract test as the adapter acceptance gate.
+
+These six decisions determine most of the architecture.
+
+## Recommended Next Step
+
+The best next implementation step is:
+
+1. create the Python fake runtime and FastAPI surface
+2. keep it strictly aligned to the Swift protocol
+3. then implement `PythonBackendRuntime` in Swift against that fake service
+
+That will give a stable integration seam before LiteRT model loading is introduced.
+
+## Real-Runtime-First Spike Plan
+
+It is also valid to take a narrower shortcut and start from the later roadmap steps:
+
+1. replace the fake runtime with a real LiteRT runtime
+2. add LiteRT bootstrap and model wiring
+
+This can produce a basic working version faster, but it must be treated as a spike rather than the canonical implementation sequence.
+
+The correct framing is:
+- use the spike to reduce real technical uncertainty
+- do not let the spike define the long-term backend architecture by accident
+
+### When This Shortcut Is Justified
+
+Use the real-runtime-first spike if the dominant uncertainties are:
+- whether LiteRT can load the chosen model at all in this environment
+- whether Gemma 4 E4B starts successfully with acceptable startup cost
+- whether the repo environment and isolation rules can host the runtime cleanly
+- whether a minimal end-to-end inference path can be proven quickly
+
+This shortcut is less useful if the main uncertainty is protocol shape, Swift adapter semantics, or transport design. In those cases, fake-runtime-first remains the better sequencing.
+
+### What The Spike Should Deliver
+
+The spike goal is deliberately narrow:
+- prove the Python LiteRT engine can initialize
+- prove one conversation can be created
+- prove one prompt can return one assistant response
+- expose one thin endpoint to Swift
+- call it once from the Swift backend adapter or app path
+
+That is enough to validate the runtime and deployment assumptions without prematurely expanding the surface area.
+
+### Guardrails
+
+Even in the spike, keep these boundaries intact:
+
+1. Define a Python runtime class boundary first.
+	- LiteRT code should live behind one runtime class.
+	- FastAPI handlers must not own engine lifecycle directly.
+
+2. Keep the HTTP API protocol-shaped.
+	- Do not design the API around LiteRT-specific quirks.
+	- Keep request and response payloads aligned with the Swift abstraction surface.
+
+3. Keep conversation identity backend-generated and opaque.
+	- Use UUID-like ids.
+	- Do not encode model or runtime details into ids.
+
+4. Keep the response model minimal.
+
+```json
+{
+  "role": "assistant",
+  "text": "..."
+}
+```
+
+5. Keep the implementation in-memory.
+	- no persistence yet
+	- no restore/history layer yet
+	- no multi-process runtime design yet
+
+6. Keep the Swift acceptance gate.
+	- the backend-backed Swift adapter should ultimately satisfy the same runtime contract tests used by the preview runtime
+
+If these boundaries are not preserved, the shortcut becomes architectural drift rather than a spike.
+
+### Minimal Spike Scope
+
+If speed is the priority, implement only this:
+
+Python side:
+1. model/bootstrap wiring
+2. real LiteRT runtime class
+3. in-memory conversation registry
+4. blocking send path only
+5. minimal endpoints:
+	- `POST /runtime/prepare`
+	- `POST /runtime/conversations`
+	- `POST /runtime/conversations/{id}/messages`
+	- `GET /health`
+
+Swift side:
+1. minimal `BackendClient`
+2. minimal `PythonBackendRuntime`
+3. minimal `PythonBackendConversation`
+4. one call path for:
+	- `prepare()`
+	- `createConversation(systemPrompt:)`
+	- `send(_:)`
+
+Skip for the first spike:
+- streaming
+- SSE
+- richer errors beyond basic categories
+- persistence
+- multimodal payloads
+- tool calling
+- UI polish
+
+### Benefits Of Starting Here
+
+The main benefits are:
+- earlier proof that LiteRT really works under the project constraints
+- earlier visibility into model size, startup time, cache location, and runtime failures
+- faster confirmation that the selected Gemma variant is viable
+- faster identification of repo-specific environment and dependency issues
+
+This is valuable because fake runtimes cannot expose model initialization risk, backend loading latency, or real inference failures.
+
+### Costs And Risks
+
+The costs are architectural rather than functional.
+
+Risks:
+- the API shape may bend around LiteRT behavior instead of the Swift abstraction
+- handlers may start calling runtime internals directly
+- error handling may become ad hoc
+- Swift transport code may become coupled to temporary backend quirks
+- later refactoring cost may exceed the time saved by the shortcut
+
+That is why the spike needs explicit stop conditions and a planned return to the main roadmap.
+
+### Suggested Spike Order
+
+If using the shortcut, take this order:
+
+1. add LiteRT bootstrap and model wiring
+2. implement a real `LiteRTInferenceRuntime` class in Python
+3. add one blocking message endpoint
+4. add a minimal Swift backend adapter
+5. validate the adapter against the Swift runtime contract where practical
+
+After first success:
+6. refactor any handler-owned runtime logic back behind the runtime boundary
+7. stabilize the request and response models
+8. resume the fuller roadmap from the fake/runtime/API discipline if needed
+9. add streaming
+10. add richer errors and operational hardening
+
+### Stop Conditions For The Spike
+
+End the spike once these are true:
+- the runtime can prepare successfully
+- one backend conversation can be created
+- one prompt can return one assistant reply
+- one Swift path can reach that reply through the backend adapter
+- the backend state and API shape are still simple enough to refactor cleanly
+
+Do not keep expanding the spike into the final architecture without pausing to realign it with the main runtime/interface plan.
+
+### Re-Entry Into The Main Roadmap
+
+After the spike, the project should deliberately return to the disciplined roadmap.
+
+Recommended re-entry steps:
+1. freeze the minimal protocol and payload shapes actually used by the spike
+2. move any LiteRT-specific logic out of FastAPI handlers and into the runtime layer
+3. add contract-driven Swift tests against the backend adapter
+4. add Python unit tests around the runtime and conversation registry
+5. only then expand into streaming, richer errors, and more UI integration
+
+### Recommended Interpretation
+
+The real-runtime-first spike is a tactical shortcut, not a replacement for the main roadmap.
+
+Use it when:
+- runtime viability is the most important unanswered question
+
+Do not use it as the default if:
+- API stability and maintainable transport layering matter more than immediate runtime proof
+
+### Recommended Next Step Under This Context
+
+If choosing the spike path, the best immediate next step is:
+
+1. implement LiteRT bootstrap/model resolution in Python
+2. implement a real Python `LiteRTInferenceRuntime`
+3. expose the smallest blocking HTTP surface that matches the Swift protocol shape
+4. then build a minimal `PythonBackendRuntime` adapter in Swift against it
+
+That yields a real end-to-end proof quickly while still preserving a path back to the proper layered architecture.
