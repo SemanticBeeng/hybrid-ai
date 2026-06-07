@@ -306,7 +306,7 @@ Deliverables:
 Phase 5: Inference engines and Gemma 4 workflows
 1. Add inference profile and wrappers for local and remote providers.
 2. Define model/cache/log roots under volumes/.
-3. Add script to resolve latest LiteRT-LM release and install module bindings.
+3. Add script to pin and install the selected LiteRT-LM release and module bindings.
 4. Add runtime checks ensuring endpoint/provider secrets are explicit and not globally sourced.
 
 Deliverables:
@@ -451,29 +451,14 @@ Important note:
 - The Python workflow now relies on `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
 - The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization; `swift_env.sh` sources Swift path setup internally.
 
-## 13. LiteRT-LM Latest Release Setup (Python + Swift Bindings)
+## 13. Application Runtime Reference
 
-Use the dedicated setup script to resolve the latest upstream release tag and install Python binding inside the Flox-managed environment:
-- scripts/env/setup_litert_lm.sh
+LiteRT-LM runtime pinning, Gemma 4 E4B model pinning, and application-facing setup scripts are documented in:
 
-Behavior:
-- Resolves latest release tag from GitHub API (override with LITERT_LM_TAG when pinning).
-- Stores selected tag in build/artifacts/litert-lm.version.
-- Installs Python binding into project environment via pip under Flox.
+- [[09-dd-model-bootstrap-and-runtime-pinning]]
+- [[litert_lm_gemma4_swift_runbook]]
 
-Python module setup (src/python):
-1. Run scripts/env/setup_litert_lm.sh.
-2. Freeze lock metadata (poetry lock) after verifying compatibility.
-3. Re-run scripts/env/toolchain/check_env.sh and python smoke tests.
-
-Swift module setup (src/swift):
-1. Use the resolved tag in build/artifacts/litert-lm.version.
-2. Add LiteRT-LM Swift package dependency in src/swift/Package.swift with exact tag pinning.
-3. Run scripts/env/toolchain/swift/swift_run.sh package resolve and scripts/env/toolchain/swift/swift_run.sh build.
-
-Release pinning policy:
-- Default is latest release for bootstrap.
-- For reproducible CI and cross-machine parity, commit an explicit tag pin after validation.
+This portable workflow document intentionally does not own application runtime bootstrap policy.
 
 ## 14. Host Setup Reference
 

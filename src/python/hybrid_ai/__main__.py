@@ -1,3 +1,4 @@
-from . import hello
+from .server import main
 
-print(hello())
+
+main()

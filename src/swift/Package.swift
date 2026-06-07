@@ -14,7 +14,7 @@ var targets: [Target] = [
     .target(name: "HybridAIBackend", dependencies: ["HybridAI"]),
     .target(name: "HybridAIAppleLiteRT", dependencies: ["HybridAI"]),
     .executableTarget(name: "HybridAICLI", dependencies: ["HybridAI"]),
-    .testTarget(name: "HybridAITests", dependencies: ["HybridAI"])
+    .testTarget(name: "HybridAITests", dependencies: ["HybridAI", "HybridAIBackend"])
 ]
 
 #if os(Linux)

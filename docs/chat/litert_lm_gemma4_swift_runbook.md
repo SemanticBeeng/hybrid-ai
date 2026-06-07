@@ -157,7 +157,7 @@ Choose one of these:
 My recommendation is OpenAI-compatible for the server boundary, with a thin project-local Swift wrapper around it. Upstream LiteRT-LM CLI already exposes an OpenAI-compatible server path, so this aligns with the underlying engine instead of inventing an incompatible shape.
 
 2. Turn LiteRT-LM bootstrap into a pinned runtime.
-Do this in the existing direction already sketched in `docs/chat/devenv_portable_workflow.md`:
+Do this in the repository setup direction captured in [[09-dd-model-bootstrap-and-runtime-pinning]]:
 - Pin a specific LiteRT-LM release in repo metadata instead of always using latest.
 - Define the exact Gemma 4 E4B model artifact and import/bootstrap workflow.
 - Add a smoke check that proves model presence and engine startup before the app runs.

@@ -6,14 +6,10 @@ source "$project_root/scripts/env/toolchain/common.sh"
 
 # Override if upstream organization/repo changes.
 LITERT_LM_GH_REPO="${LITERT_LM_GH_REPO:-google-ai-edge/LiteRT-LM}"
-LITERT_LM_TAG="${LITERT_LM_TAG:-}"
-
-if [[ -z "$LITERT_LM_TAG" ]]; then
-  LITERT_LM_TAG="$($project_root/scripts/env/toolchain/nix/flox_with.sh curl -sS "https://api.github.com/repos/$LITERT_LM_GH_REPO/releases/latest" | $project_root/scripts/env/toolchain/nix/flox_with.sh jq -r '.tag_name')"
-fi
+LITERT_LM_TAG="${LITERT_LM_TAG:-v0.13.1}"
 
 if [[ -z "$LITERT_LM_TAG" || "$LITERT_LM_TAG" == "null" ]]; then
-  echo "ERROR: could not determine latest LiteRT-LM release tag from GitHub API." >&2
+  echo "ERROR: LiteRT-LM release tag is empty." >&2
   exit 1
 fi
 
