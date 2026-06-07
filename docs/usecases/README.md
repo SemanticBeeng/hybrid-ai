@@ -1,5 +1,7 @@
 # Development Workflow Use Cases
 
+Clarification: in this repository, `usecases` currently means environment setup and environment utilization workflows. These are not the same thing as application functional use cases.
+
 This folder contains one Markdown file per concrete development workflow.
 
 Each use-case document should describe:
