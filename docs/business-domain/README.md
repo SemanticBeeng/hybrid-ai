@@ -9,8 +9,8 @@ Purpose:
 
 Conventions:
 - one Markdown file per requirement cluster or bounded business concern
-- file names use a two-digit prefix and an expressive name
-- examples: `01-sandboxed-on-device-inference-target.md`, `02-conversation-experience-requirements.md`
+- file names use a two-digit prefix, then `br` for business requirement, then an expressive name
+- examples: [[01-br-sandboxed-on-device-inference-target]], [[05-br-conversation-oriented-inference-experience]]
 
 Content rules:
 - track requirements even when implementation is incomplete
@@ -18,5 +18,11 @@ Content rules:
 - do not use this folder for work breakdowns or speculative implementation details
 
 Current seeded documents:
-- `01-sandboxed-on-device-inference-target.md`
-- `02-cross-platform-swift-ui-delivery-target.md`
+- [[01-br-sandboxed-on-device-inference-target]]
+- [[02-br-cross-platform-swift-ui-delivery-target]]
+
+Additional detailed documents:
+- [[03-br-apple-deployment-authority]]
+- [[04-br-linux-sandbox-approximation-requirements]]
+- [[05-br-conversation-oriented-inference-experience]]
+- [[06-br-shared-swift-core-portability-requirements]]

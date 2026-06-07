@@ -18,6 +18,12 @@ Verified on 2026-06-04:
 
 ## 2. What It Takes To Build A Swift App With UI Across Linux, macOS, And Potentially iOS
 
+Related domain docs:
+- [[02-br-cross-platform-swift-ui-delivery-target]]
+- [[06-br-shared-swift-core-portability-requirements]]
+- [[02-dd-platform-specific-ui-shells-decision-space]]
+- [[06-dd-platform-ui-shell-separation]]
+
 ### 2.1 Key Constraint
 
 There is no single official Apple `SwiftUI` stack that builds natively on Linux.
@@ -34,6 +40,11 @@ So the practical architecture is:
 Important: iOS cannot be built from Linux in the normal Apple toolchain path. iOS builds require macOS + Xcode/iOS SDK.
 
 ## 3. Best Practical Option
+
+Related domain docs:
+- [[06-br-shared-swift-core-portability-requirements]]
+- [[06-dd-platform-ui-shell-separation]]
+- [[06-shared-core-to-shell-delivery-sequence]]
 
 For “best UI” across Linux and macOS, while keeping iOS possible:
 
@@ -75,6 +86,10 @@ This gives:
 - no attempt to force Linux to pretend it has Apple `SwiftUI`
 
 ## 4. UI Toolkit Choices
+
+Related domain docs:
+- [[02-dd-platform-specific-ui-shells-decision-space]]
+- [[06-dd-platform-ui-shell-separation]]
 
 ### 4.1 Option 1: SwiftUI On Apple + GTK/libadwaita On Linux
 
@@ -146,6 +161,11 @@ Cons:
 
 ## 5. Recommended Path For This Repository
 
+Related domain docs:
+- [[02-cross-platform-swift-ui-delivery-roadmap]]
+- [[06-shared-core-to-shell-delivery-sequence]]
+- [[06-br-shared-swift-core-portability-requirements]]
+
 Given the current setup and goals, use this path:
 
 1. Keep `HybridAI` as the shared Swift package.
@@ -159,6 +179,10 @@ Given the current setup and goals, use this path:
    - iOS: Xcode build/archive on macOS
 
 ## 6. Minimum Next Implementation Step
+
+Related domain docs:
+- [[06-shared-core-to-shell-delivery-sequence]]
+- [[02-dd-platform-specific-ui-shells-decision-space]]
 
 To prove “Swift app with UI” from this repository, the next concrete checkpoint should be one of the following.
 
@@ -198,6 +222,10 @@ xcodebuild build
 Add shared `AppModel` / `ViewModel` types in `HybridAI`, test them on Linux now, and consume them later from GTK and SwiftUI shells.
 
 ## 7. Recommendation
+
+Related domain docs:
+- [[02-cross-platform-swift-ui-delivery-roadmap]]
+- [[06-shared-core-to-shell-delivery-sequence]]
 
 Best next step: shared Swift core plus platform-specific UI shells.
 

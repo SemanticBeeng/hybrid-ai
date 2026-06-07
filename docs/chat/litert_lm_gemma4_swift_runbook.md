@@ -6,6 +6,12 @@ Scope: Introduce an LLM endpoint using Google LiteRT-LM, serve Gemma 4 E4B throu
 
 ## Target Deployment Model
 
+Related domain docs:
+- [[01-br-sandboxed-on-device-inference-target]]
+- [[03-br-apple-deployment-authority]]
+- [[04-br-linux-sandbox-approximation-requirements]]
+- [[05-apple-validation-ladder]]
+
 The primary product target is a real iOS application where:
 - the app runs inside the iOS application sandbox
 - the inference engine runs under the same app sandbox constraints
@@ -115,7 +121,7 @@ The local inference path is a wrapper that shells out to LiteRT-LM CLI or Python
 The inference manifest currently only installs curl, jq, and git and activates directory path exports in `env/inference/manifest.toml`. That means model runtime dependencies are being pulled dynamically rather than represented as a first-class repo contract. For a service you will want explicit package ownership, pinned LiteRT-LM versioning, and a defined model bootstrap/import step.
 
 5. The Swift shared layer is not ready to host chat state or transport abstractions.
-The shared Swift library only exposes a static status string in `src/swift/Sources/HybridAI/HybridAI.swift`. The existing roadmap already points toward shared app state and platform-specific shells in `docs/chat/swift_ui_cross_platform_roadmap.md`, but that architecture has not been implemented yet. Without that layer, wiring the UI straight to HTTP or inference details will create avoidable churn.
+The shared Swift library only exposes a static status string in `src/swift/Sources/HybridAI/HybridAI.swift`. The existing roadmap already points toward shared app state and platform-specific shells in [[swift_ui_cross_platform_roadmap]], but that architecture has not been implemented yet. Without that layer, wiring the UI straight to HTTP or inference details will create avoidable churn.
 
 6. Test coverage is currently only baseline smoke coverage.
 The Python package only declares numpy and pytest in `src/python/pyproject.toml`, and the Swift tests only cover the trivial status path described in `docs/usecases/03-swift-build-and-test.md`. There is no endpoint contract testing, streaming behavior testing, or model availability verification yet.
@@ -127,6 +133,11 @@ The Python package only declares numpy and pytest in `src/python/pyproject.toml`
 3. I’m assuming the endpoint should be OpenAI-compatible unless you want a smaller project-specific API.
 
 ## Recommended Direction
+
+Related domain docs:
+- [[03-dd-runtime-adapter-pattern]]
+- [[04-dd-backend-transport-and-error-boundary]]
+- [[06-br-shared-swift-core-portability-requirements]]
 
 Use a two-surface design:
 
@@ -192,7 +203,7 @@ Keep the Linux UI proof target in `src/swift/Package.swift`, but move all networ
 - display loading/streaming/error states
 - allow endpoint/model selection if needed
 
-This matches the existing cross-platform UI roadmap in `docs/chat/swift_ui_cross_platform_roadmap.md`.
+This matches the existing cross-platform UI roadmap in [[swift_ui_cross_platform_roadmap]].
 
 7. Defer native LiteRT-LM Swift binding work to Apple platforms.
 If you later add a macOS or iOS SwiftUI shell, then add the upstream LiteRT-LM Swift package there. Treat that as a second integration mode:
@@ -260,6 +271,14 @@ That path fits the repo you have now, fits the current Linux UI target, and avoi
 
 ## macOS/iOS Direct Integration Design
 
+Related domain docs:
+- [[03-dd-runtime-adapter-pattern]]
+- [[05-dd-runtime-lifecycle-and-conversation-ownership]]
+- [[11-dd-apple-native-runtime-adapter]]
+- [[12-dd-apple-engine-and-conversation-lifecycle]]
+- [[13-dd-linux-backend-runtime-adapter]]
+- [[14-dd-linux-backend-runtime-and-conversation-lifecycle]]
+
 If the project target is macOS or iOS, the first working integration should avoid a Python service and use the upstream LiteRT-LM Swift API directly in-process.
 
 The upstream sample and test flow is:
@@ -313,6 +332,11 @@ Reasons:
 For Linux, the better default is a separate Python backend process behind a small transport surface such as loopback HTTP or a Unix domain socket.
 
 ## Shared Swift Abstractions
+
+Related domain docs:
+- [[05-br-conversation-oriented-inference-experience]]
+- [[06-br-shared-swift-core-portability-requirements]]
+- [[03-dd-runtime-adapter-pattern]]
 
 The shared Swift core should own:
 - domain types
@@ -533,6 +557,10 @@ Recommended defaults:
 
 ## Minimal Linux Backend Contract
 
+Related domain docs:
+- [[07-dd-backend-conversation-contract]]
+- [[04-dd-backend-transport-and-error-boundary]]
+
 The Linux backend should stay conversation-oriented.
 
 Minimal surface:
@@ -579,6 +607,13 @@ For Linux:
 This yields a single Swift-first integration design that works across Apple and Linux without forcing the Linux build to depend on Apple-only LiteRT-LM Swift packaging.
 
 ## Python Backend Roadmap
+
+Related domain docs:
+- [[01-litert-lm-gemma4-spike-and-delivery-roadmap]]
+- [[03-python-backend-layered-delivery-plan]]
+- [[07-dd-backend-conversation-contract]]
+- [[13-dd-linux-backend-runtime-adapter]]
+- [[14-dd-linux-backend-runtime-and-conversation-lifecycle]]
 
 Build the Python backend in two layers:
 
@@ -665,6 +700,10 @@ This fake runtime should satisfy the same semantic contract:
 
 ### Phase 4: Expose HTTP API Matching the Swift Protocol
 
+Related domain docs:
+- [[07-dd-backend-conversation-contract]]
+- [[08-dd-streaming-chat-semantics]]
+
 Use FastAPI for the transport layer.
 
 Recommended endpoints:
@@ -737,6 +776,13 @@ Once `PythonBackendRuntime` exists, add the same contract harness against it in:
 That turns the contract into the design driver, not just documentation.
 
 ## Key Decisions
+
+Related domain docs:
+- [[04-dd-backend-transport-and-error-boundary]]
+- [[05-dd-runtime-lifecycle-and-conversation-ownership]]
+- [[08-dd-streaming-chat-semantics]]
+- [[09-dd-model-bootstrap-and-runtime-pinning]]
+- [[10-dd-backend-error-semantics]]
 
 ### 1. Transport Choice
 
@@ -919,6 +965,10 @@ The best next implementation step is:
 That will give a stable integration seam before LiteRT model loading is introduced.
 
 ## Real-Runtime-First Spike Plan
+
+Related domain docs:
+- [[04-litert-runtime-viability-spike-plan]]
+- [[09-dd-model-bootstrap-and-runtime-pinning]]
 
 It is also valid to take a narrower shortcut and start from the later roadmap steps:
 

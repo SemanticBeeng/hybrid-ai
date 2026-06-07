@@ -10,7 +10,7 @@ Purpose:
 Conventions:
 - one Markdown file per roadmap, delivery track, or execution plan
 - file names use a two-digit prefix and an expressive name
-- examples: `01-litert-lm-gemma4-spike-and-delivery-roadmap.md`, `02-ios-catalyst-validation-roadmap.md`
+- examples: [[01-litert-lm-gemma4-spike-and-delivery-roadmap]], [[05-apple-validation-ladder]]
 
 Content rules:
 - allow multiple competing roadmaps to coexist
@@ -18,5 +18,11 @@ Content rules:
 - cross-reference business and design documents when a plan depends on them
 
 Current seeded documents:
-- `01-litert-lm-gemma4-spike-and-delivery-roadmap.md`
-- `02-cross-platform-swift-ui-delivery-roadmap.md`
+- [[01-litert-lm-gemma4-spike-and-delivery-roadmap]]
+- [[02-cross-platform-swift-ui-delivery-roadmap]]
+
+Additional detailed documents:
+- [[03-python-backend-layered-delivery-plan]]
+- [[04-litert-runtime-viability-spike-plan]]
+- [[05-apple-validation-ladder]]
+- [[06-shared-core-to-shell-delivery-sequence]]
