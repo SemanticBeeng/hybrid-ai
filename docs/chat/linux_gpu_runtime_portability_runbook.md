@@ -256,6 +256,60 @@ The Flox references suggest several concrete follow-up investigations for this r
 4. Whether the repo should define a small Linux GPU diagnostics environment that can be layered on top of the base GPU runtime for debugging only
 5. Whether later Linux deployment paths should reuse the hardened patterns seen in Flox’s vLLM and Triton runtimes even if the immediate local-development path stays wrapper-based
 
+### 3.1.d.1 Evaluation of `python313Packages.ai-edge-litert`
+
+Current evaluation:
+- useful for adjacent experimentation
+- not a drop-in reuse candidate for the current Python backend
+
+Why it is not a drop-in fit:
+
+1. The current repo uses `litert-lm`, not base LiteRT
+   - the current Python backend imports `litert_lm` and uses its high-level `Engine` and conversation APIs
+   - the current model contract is built around `.litertlm` model bundles and LiteRT-LM-specific runtime behavior
+   - `ai-edge-litert` is the base LiteRT runtime package, described as targeting mobile and embedded on-device inference, not the LiteRT-LM chat-serving layer the repo currently uses
+
+2. The current backend contract is conversation-oriented
+   - this repo’s Python server and Swift transport are built around one runtime creating many conversations, with send and optional stream semantics
+   - reusing `ai-edge-litert` directly would likely require designing a lower-level model execution adapter, not simply swapping packages
+
+3. The current Python environment does not match the published Flox package naming
+   - the repo’s Python module currently targets `>=3.11,<3.13`
+   - the cited Flox package is `python313Packages.ai-edge-litert`
+   - that means it does not align cleanly with the current Poetry-managed Python 3.11 path without either:
+     - introducing a dedicated Python 3.13 environment
+     - or splitting validation experiments from the main backend runtime
+
+4. It does not solve the current LiteRT-LM Linux GPU question by itself
+   - even if base LiteRT is available from Flox, that does not automatically provide the same API surface, model format handling, or service behavior currently implemented with LiteRT-LM
+   - using it would be an architectural exploration, not a low-risk packaging tweak
+
+What it may still be good for:
+
+1. Separate validation track
+   - use it in a dedicated experiment environment to understand the lower-level LiteRT runtime behavior on Linux and Apple-adjacent targets
+
+2. Compatibility probing
+   - compare what base LiteRT can initialize or execute under a fully Flox-managed runtime versus what LiteRT-LM currently does
+
+3. Future Apple-oriented investigation
+   - because LiteRT is framed around mobile and embedded devices, it may be more relevant to future Apple-native or embedded validation work than to the current Linux backend service path
+
+4. Diagnostic isolation
+   - if the goal is to answer whether the lower-level LiteRT runtime can be made cleaner under Flox than LiteRT-LM on Linux, `ai-edge-litert` may be useful as a separate probe
+
+Recommended reuse stance:
+- do not add `python313Packages.ai-edge-litert` to the current main inference environment as part of the primary server path
+- do consider a separate experiment environment if the team wants to answer one of these questions:
+  - can base LiteRT initialize cleanly under a pure Flox-managed Linux runtime?
+  - does base LiteRT expose a more tractable GPU path than LiteRT-LM on Linux?
+  - is there a future adapter path worth building directly on LiteRT instead of LiteRT-LM?
+
+Practical implication for this repo:
+- keep `env/inference` minimal
+- if this package is evaluated, do it in a dedicated environment such as `env/litert-probe` or `env/inference-gpu-linux`
+- treat that work as architectural investigation, not as an in-place dependency substitution
+
 Reference takeaways worth preserving in this runbook:
 - Flox can own and version much more of the GPU user space than a naive Linux setup typically does
 - Linux still needs an explicit host-driver contract
@@ -279,6 +333,11 @@ Based on the repo’s current state and the Flox references above, the recommend
     - do not depend on a host CUDA toolkit for normal operation
     - if host CUDA packages are present, the wrapper should avoid inheriting their binaries and library paths implicitly
     - if they continue to contaminate linkage or diagnostics, prefer uninstalling them over trying to support an ambiguous mixed mode
+
+Clarification:
+- uninstalling the host CUDA toolkit is compatible with this strategy and is preferred if the toolkit is only adding impurity
+- uninstalling host `vulkan-tools` is also compatible; those tools are diagnostics, not a required part of the supported runtime
+- neither of those changes eliminates the need for the host GPU driver stack itself
 
 3. Treat host Vulkan and driver state as an explicit contract, not a convenience
     - the host must provide:
@@ -323,6 +382,261 @@ In short, the concrete solution is:
 - reject mixed-mode reliance on arbitrary host CUDA or Vulkan user-space packages
 
 This is the recommended `3.1` shape because it preserves the repo’s controlled-runtime goals without pretending the Linux host driver layer can be fully absorbed into Flox.
+
+### 3.1.f Re-evaluation with host CUDA toolkit and vulkan-tools removed
+
+Assumption for this re-evaluation:
+- host CUDA toolkit is uninstalled
+- host `vulkan-tools` is uninstalled
+- only the official GPU driver stack remains on the host
+
+Under that assumption, the key question becomes:
+- is there still a bridge, and if so, to what?
+
+Answer:
+- yes, but not to the host CUDA toolkit
+- the bridge is only to the host GPU driver boundary:
+   - kernel driver modules
+   - device nodes
+   - vendor driver userspace that is part of the driver installation
+   - Vulkan ICD registration and vendor libraries required by the active driver
+
+What disappears from the bridge:
+- host CUDA compiler toolchain
+- host CUDA runtime toolkit packages
+- host `vulkaninfo` and related user-installed Vulkan diagnostics
+
+What remains non-negotiable on non-NixOS Linux:
+- the official driver stack, because Flox’s CUDA materials explicitly separate user-space package management from the host driver requirement on Linux
+
+### 3.1.g Is there an out-of-the-box solution in the cited Flox resources?
+
+For this repository’s current LiteRT-LM Linux GPU problem, the answer is:
+- not fully
+
+What the Flox resources do provide out of the box:
+- reusable patterns for:
+   - composing Linux GPU environments declaratively
+   - using Flox-managed CUDA user-space packages instead of host CUDA toolkit installs
+   - running hardened service pipelines with preflight, validation, and serve stages
+   - promoting environment definitions across development, CI, and production
+- ready-made runtimes for other inference stacks such as:
+   - vLLM
+   - Triton
+   - llama.cpp
+   - Ollama
+   - LM Studio
+
+What they do not provide out of the box for this exact case:
+- a drop-in Flox runtime specifically for LiteRT-LM on Linux using the current Vulkan or WebGPU-backed GPU path
+- a prebuilt Flox solution that removes the need to interact with the host driver boundary on non-NixOS Linux
+
+So the correct re-evaluation is:
+- there is no fully out-of-the-box replacement for the `3.1` bridge strategy if the target remains the current LiteRT-LM Linux GPU path
+- there are out-of-the-box reusable building blocks for the repo-controlled user-space layer and the hardened service-orchestration layer
+- the remaining custom work is to define the narrow driver-facing contract for LiteRT-LM on this host class
+
+### 3.1.h Practical consequence for hybrid-ai
+
+If the project keeps LiteRT-LM as the Linux inference engine, then the recommended `3.1` solution is:
+- do not rely on host CUDA toolkit
+- do not rely on host `vulkan-tools`
+- do build a dedicated Linux GPU Flox environment for repo-controlled user space
+- do add a narrow launch-time driver bridge only for the official driver boundary that remains after uninstalling host toolkits
+
+If the project instead wants a more out-of-the-box Linux GPU path, then the Flox resources point toward a different conclusion:
+- switch the Linux GPU-serving path to a runtime for which Flox already provides a hardened environment, such as vLLM, Triton, or llama.cpp
+- keep LiteRT-LM as an Apple-native path or as a different validation track
+
+That would reduce custom bridge work, but it would also change the Linux inference engine and therefore the product architecture.
+
+### 3.1.i Recommendation after re-evaluation
+
+For the current repo and current evidence, the best interpretation is:
+- `3.1` remains viable, but only as a narrow driver-bridge strategy
+- it should no longer be described as bridging to host CUDA user space
+- it is bridging only to the residual host driver boundary that Flox does not eliminate on non-NixOS Linux
+- if eliminating that remaining custom bridge work is more important than keeping LiteRT-LM as the Linux engine, the project should prefer `3.3` or `3.5` with a Flox-supported serving runtime instead
+
+Current environment note:
+- the existing [env/inference/manifest.toml](env/inference/manifest.toml) is intentionally minimal and does not yet represent a Linux GPU runtime environment
+- the re-evaluated `3.1` path still points toward adding a separate `env/inference-gpu-linux` rather than overloading the current inference environment
+
+### 3.1.j Implementation roadmap
+
+The implementation roadmap for `3.1` should be executed in phases so the repo gains explicit runtime control without mixing refactors, diagnostics, and serving changes in one step.
+
+#### Phase 0: Keep the current baseline stable
+
+Goal:
+- preserve the working CPU-backed inference server while the Linux GPU path is introduced as a separate, explicit track
+
+Actions:
+- leave [env/inference/manifest.toml](env/inference/manifest.toml) minimal
+- leave [env/python/manifest.toml](env/python/manifest.toml) as the current CPU-safe Python baseline
+- do not retrofit Linux GPU logic into [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh)
+
+Exit criteria:
+- CPU workflow in [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md) remains valid and unchanged
+
+#### Phase 1: Introduce a dedicated Linux GPU environment module
+
+Goal:
+- make Linux GPU support an explicit environment boundary instead of a hidden variation of the generic inference or Python environments
+
+Files to add:
+- `env/inference-gpu-linux/manifest.toml`
+
+Files to reference or include:
+- [env/base/](env/base)
+- [env/python/manifest.toml](env/python/manifest.toml)
+- [env/inference/manifest.toml](env/inference/manifest.toml)
+
+Recommended shape:
+- Linux-only via system constraints
+- include `../base`
+- include repo-controlled Python and inference policy concerns either directly or through mirrored declarations
+- add only the minimum extra GPU-relevant user-space packages needed for Linux runtime support and diagnostics
+
+Do not do in this phase:
+- do not add host driver assumptions into the manifest
+- do not assume host CUDA toolkit exists
+- do not put broad host library paths into Flox hooks
+
+Exit criteria:
+- there is a dedicated environment whose purpose is unambiguous: Linux GPU runtime experimentation for the inference backend
+
+#### Phase 2: Add explicit Linux GPU contract discovery
+
+Goal:
+- determine whether the host satisfies the residual non-Flox Linux driver contract before Python is launched
+
+Files to add:
+- `scripts/env/toolchain/inference/linux_gpu_contract.sh`
+
+Responsibilities:
+- detect required device nodes
+- detect intended Vulkan ICD JSON locations
+- detect whether the ICD JSON references vendor libraries that actually resolve on the host
+- emit clear machine-readable failures for:
+   - missing device visibility
+   - missing ICD registration
+   - missing vendor library resolution
+
+Do not do in this phase:
+- do not launch Python
+- do not attempt to repair the host automatically
+
+Exit criteria:
+- the repo can answer "is the host driver contract present?" without starting LiteRT-LM
+
+#### Phase 3: Add bridged runtime validation
+
+Goal:
+- prove that a Flox-managed Python process can see the required GPU-facing runtime surface after controlled environment assembly
+
+Files to add:
+- `scripts/env/toolchain/python/python_gpu_validate.sh`
+
+Responsibilities:
+- activate the new Linux GPU environment
+- source the existing inference path policy from [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh)
+- sanitize inherited environment variables
+- apply only the narrow driver-facing bridge inputs
+- run a minimal validation command that checks runtime visibility from inside the Flox-managed Python process
+
+Validation should answer:
+- can the runtime resolve the selected GPU-facing libraries?
+- can the runtime reach at least one usable adapter path?
+- does the bridged process fail before LiteRT-LM initialization or during LiteRT-LM initialization?
+
+Exit criteria:
+- the repo can answer "can the managed runtime see the bridged GPU stack?" separately from "can LiteRT-LM serve requests?"
+
+#### Phase 4: Add the dedicated GPU server launcher
+
+Goal:
+- create one supported path for starting the Linux GPU-backed inference server
+
+Files to add:
+- `scripts/env/toolchain/python/python_server_gpu_run.sh`
+
+Responsibilities:
+- activate the Linux GPU environment
+- run host-contract discovery
+- run bridged runtime validation
+- force `HYBRID_AI_LITERT_BACKEND=gpu`
+- launch the existing Python backend entrypoint only if the earlier gates pass
+
+Non-goals:
+- this script should not become a generic shell environment manager
+- it should not guess at multiple incompatible host runtime layouts in an unbounded way
+
+Exit criteria:
+- there is exactly one documented Linux GPU launch path for LiteRT-LM in this repo
+
+#### Phase 5: Add optional diagnostics as a separate layer
+
+Goal:
+- keep day-to-day runtime small while still allowing deeper debugging when needed
+
+Files to add only if needed:
+- `env/inference-gpu-linux-debug/manifest.toml`
+- or a remote/layered diagnostics env reference if that becomes preferable
+
+Examples of what belongs here:
+- richer Vulkan diagnostics
+- debugging-only utilities
+- instrumentation tools that are not required by normal server startup
+
+Exit criteria:
+- diagnostics are available without inflating the supported serving path
+
+#### Phase 6: Document and validate the workflow
+
+Goal:
+- make the Linux GPU path auditable and reproducible by developers and CI-like validation
+
+Files to update:
+- [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md)
+- [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
+
+Workflow additions to document:
+- how to activate or invoke the Linux GPU environment
+- how to run preflight separately
+- how to run validation separately
+- how to start the GPU-backed server
+- how to interpret the distinct failure classes
+
+Exit criteria:
+- the Linux GPU path is documented as a staged workflow, not a one-shot shell incantation
+
+#### Phase 7: Promotion criteria
+
+The `3.1` path should be considered implemented only when all of the following are true:
+
+1. The CPU path still works unchanged
+2. The host contract check is deterministic and explicit
+3. Bridged runtime validation is separate from server startup
+4. The GPU server launcher is the only supported Linux GPU start path
+5. Failure classes are documented and actionable
+6. The environment and wrapper contract can be versioned together
+
+#### Proposed work order in this repo
+
+1. Add `env/inference-gpu-linux/manifest.toml`
+2. Add `scripts/env/toolchain/inference/linux_gpu_contract.sh`
+3. Add `scripts/env/toolchain/python/python_gpu_validate.sh`
+4. Add `scripts/env/toolchain/python/python_server_gpu_run.sh`
+5. Update [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md)
+
+#### Explicit non-goals for the roadmap
+
+This roadmap does not attempt to:
+- replace `litert-lm` with another inference engine
+- retrofit Linux GPU assumptions into the current minimal [env/inference/manifest.toml](env/inference/manifest.toml)
+- make Linux GPU behavior the canonical product proof instead of Apple-native validation
+- support arbitrary host CUDA toolkit installations as part of the normal runtime path
 
 Sources consulted:
 - https://flox.dev/blog/the-flox-catalog-now-contains-nvidia-cuda/
