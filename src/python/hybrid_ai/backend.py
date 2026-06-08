@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import os
 from pathlib import Path
 import threading
 import uuid
@@ -83,8 +84,9 @@ class LiteRTConversationSession(ConversationSession):
 
 
 class LiteRTEngineRuntime(EngineRuntime):
-    def __init__(self, model_file: Path):
+    def __init__(self, model_file: Path, *, backend_name: str = "cpu"):
         self.model_file = model_file
+        self.backend_name = backend_name
         self._lock = threading.RLock()
         self._engine = None
         self._engine_context = None
@@ -102,7 +104,11 @@ class LiteRTEngineRuntime(EngineRuntime):
                 ) from exc
 
             try:
-                engine_context = litert_lm.Engine(str(self.model_file))
+                engine_context = litert_lm.Engine(
+                    str(self.model_file),
+                    backend=_resolve_backend(litert_lm, self.backend_name),
+                    cache_dir=":nocache",
+                )
                 engine = engine_context.__enter__()
             except Exception as exc:  # pragma: no cover - exercised only with real LiteRT-LM installed
                 raise ReadinessError(f"failed to initialize LiteRT-LM engine: {exc}") from exc
@@ -170,7 +176,12 @@ class BackendService:
         runtime_factory: Callable[[BootstrapState], EngineRuntime] | None = None,
     ):
         self._bootstrap_loader = bootstrap_loader
-        self._runtime_factory = runtime_factory or (lambda state: LiteRTEngineRuntime(_require_model_file(state)))
+        self._runtime_factory = runtime_factory or (
+            lambda state: LiteRTEngineRuntime(
+                _require_model_file(state),
+                backend_name=os.environ.get("HYBRID_AI_LITERT_BACKEND", "cpu"),
+            )
+        )
         self._lock = threading.RLock()
         self._runtime: EngineRuntime | None = None
         self._runtime_model_file: Path | None = None
@@ -182,6 +193,7 @@ class BackendService:
             "service": "hybrid-ai-python-backend",
             "status": "ok",
             "ready": not state.issues,
+            "backend": os.environ.get("HYBRID_AI_LITERT_BACKEND", "cpu"),
             "runtime_version": state.runtime_version,
             "model_reference": state.model_reference,
             "model_directory": str(state.model_directory),
@@ -201,6 +213,7 @@ class BackendService:
         return {
             "service": "hybrid-ai-python-backend",
             "ready": not issues,
+            "backend": os.environ.get("HYBRID_AI_LITERT_BACKEND", "cpu"),
             "runtime_version_file": str(state.runtime_version_file),
             "model_reference_file": str(state.model_reference_file),
             "model_path_file": str(state.model_path_file),
@@ -297,6 +310,25 @@ def _require_model_file(state: BootstrapState) -> Path:
     if state.model_file is None:
         raise ReadinessError("no pinned .litertlm model file is available")
     return state.model_file
+
+
+def _resolve_backend(litert_lm: object, backend_name: str):
+    backend_value = (backend_name or "cpu").strip().lower()
+    backend_type = getattr(litert_lm, "Backend", None)
+    if backend_type is None:
+        raise ReadinessError("LiteRT-LM backend selection API is unavailable")
+
+    mapping = {
+        "cpu": getattr(backend_type, "CPU", None),
+        "gpu": getattr(backend_type, "GPU", None),
+        "npu": getattr(backend_type, "NPU", None),
+    }
+    backend_ctor = mapping.get(backend_value)
+    if backend_ctor is None:
+        supported = ", ".join(sorted(name for name, value in mapping.items() if value is not None))
+        raise ReadinessError(f"unsupported LiteRT backend '{backend_name}', supported values: {supported}")
+
+    return backend_ctor()
 
 
 def _extract_text(response: object) -> str:

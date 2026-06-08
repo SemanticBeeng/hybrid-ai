@@ -14,6 +14,7 @@ unset VIRTUAL_ENV
 unset VIRTUAL_ENV_PROMPT
 
 hybrid_ai_require_flox_env "$FLOX_ENV_DIR"
+hybrid_ai_ensure_flox_env_ready "$FLOX_ENV_DIR"
 
 if [[ $# -eq 0 ]]; then
   cd "$project_root"

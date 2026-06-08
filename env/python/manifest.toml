@@ -9,6 +9,8 @@ uv.pkg-path = "uv"
 uv.systems = ["x86_64-linux"]
 libgcc.pkg-path = "libgcc"
 libgcc.systems = ["x86_64-linux"]
+vulkan-loader.pkg-path = "vulkan-loader"
+vulkan-loader.systems = ["x86_64-linux"]
 
 [include]
 environments = [
