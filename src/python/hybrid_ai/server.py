@@ -117,6 +117,9 @@ def main() -> None:
     host = os.environ.get("HYBRID_AI_HOST", "127.0.0.1")
     port = int(os.environ.get("HYBRID_AI_PORT", "8080"))
     service = BackendService()
+    startup_readiness = service.readiness_payload()
+    if not startup_readiness["ready"]:
+        print("startup readiness issues: " + "; ".join(startup_readiness["issues"]))
     server = HybridAIServer((host, port), service)
     print(f"listening on {host}:{port}")
     try:

@@ -441,7 +441,7 @@ So the correct re-evaluation is:
 If the project keeps LiteRT-LM as the Linux inference engine, then the recommended `3.1` solution is:
 - do not rely on host CUDA toolkit
 - do not rely on host `vulkan-tools`
-- do build a dedicated Linux GPU Flox environment for repo-controlled user space
+- do use the existing Python server Flox environment as the repo-controlled user-space boundary
 - do add a narrow launch-time driver bridge only for the official driver boundary that remains after uninstalling host toolkits
 
 If the project instead wants a more out-of-the-box Linux GPU path, then the Flox resources point toward a different conclusion:
@@ -460,43 +460,43 @@ For the current repo and current evidence, the best interpretation is:
 
 Current environment note:
 - the existing [env/inference/manifest.toml](env/inference/manifest.toml) is intentionally minimal and does not yet represent a Linux GPU runtime environment
-- the re-evaluated `3.1` path still points toward adding a separate `env/inference-gpu-linux` rather than overloading the current inference environment
+- the re-evaluated `3.1` path should extend [env/python/manifest.toml](env/python/manifest.toml) because that is already the Python server runtime boundary
+- [env/inference/manifest.toml](env/inference/manifest.toml) should remain a minimal inference-policy module unless the repo later removes it entirely
 
 ### 3.1.j Implementation roadmap
 
 The implementation roadmap for `3.1` should be executed in phases so the repo gains explicit runtime control without mixing refactors, diagnostics, and serving changes in one step.
 
-#### Phase 0: Keep the current baseline stable
+#### Phase 0: Keep the current server surface stable
 
 Goal:
-- preserve the working CPU-backed inference server while the Linux GPU path is introduced as a separate, explicit track
+- preserve the current Python server surface while making Linux GPU the intended runtime path through the existing Python environment
 
 Actions:
 - leave [env/inference/manifest.toml](env/inference/manifest.toml) minimal
-- leave [env/python/manifest.toml](env/python/manifest.toml) as the current CPU-safe Python baseline
-- do not retrofit Linux GPU logic into [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh)
+- use [env/python/manifest.toml](env/python/manifest.toml) as the single Python server environment boundary
+- add Linux GPU support to [env/python/manifest.toml](env/python/manifest.toml) and [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh) only where that support is part of the normal server runtime contract
 
 Exit criteria:
-- CPU workflow in [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md) remains valid and unchanged
+- the existing Python server entrypoint remains the only backend application surface
 
-#### Phase 1: Introduce a dedicated Linux GPU environment module
+#### Phase 1: Extend the existing Python server environment for Linux GPU
 
 Goal:
-- make Linux GPU support an explicit environment boundary instead of a hidden variation of the generic inference or Python environments
+- make Linux GPU support part of the existing Python server runtime boundary instead of introducing a second server environment
 
-Files to add:
-- `env/inference-gpu-linux/manifest.toml`
+Files to update:
+- [env/python/manifest.toml](env/python/manifest.toml)
 
 Files to reference or include:
 - [env/base/](env/base)
-- [env/python/manifest.toml](env/python/manifest.toml)
 - [env/inference/manifest.toml](env/inference/manifest.toml)
 
 Recommended shape:
 - Linux-only via system constraints
-- include `../base`
-- include repo-controlled Python and inference policy concerns either directly or through mirrored declarations
-- add only the minimum extra GPU-relevant user-space packages needed for Linux runtime support and diagnostics
+- keep `env/python` as the package owner for the Python backend runtime
+- add only the minimum extra GPU-relevant user-space packages needed for Linux runtime support
+- keep debugging-only tools out of the normal server environment unless they are required for launch-time validation
 
 Do not do in this phase:
 - do not add host driver assumptions into the manifest
@@ -504,7 +504,7 @@ Do not do in this phase:
 - do not put broad host library paths into Flox hooks
 
 Exit criteria:
-- there is a dedicated environment whose purpose is unambiguous: Linux GPU runtime experimentation for the inference backend
+- the existing Python server environment can host the intended Linux GPU runtime without introducing a parallel environment boundary
 
 #### Phase 2: Add explicit Linux GPU contract discovery
 
@@ -539,7 +539,7 @@ Files to add:
 - `scripts/env/toolchain/python/python_gpu_validate.sh`
 
 Responsibilities:
-- activate the new Linux GPU environment
+- activate the existing Python server environment
 - source the existing inference path policy from [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh)
 - sanitize inherited environment variables
 - apply only the narrow driver-facing bridge inputs
@@ -562,7 +562,7 @@ Files to add:
 - `scripts/env/toolchain/python/python_server_gpu_run.sh`
 
 Responsibilities:
-- activate the Linux GPU environment
+- activate the existing Python server environment
 - run host-contract discovery
 - run bridged runtime validation
 - force `HYBRID_AI_LITERT_BACKEND=gpu`
@@ -581,7 +581,7 @@ Goal:
 - keep day-to-day runtime small while still allowing deeper debugging when needed
 
 Files to add only if needed:
-- `env/inference-gpu-linux-debug/manifest.toml`
+- `env/python-gpu-debug/manifest.toml`
 - or a remote/layered diagnostics env reference if that becomes preferable
 
 Examples of what belongs here:
@@ -602,7 +602,7 @@ Files to update:
 - [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
 
 Workflow additions to document:
-- how to activate or invoke the Linux GPU environment
+- how the existing Python server environment is extended for Linux GPU
 - how to run preflight separately
 - how to run validation separately
 - how to start the GPU-backed server
@@ -624,7 +624,7 @@ The `3.1` path should be considered implemented only when all of the following a
 
 #### Proposed work order in this repo
 
-1. Add `env/inference-gpu-linux/manifest.toml`
+1. Update [env/python/manifest.toml](env/python/manifest.toml)
 2. Add `scripts/env/toolchain/inference/linux_gpu_contract.sh`
 3. Add `scripts/env/toolchain/python/python_gpu_validate.sh`
 4. Add `scripts/env/toolchain/python/python_server_gpu_run.sh`
@@ -634,7 +634,7 @@ The `3.1` path should be considered implemented only when all of the following a
 
 This roadmap does not attempt to:
 - replace `litert-lm` with another inference engine
-- retrofit Linux GPU assumptions into the current minimal [env/inference/manifest.toml](env/inference/manifest.toml)
+- turn [env/inference/manifest.toml](env/inference/manifest.toml) into the Python server runtime boundary
 - make Linux GPU behavior the canonical product proof instead of Apple-native validation
 - support arbitrary host CUDA toolkit installations as part of the normal runtime path
 

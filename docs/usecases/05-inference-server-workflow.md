@@ -5,7 +5,10 @@ Status: Implemented
 Primary scripts:
 - `scripts/env/setup_litert_lm.sh`
 - `scripts/env/setup_gemma4_e4b.sh`
+- `scripts/env/toolchain/inference/linux_gpu_contract.sh`
+- `scripts/env/toolchain/python/python_gpu_validate.sh`
 - `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/python/python_server_gpu_run.sh`
 - `scripts/env/toolchain/python/python_run.sh`
 
 ## 1. Goal
@@ -22,6 +25,8 @@ This workflow covers the complete server path:
 - Flox activation
 - Python environment sync
 - LiteRT-LM dependency verification
+- Linux GPU host-contract verification
+- Linux GPU managed-runtime validation
 - pinned model bootstrap
 - server startup
 - readiness and chat smoke tests
@@ -140,6 +145,10 @@ The backend:
 - initializes LiteRT-LM against the pinned model file
 - defaults to `HYBRID_AI_LITERT_BACKEND=cpu`
 - maintains one runtime with many backend-managed conversations
+
+The Linux GPU path adds two explicit gates before server startup:
+- a host-contract check that verifies device visibility and Vulkan ICD registration
+- a managed-runtime validation that proves the Flox-managed Python process can initialize LiteRT-LM with `Backend.GPU`
 
 ## 6. Complete Workflow
 
@@ -271,6 +280,44 @@ HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
 ./scripts/env/toolchain/python/python_server_run.sh
 ```
 
+Linux GPU preflight:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/toolchain/inference/linux_gpu_contract.sh
+```
+
+Expected result:
+- `linux_gpu_contract=ok`
+- `gpu_device_nodes=...`
+- `gpu_icd_files=...`
+- `gpu_vendor_libraries=...`
+
+Linux GPU managed-runtime validation:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/toolchain/python/python_gpu_validate.sh
+```
+
+Expected result:
+- JSON payload containing `"gpu_validation": "ok"`
+- `libvulkan` is resolved
+- the payload includes the pinned `.litertlm` model file
+
+Linux GPU server:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
+./scripts/env/toolchain/python/python_server_gpu_run.sh
+```
+
+Expected result:
+- the host-contract check passes
+- the GPU validation script passes
+- the server starts without an immediate LiteRT-LM GPU initialization error
+
 ### 6.6 Readiness Smoke Test
 
 In another terminal:
@@ -284,6 +331,11 @@ Expected result:
 - HTTP `200`
 - JSON payload with `"ready": true`
 - `"backend": "cpu"`
+
+For the Linux GPU launcher, expected result is:
+- HTTP `200`
+- JSON payload with `"ready": true`
+- `"backend": "gpu"`
 
 ### 6.7 Health Smoke Test
 
@@ -393,7 +445,30 @@ cd /home/nkse/projects/hybrid-ai
 Expected result:
 - output is `libvulkan.so.1`
 
-### 7.4 Verify The Server Log Path
+### 7.4 Verify The Linux GPU Contract
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/toolchain/inference/linux_gpu_contract.sh
+```
+
+Expected result:
+- the script reports at least one GPU device node
+- the script reports one or more Vulkan ICD files
+- the script reports one or more resolved vendor libraries
+
+### 7.5 Verify Managed GPU Validation
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/toolchain/python/python_gpu_validate.sh
+```
+
+Expected result:
+- JSON payload with `"gpu_validation": "ok"`
+- the validation runs from the managed Python environment under `env/python`
+
+### 7.6 Verify The Server Log Path
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -403,7 +478,7 @@ ls -l volumes/logs/python_server.log
 Expected result:
 - the file exists under `volumes/logs`
 
-### 7.5 Verify The Swift Live Integration Path
+### 7.7 Verify The Swift Live Integration Path
 
 Run the dedicated live integration test script:
 
