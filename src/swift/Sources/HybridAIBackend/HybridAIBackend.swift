@@ -47,13 +47,23 @@ public actor BackendInferenceRuntime: InferenceRuntime {
     }
 
     public func listConversationIDs() async -> [ConversationID] {
-        conversationIDs
+        do {
+            let ids = try await client.listConversationIDs()
+            conversationIDs = ids
+            return ids
+        } catch {
+            return conversationIDs
+        }
     }
 
     public func removeConversation(_ id: ConversationID) async {
-        conversationIDs.removeAll { $0 == id }
         do {
             try await client.deleteConversation(id)
+            if let ids = try? await client.listConversationIDs() {
+                conversationIDs = ids
+            } else {
+                conversationIDs.removeAll { $0 == id }
+            }
         } catch {
             // Deletion is best-effort from the app model's perspective.
         }
@@ -111,13 +121,18 @@ actor BackendClient {
         return try parseConversationID(response.conversationID)
     }
 
+    func listConversationIDs() async throws -> [ConversationID] {
+        let response: ListConversationsResponse = try await request(path: "/v1/conversations", method: "GET", body: nil)
+        return try response.conversationIDs.map(parseConversationID)
+    }
+
     func deleteConversation(_ id: ConversationID) async throws {
-        try await requestNoContent(path: "/v1/conversations/\(id.rawValue.uuidString)", method: "DELETE")
+        try await requestNoContent(path: "/v1/conversations/\(backendConversationPathComponent(for: id))", method: "DELETE")
     }
 
     func sendMessage(_ text: String, to id: ConversationID) async throws -> ChatMessage {
         let response: SendMessageResponse = try await request(
-            path: "/v1/conversations/\(id.rawValue.uuidString)/messages",
+            path: "/v1/conversations/\(backendConversationPathComponent(for: id))/messages",
             method: "POST",
             body: AnyEncodable(SendMessageRequest(text: text))
         )
@@ -177,6 +192,10 @@ actor BackendClient {
 
         return ConversationID(uuid)
     }
+
+    private func backendConversationPathComponent(for id: ConversationID) -> String {
+        id.rawValue.uuidString.lowercased()
+    }
 }
 
 struct AnyEncodable: Encodable {
@@ -230,6 +249,14 @@ private struct CreateConversationResponse: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case conversationID = "conversation_id"
+    }
+}
+
+private struct ListConversationsResponse: Decodable {
+    let conversationIDs: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case conversationIDs = "conversation_ids"
     }
 }
 
