@@ -17,6 +17,9 @@ This use case covers two closely related paths:
 - the Python CLI module entrypoint
 - the lightweight Python HTTP server entrypoint
 
+It does not cover the LiteRT-backed inference server workflow or the Swift live
+integration path. Those live in `docs/usecases/05-inference-server-workflow.md`.
+
 ## 2. Why This Workflow Exists
 
 The repository does not treat the host Python installation as a valid runtime.

@@ -25,6 +25,7 @@ This workflow covers the complete server path:
 - pinned model bootstrap
 - server startup
 - readiness and chat smoke tests
+- Swift live integration validation against the running Python backend
 
 ## 2. Why This Workflow Exists
 
@@ -331,6 +332,35 @@ curl -i -X DELETE http://127.0.0.1:8080/v1/conversations/<conversation-id>
 Expected result:
 - HTTP `204`
 
+### 6.9 Swift Live Integration Test
+
+After the Python backend is already running and `/ready` returns `"ready": true`,
+validate the Swift app-side transport against the live server:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/run_swift_backend_integration_tests.sh
+```
+
+If the backend is running on a non-default URL, override it explicitly:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+HYBRID_AI_BACKEND_BASE_URL=http://127.0.0.1:18080 \
+./scripts/env/run_swift_backend_integration_tests.sh
+```
+
+What this validates:
+- the Swift transport runtime can call `/ready`
+- conversation create/list/delete works through the Swift runtime
+- message send works through the Swift runtime
+- current stream behavior works through the Swift runtime
+- not-found errors from the backend surface correctly through the Swift client
+
+Expected result:
+- the Swift test runner reports the `liveBackend*` tests as passing
+- no server restart is required because this workflow assumes the Python backend is already running
+
 ## 7. Verification Workflow
 
 ### 7.1 Verify The Active Python Path
@@ -373,6 +403,22 @@ ls -l volumes/logs/python_server.log
 Expected result:
 - the file exists under `volumes/logs`
 
+### 7.5 Verify The Swift Live Integration Path
+
+Run the dedicated live integration test script:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/run_swift_backend_integration_tests.sh
+```
+
+Expected result:
+- the live Swift integration tests pass against the already-running backend
+- the test output includes:
+  - `liveBackendPrepareAndConversationLifecycle()`
+  - `liveBackendSendAndStreamSemantics()`
+  - `liveBackendUnknownConversationSurfacesNotFound()`
+
 ## 8. Expected Outcomes
 
 When this workflow is correct:
@@ -382,6 +428,7 @@ When this workflow is correct:
 - the pinned Gemma model file exists under `volumes/models/litert-lm/gemma4-e4b`
 - `/ready` returns `200` with `"ready": true`
 - conversation create/send/delete operations succeed through the backend HTTP API
+- the Swift backend transport can pass its live integration tests against the running Python server
 
 ## 9. Failure Modes And Recovery
 
@@ -490,3 +537,4 @@ Related documents:
 - `docs/chat/determinate_nix_flox_setup.md`: operational Nix and Flox runbook
 - `docs/design-domain/09-dd-model-bootstrap-and-runtime-pinning.md`: pinned runtime and model bootstrap policy
 - `docs/design-domain/14-dd-linux-backend-runtime-and-conversation-lifecycle.md`: lifecycle model for one runtime with many conversations
+- `src/swift/Tests/HybridAITests/HybridAIBackendIntegrationTests.swift`: live Swift transport validation against the running backend
