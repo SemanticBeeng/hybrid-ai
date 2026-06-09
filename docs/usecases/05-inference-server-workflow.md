@@ -522,6 +522,10 @@ Expected result:
 - the validation runs from the managed Python environment under `env/python`
 - no `LD_LIBRARY_PATH` mutation is required for the validated path
 
+Important note:
+- a passing `python_gpu_validate.sh` does not prove the long-lived live server process has every transitive userspace dependency needed by the resolved NVIDIA vendor library
+- if live `/ready` still fails, inspect the troubleshooting path in [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
+
 ### 7.6 Promotion Boundary Summary
 
 Current Linux GPU boundary:
@@ -622,6 +626,55 @@ Why this happens:
 - if `vulkan-loader` is present in the manifest graph but the realized env is
   stale, activation alone will continue to expose the old runtime until the env is
   re-synced
+
+### 9.3 Live GPU `/ready` Fails With `Found 0 adapters` Even Though Validation Passes
+
+Symptom:
+- `./scripts/env/toolchain/python/python_gpu_validate.sh` passes
+- `python_server_gpu_run.sh` starts
+- live `/ready` still returns `503`
+- server log contains:
+  - `Found 0 adapters`
+  - `Failed to initialize WebGPU environment: No adapters found`
+
+Likely cause on this host class:
+- the live server process cannot load the NVIDIA vendor library because a transitive X11/XCB dependency is missing inside `env/python`
+
+Observed concrete examples during troubleshooting:
+- `libX11.so.6`
+- `libXext.so.6`
+
+Recovery:
+
+1. Re-sync `env/python` after updating [env/python/manifest.toml](env/python/manifest.toml)
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
+./scripts/env/toolchain/nix/flox_env_init.sh
+```
+
+2. Verify direct library load in the managed runtime
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
+./scripts/env/toolchain/nix/flox_with.sh bash -lc '
+source scripts/env/toolchain/python/python_env.sh
+hybrid_ai_activate_python_env
+python - <<'"'"'PY'"'"'
+import ctypes
+ctypes.CDLL("/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0")
+print("libGLX_nvidia.so.0: ok")
+PY
+'
+```
+
+3. Restart the GPU server on a fresh port and recheck `/ready`
+
+Important constraint:
+- do not try to fix this by broadening `LD_LIBRARY_PATH`
+- the supported repair path is to add the missing userspace runtime libraries to `env/python`
 
 Concrete recovery sequence:
 

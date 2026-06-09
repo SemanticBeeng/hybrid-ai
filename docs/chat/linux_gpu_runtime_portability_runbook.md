@@ -922,6 +922,79 @@ Practical repo consequence:
 - the vendor-library prewarm should no longer be described as experimental in the main workflow docs
 - the shell smoke entrypoint should remain part of the supported verification ladder because it proves the live server contract, not just the validation ladder
 
+### 3.1.p Live serve failure after promotion: missing X11/XCB transitive runtime dependencies
+
+Follow-up troubleshooting on the same host found one more real serve-path gap even after the narrow vendor-library prewarm was promoted.
+
+Observed symptom:
+- `python_gpu_validate.sh` still passed
+- the live GPU server process could still fail `/ready` with:
+   - `Found 0 adapters`
+   - `Failed to initialize WebGPU environment: No adapters found`
+
+Key diagnostic step:
+- enabled live request-thread snapshots with:
+   - `HYBRID_AI_GPU_DEBUG_SNAPSHOT_DIR=<dir>`
+   - optionally `HYBRID_AI_GPU_LIVE_PROBE=1`
+- inspected:
+   - `py-backend-prepare-entry.json`
+   - `py-backend-prepare-engine-error.json`
+   - `serve-launch.json`
+
+Root cause shown directly by the snapshots:
+- the live server process was correctly activated inside `env/python`
+- `VK_ICD_FILENAMES` and `HYBRID_AI_GPU_VENDOR_LIBRARIES` were present
+- but the prewarm and probe both failed to load the NVIDIA vendor library because of missing transitive X11 runtime libraries
+
+Initial concrete failure captured in the snapshot:
+- `libGLX_nvidia.so.0` failed to load with:
+   - `libX11.so.6: cannot open shared object file: No such file or directory`
+
+After adding `libX11`, the next concrete missing dependency was:
+- `libXext.so.6`
+
+Host `ldd` on `/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0` showed the relevant transitive runtime set included:
+- `libX11.so.6`
+- `libXext.so.6`
+- `libxcb.so.1`
+- `libXau.so.6`
+- `libXdmcp.so.6`
+
+Implemented repo fix:
+- extended [env/python/manifest.toml](env/python/manifest.toml) to include the X11/XCB runtime libraries needed by the NVIDIA GLX vendor library:
+   - `xorg.libX11`
+   - `xorg.libXext`
+   - `xorg.libxcb`
+   - `xorg.libXau`
+   - `xorg.libXdmcp`
+
+Interpretation:
+- this was not a Flox activation failure
+- it was not a reason to uninstall host CUDA or host Vulkan tooling
+- it was a missing transitive userspace runtime dependency inside the managed Python environment used by the long-lived live server process
+
+Verification sequence that proved the fix:
+
+1. Re-sync `env/python`
+   - `FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml ./scripts/env/toolchain/nix/flox_env_init.sh`
+
+2. Verify the managed runtime can load the direct X11 dependency
+   - use `ctypes.CDLL("libX11.so.6")`
+
+3. Verify the managed runtime can load the actual NVIDIA vendor library by absolute path
+   - use `ctypes.CDLL("/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0")`
+
+4. Restart the GPU server on a fresh port
+
+5. Recheck `/ready` and `/health`
+
+6. Re-run the repo smoke workflow or Swift live integration tests against that fresh port
+
+Practical lesson:
+- when `python_gpu_validate.sh` passes but live `/ready` still fails, inspect the live snapshot files before assuming the bridge model is wrong
+- the live serve path can still surface missing transitive dependencies of the resolved vendor library even when the earlier validation ladder succeeds
+- the correct repair is to add the missing userspace runtime libraries to `env/python`, not to broaden `LD_LIBRARY_PATH`
+
 #### Proposed work order in this repo
 
 1. Update [env/python/manifest.toml](env/python/manifest.toml)

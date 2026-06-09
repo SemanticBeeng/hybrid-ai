@@ -17,6 +17,7 @@
 - a repo-local end-to-end shell smoke path now verifies `/ready`, `/health`, conversation creation, and message round-trip through `scripts/env/run_inference_local_gpu_smoke.sh`
 - the backend now normalizes structured LiteRT response payloads to plain assistant text before returning HTTP JSON responses
 - the GPU smoke wrapper now refuses occupied ports and cleans up the whole background server process group so repeated local runs do not silently talk to stale listeners
+- after live-process snapshots exposed missing transitive X11/XCB dependencies for `/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0`, `env/python/manifest.toml` was extended with the required X11 runtime libraries so the long-lived GPU server process can load the NVIDIA vendor library inside the managed runtime
 
 ### Linux GPU re-evaluation outcome
 - rejected broad host dynamic-linker mutation through `LD_LIBRARY_PATH` as the normal Linux GPU fix layer because it caused Python instability and violated the intended narrow bridge model
