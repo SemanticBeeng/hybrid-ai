@@ -70,12 +70,15 @@ Verification scripts:
 Runtime scripts used for proof:
 - `scripts/env/toolchain/python/python_run.sh`
 - `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/python/python_server_gpu_run.sh`
+- `scripts/env/run_inference_local_gpu_smoke.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/swift/swift_run.sh`
 
 Reference docs:
 - `docs/chat/devenv_portable_workflow.md`
 - `docs/chat/determinate_nix_flox_setup.md`
+- `docs/chat/linux_gpu_runtime_portability_runbook.md`
 - `docs/usecases/02-python-cli-and-server.md`
 - `docs/usecases/03-swift-build-and-test.md`
 
@@ -90,6 +93,8 @@ toolchains:
 - managed Python venv path
 - Python cache paths
 - NumPy native-extension import proof
+- Linux GPU host-contract and managed-runtime validation proof
+- Linux GPU promoted serve proof without broad `LD_LIBRARY_PATH` mutation
 - Swiftly binary path
 - Swift build path
 - Swift native build-time search paths
@@ -262,6 +267,23 @@ Expected result:
 - `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` expose Flox/Nix build-time paths before host OS defaults
 - `LD_LIBRARY_PATH` remains unset or sanitized so Swiftly does not load incompatible Flox/Nix runtime libraries
 
+### 6.8 Linux GPU Runtime Isolation Proof
+
+Run:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/toolchain/inference/linux_gpu_contract.sh
+./scripts/env/toolchain/python/python_gpu_validate.sh
+HYBRID_AI_PORT=18090 ./scripts/env/run_inference_local_gpu_smoke.sh
+```
+
+Expected results:
+- GPU contract discovery reports device nodes, ICD files, and resolved vendor libraries
+- managed GPU validation succeeds without broad host-library injection through `LD_LIBRARY_PATH`
+- the promoted live GPU smoke path succeeds through `/ready`, `/health`, conversation creation, and one message round-trip
+- the returned assistant text is normalized plain text
+
 ## 7. Current Expected Outcomes
 
 ### 7.1 What Should Pass Today
@@ -273,6 +295,7 @@ These checks should pass in the current setup:
 - `scripts/env/toolchain/swift/swift_env_check.sh`
 - `scripts/env/toolchain/nix/nix_isolation_check.sh`
 - Python wrapper/runtime isolation proofs
+- Linux GPU contract, validation, and smoke proof for the supported NVIDIA plus Vulkan host class
 - NumPy import proof
 - Swift path/build-path proof
 

@@ -12,15 +12,16 @@ The Linux backend should expose a conversation-oriented contract rather than a s
 
 ### Runtime-Level Operations
 
-1. `POST /runtime/prepare`
-2. `GET /runtime/conversations`
-3. `POST /runtime/conversations`
-4. `DELETE /runtime/conversations/{id}`
+1. `GET /ready`
+2. `GET /health`
+3. `GET /v1/conversations`
+4. `POST /v1/conversations`
+5. `DELETE /v1/conversations/{id}`
 
 ### Conversation-Level Operations
 
-1. `POST /runtime/conversations/{id}/messages`
-2. `POST /runtime/conversations/{id}/messages/stream`
+1. `POST /v1/conversations/{id}/messages`
+2. streaming remains a Swift-runtime concern today and is currently implemented by additive client behavior over the blocking send path rather than a distinct backend stream endpoint
 
 ## Semantic Mapping
 
@@ -29,7 +30,7 @@ The Linux backend should expose a conversation-oriented contract rather than a s
 3. `listConversationIDs()` reports live ids.
 4. `removeConversation(_:)` deletes one conversation.
 5. `send(_:)` returns one assistant message.
-6. `stream(_:)` emits incremental assistant output.
+6. `stream(_:)` preserves the same assistant text contract as blocking send.
 
 ## Payload Guidance
 
@@ -45,7 +46,7 @@ The Linux backend should expose a conversation-oriented contract rather than a s
 
 ```json
 {
-  "id": "..."
+  "conversation_id": "..."
 }
 ```
 
@@ -61,10 +62,18 @@ The Linux backend should expose a conversation-oriented contract rather than a s
 
 ```json
 {
-  "role": "assistant",
-  "text": "..."
+  "conversation_id": "...",
+  "message": {
+    "role": "assistant",
+    "text": "..."
+  }
 }
 ```
+
+Constraint on `message.text`:
+
+1. the text returned to clients should be normalized plain assistant text
+2. the transport contract must not expose stringified structured LiteRT payloads such as serialized `role` or `content` objects
 
 ## Design Constraints
 

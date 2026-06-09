@@ -17,14 +17,14 @@ Use `HTTP + JSON` for request-response behavior and add streaming through `SSE` 
 
 ## Linux GPU Consequence
 
-For the current LiteRT-LM Linux GPU path, the transport decision remains correct even though live GPU serving is not yet promoted.
+For the current LiteRT-LM Linux GPU path, the transport decision remains correct now that live GPU serving is promoted for the supported Linux host class.
 
 That means:
 
 1. HTTP remains the preferred process boundary for the Linux backend path
-2. GPU capability probing can be promoted before long-lived GPU serving is promoted
-3. transport design should not be changed just to compensate for unresolved Linux GPU runtime-bridge issues
-4. unresolved Linux GPU runtime promotion remains a runtime-boundary concern, not a reason to collapse transport boundaries
+2. GPU capability probing and live serving can share the same inspectable transport boundary
+3. transport design should not be changed just to compensate for GPU runtime-bridge implementation details
+4. the promoted Linux GPU serve bridge remains a runtime-boundary concern, not a reason to collapse transport boundaries
 
 ## Rejected Or Deferred Defaults
 

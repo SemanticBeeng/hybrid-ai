@@ -29,6 +29,7 @@ Use server-sent events or an equally inspectable streamed text boundary for incr
 1. Swift app-model code must accumulate chunks into the selected conversation transcript.
 2. Streaming should be additive to the blocking send path, not a replacement for basic contract clarity.
 3. Error and cancellation behavior should remain testable independently from UI rendering.
+4. The assembled streamed text should satisfy the same normalized plain-text contract as blocking `send(_:)` responses.
 
 ## Design Constraints
 

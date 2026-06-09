@@ -267,8 +267,9 @@ cd /home/nkse/projects/hybrid-ai
 ```
 
 Expected result:
+- `Verified litert-lm==0.13.1`
 
-### 6.4 Linux GPU end-to-end smoke
+### 6.4 Linux GPU End-To-End Smoke
 
 The repo now has a single-command GPU smoke workflow that mirrors the staged Flox serving style as closely as the current LiteRT-LM Linux path allows.
 
@@ -294,9 +295,10 @@ Useful overrides:
 - `HYBRID_AI_GPU_SMOKE_SYSTEM_PROMPT`
 - `HYBRID_AI_GPU_SMOKE_MESSAGE`
 - `HYBRID_AI_GPU_SMOKE_STARTUP_TIMEOUT_SECONDS`
-- `Verified litert-lm==0.13.1`
+- the wrapper fails fast if the requested port is already in use
+- server logs are written per port under `/tmp/hybrid-ai-gpu-smoke-server-<port>.log`
 
-### 6.4 Bootstrap The Pinned Gemma 4 E4B Model
+### 6.5 Bootstrap The Pinned Gemma 4 E4B Model
 
 Using the Hugging Face direct artifact URL:
 
@@ -310,7 +312,7 @@ Expected result:
 - pinned model metadata is written under `volumes/models/litert-lm`
 - the model file exists at `volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm`
 
-### 6.5 Start The CPU Inference Server
+### 6.6 Start The CPU Or GPU Inference Server
 
 Default local server:
 
@@ -366,7 +368,7 @@ Expected result:
 - the server starts and can satisfy `/ready`, `/health`, and conversation requests on supported hosts
 - the server uses the narrow vendor-library prewarm bridge rather than broad host linker-path mutation
 
-### 6.6 CPU Readiness Smoke Test
+### 6.7 CPU Readiness Smoke Test
 
 In another terminal:
 
@@ -385,7 +387,7 @@ For Linux GPU on supported hosts, expected result is:
 - JSON payload with `"ready": true`
 - `"backend": "gpu"`
 
-### 6.7 CPU Health Smoke Test
+### 6.8 CPU Health Smoke Test
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -396,7 +398,7 @@ Expected result:
 - HTTP `200`
 - JSON payload containing service name, pinned model info, and issue list
 
-### 6.8 CPU Conversation Smoke Test
+### 6.9 CPU Conversation Smoke Test
 
 Create a conversation:
 
@@ -432,7 +434,7 @@ curl -i -X DELETE http://127.0.0.1:8080/v1/conversations/<conversation-id>
 Expected result:
 - HTTP `204`
 
-### 6.9 Swift Live Integration Test Against The Promoted Server Path
+### 6.10 Swift Live Integration Test Against The Promoted Server Path
 
 After the Python backend is already running and `/ready` returns `"ready": true`,
 validate the Swift app-side transport against the live server:
@@ -456,6 +458,7 @@ What this validates:
 - message send works through the Swift runtime
 - current stream behavior works through the Swift runtime
 - not-found errors from the backend surface correctly through the Swift client
+- assistant text returned through the Swift runtime is normalized plain text rather than a repr-shaped structured payload
 
 Expected result:
 - the Swift test runner reports the `liveBackend*` tests as passing
@@ -557,6 +560,7 @@ Expected result:
   - `liveBackendPrepareAndConversationLifecycle()`
   - `liveBackendSendAndStreamSemantics()`
   - `liveBackendUnknownConversationSurfacesNotFound()`
+- the live send and stream assertions reject assistant payloads that still contain serialized `role` or `content` structures
 
 ## 8. Expected Outcomes
 
@@ -567,6 +571,7 @@ When this workflow is correct:
 - the pinned Gemma model file exists under `volumes/models/litert-lm/gemma4-e4b`
 - `/ready` returns `200` with `"ready": true`
 - conversation create/send/delete operations succeed through the backend HTTP API
+- assistant responses returned by the backend API are normalized plain text
 - the Swift backend transport can pass its live integration tests against the running Python server
 
 ## 9. Failure Modes And Recovery

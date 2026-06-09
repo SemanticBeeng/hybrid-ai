@@ -4,6 +4,29 @@ Date: 2026-06-05
 Status: Review and implementation roadmap
 Scope: Introduce an LLM endpoint using Google LiteRT-LM, serve Gemma 4 E4B through it, expose Swift bindings, and call it from the Swift UI app.
 
+## Current State Update
+
+This runbook began as a roadmap before the current Python backend and Linux GPU
+workflow existed. The following pieces are now implemented in the repository:
+
+- the Python backend exposes live readiness, health, conversation create/delete,
+	and message-send endpoints
+- the Linux GPU path is promoted for the current supported host class:
+	- Linux
+	- NVIDIA driver stack
+	- Vulkan ICD discovery
+	- repo-managed Python runtime in `env/python`
+- the repo-level smoke entrypoint is now:
+	- `scripts/env/run_inference_local_gpu_smoke.sh`
+- the promoted Linux GPU path returns normalized plain assistant text rather
+	than stringified structured LiteRT payloads
+- Swift live backend integration tests now assert that assistant text is
+	normalized at the client boundary
+
+This means the sections below should be read as architectural background and
+future direction, not as a statement that the repository still lacks an LLM
+serving surface.
+
 ## Target Deployment Model
 
 Related domain docs:
@@ -108,14 +131,18 @@ This also reinforces the current architectural preference:
 
 ## Findings
 
+The items below began as a baseline review before the current backend and GPU
+workflow were implemented. Where the repository has moved forward, the finding
+now preserves the earlier gap plus the current state.
+
 1. The current Swift UI target and the upstream LiteRT-LM Swift bindings do not line up on platform support.
 The app in this repo is a Linux GTK/libadwaita target gated behind `src/swift/Package.swift`, and the current UI executable is only a proof shell in `src/swift/Sources/HybridAIMobileChat/main.swift`. Upstream LiteRT-LM Swift support is currently early-preview and aimed at iOS/macOS, not Linux. If the goal is "call LiteRT directly from the current Linux Swift UI app", that is the main architectural blocker. The practical Linux path is a service boundary, with Swift consuming an API client rather than the native LiteRT engine.
 
-2. There is no LLM-serving layer in the repo yet.
-The existing Python server is only a health endpoint that returns env metadata in `src/python/hybrid_ai/server.py`. The use-case doc also describes that server as a lightweight JSON responder, not an inference API, in `docs/usecases/02-python-cli-and-server.md`. So "introduce an LLM endpoint" is net-new application work, not an extension of an existing chat service.
+2. Historical gap: there was no LLM-serving layer in the repo yet.
+At the time of the original review, the Python server was only a health-oriented endpoint and "introduce an LLM endpoint" was net-new application work. Current state is different: the Python backend now exposes readiness, health, conversation create/delete, and blocking message-send endpoints, and the live Linux GPU path is verified through the promoted smoke workflow in `scripts/env/run_inference_local_gpu_smoke.sh`.
 
-3. The current LiteRT-LM integration is bootstrap-only and not production-shaped.
-The local inference path is a wrapper that shells out to LiteRT-LM CLI or Python module in `scripts/env/run_inference_local.sh`. The setup script resolves the latest release and installs from GitHub HEAD/tag into the environment in `scripts/env/setup_litert_lm.sh`. That is acceptable for exploration, but weak for a durable endpoint because it leaves version pinning, model import, and server contract undefined.
+3. Historical gap: the LiteRT-LM integration was bootstrap-only and not production-shaped.
+The original concern was that local inference still looked like exploration, with weak pinning and no stable server contract. Current state is stronger: the repo now has pinned runtime metadata, pinned model bootstrap workflow, a promoted Linux GPU serve path for the supported host class, and a repo-level smoke command that verifies end-to-end serving semantics.
 
 4. The inference environment does not yet declare a complete runtime contract.
 The inference manifest currently only installs curl, jq, and git and activates directory path exports in `env/inference/manifest.toml`. That means model runtime dependencies are being pulled dynamically rather than represented as a first-class repo contract. For a service you will want explicit package ownership, pinned LiteRT-LM versioning, and a defined model bootstrap/import step.
@@ -123,8 +150,8 @@ The inference manifest currently only installs curl, jq, and git and activates d
 5. The Swift shared layer is not ready to host chat state or transport abstractions.
 The shared Swift library only exposes a static status string in `src/swift/Sources/HybridAI/HybridAI.swift`. The existing roadmap already points toward shared app state and platform-specific shells in [[swift_ui_cross_platform_roadmap]], but that architecture has not been implemented yet. Without that layer, wiring the UI straight to HTTP or inference details will create avoidable churn.
 
-6. Test coverage is currently only baseline smoke coverage.
-The Python package only declares numpy and pytest in `src/python/pyproject.toml`, and the Swift tests only cover the trivial status path described in `docs/usecases/03-swift-build-and-test.md`. There is no endpoint contract testing, streaming behavior testing, or model availability verification yet.
+6. Historical gap: test coverage was only baseline smoke coverage.
+At the time of the original review, the repo did not yet have endpoint contract tests or live backend integration checks. Current state now includes Python backend tests, Swift backend transport tests, and live Swift integration tests that verify normalized assistant text across the backend client boundary.
 
 ## Questions / Assumptions
 
@@ -162,8 +189,8 @@ Do this in the repository setup direction captured in [[09-dd-model-bootstrap-an
 - Define the exact Gemma 4 E4B model artifact and import/bootstrap workflow.
 - Add a smoke check that proves model presence and engine startup before the app runs.
 
-3. Build the Python inference service.
-Replace the current health-only server in `src/python/hybrid_ai/server.py` with:
+3. Continue evolving the Python inference service.
+The repository already has a real backend surface in `src/python/hybrid_ai/server.py`; the remaining work is to evolve it further with:
 - a real web framework, preferably FastAPI
 - startup lifecycle that loads or validates Gemma 4 E4B availability
 - `/health` and `/ready` endpoints
