@@ -34,3 +34,7 @@ Additional detailed documents:
 - [[12-dd-apple-engine-and-conversation-lifecycle]]
 - [[13-dd-linux-backend-runtime-adapter]]
 - [[14-dd-linux-backend-runtime-and-conversation-lifecycle]]
+
+Linux GPU note:
+- the current promoted Linux GPU boundary is documented in [[13-dd-linux-backend-runtime-adapter]] and [[14-dd-linux-backend-runtime-and-conversation-lifecycle]]
+- live Linux GPU serving remains experimental until the runtime can be promoted without broad host dynamic-linker mutation

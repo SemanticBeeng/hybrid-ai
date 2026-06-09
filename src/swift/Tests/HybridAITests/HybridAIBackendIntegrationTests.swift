@@ -11,6 +11,17 @@ private func liveBackendBaseURL() -> URL? {
     return URL(string: rawBaseURL)
 }
 
+private func assertNormalizedAssistantText(_ text: String) {
+    let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(!normalized.isEmpty)
+    #expect(!normalized.hasPrefix("{"))
+    #expect(!normalized.contains("'role':"))
+    #expect(!normalized.contains("'content':"))
+    #expect(!normalized.contains("\"role\":"))
+    #expect(!normalized.contains("\"content\":"))
+}
+
 @Test func liveBackendPrepareAndConversationLifecycle() async throws {
     guard let baseURL = liveBackendBaseURL() else {
         return
@@ -42,13 +53,13 @@ private func liveBackendBaseURL() -> URL? {
 
     let sendReply = try await conversation.send("Say hello in one sentence.")
     #expect(sendReply.role == .assistant)
-    #expect(!sendReply.text.isEmpty)
+    assertNormalizedAssistantText(sendReply.text)
 
     var streamedText = ""
     for try await chunk in conversation.stream("Say hello in one sentence.") {
         streamedText += chunk
     }
-    #expect(!streamedText.isEmpty)
+    assertNormalizedAssistantText(streamedText)
 
     await runtime.removeConversation(conversation.id)
 }

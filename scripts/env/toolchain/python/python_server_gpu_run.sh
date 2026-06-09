@@ -7,6 +7,8 @@ python_env_dir="${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/python}"
 python_manifest_path="$python_env_dir/manifest.toml"
 
 hybrid_ai_python_server_gpu_inner() {
+  local snapshot_dir="${HYBRID_AI_GPU_DEBUG_SNAPSHOT_DIR:-}"
+
   mkdir -p "$(dirname "$LOG_PATH")"
 
   # shellcheck disable=SC1090
@@ -16,12 +18,20 @@ hybrid_ai_python_server_gpu_inner() {
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
+  hybrid_ai_linux_gpu_scrub_runtime_env
   hybrid_ai_activate_python_env
+  hybrid_ai_linux_gpu_rebuild_runtime_path
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND=gpu
 
   "$project_root/scripts/env/toolchain/python/python_gpu_validate.sh"
+
+  if [[ -n "$snapshot_dir" ]]; then
+    mkdir -p "$snapshot_dir"
+    "$project_root/scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh" \
+      serve-launch "$snapshot_dir/serve-launch.json" >/dev/null
+  fi
 
   cd "$project_root/src/python"
   exec python -m hybrid_ai.server "$@" 2>&1 | tee -a "$LOG_PATH"

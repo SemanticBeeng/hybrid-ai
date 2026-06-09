@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from hybrid_ai.backend import BackendService, ConversationSession, EngineRuntime, NotFoundError, ReadinessError
+from hybrid_ai.backend import BackendService, ConversationSession, EngineRuntime, NotFoundError, ReadinessError, _extract_text
 from hybrid_ai.bootstrap import BootstrapState
 
 
@@ -112,3 +112,20 @@ def test_backend_service_raises_not_found_for_unknown_conversation(tmp_path: Pat
         pass
     else:
         raise AssertionError("expected not found error")
+
+
+def test_extract_text_handles_structured_content_parts() -> None:
+    response = {
+        "role": "assistant",
+        "content": [
+            {"type": "text", "text": "Hello there"},
+        ],
+    }
+
+    assert _extract_text(response) == "Hello there"
+
+
+def test_extract_text_handles_stringified_structured_payload() -> None:
+    response = "{'role': 'assistant', 'content': [{'type': 'text', 'text': 'Hello there'}]}"
+
+    assert _extract_text(response) == "Hello there"

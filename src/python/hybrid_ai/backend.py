@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import ast
 from collections.abc import Callable, Mapping
+import ctypes
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import re
+import shutil
+import subprocess
 import threading
 import uuid
 
 from .bootstrap import BootstrapState, load_bootstrap_state
+from .debug_snapshot import write_runtime_snapshot
 
 
 class BackendError(RuntimeError):
@@ -96,9 +102,27 @@ class LiteRTEngineRuntime(EngineRuntime):
             if self._engine is not None:
                 return
 
+            probe = _collect_gpu_prepare_probe()
+            prewarm = _prewarm_gpu_vendor_libraries(backend_name=self.backend_name)
+
+            write_runtime_snapshot(
+                "backend-prepare-entry",
+                {
+                    "backend_name": self.backend_name,
+                    "model_file": str(self.model_file),
+                    "thread": threading.current_thread().name,
+                    "probe": probe,
+                    "prewarm": prewarm,
+                },
+            )
+
             try:
                 import litert_lm
             except ImportError as exc:
+                write_runtime_snapshot(
+                    "backend-prepare-import-error",
+                    {"backend_name": self.backend_name, "error": str(exc), "probe": probe, "prewarm": prewarm},
+                )
                 raise ReadinessError(
                     "litert_lm is not installed in the Python environment. Run scripts/env/setup_litert_lm.sh first."
                 ) from exc
@@ -111,10 +135,18 @@ class LiteRTEngineRuntime(EngineRuntime):
                 )
                 engine = engine_context.__enter__()
             except Exception as exc:  # pragma: no cover - exercised only with real LiteRT-LM installed
+                write_runtime_snapshot(
+                    "backend-prepare-engine-error",
+                    {"backend_name": self.backend_name, "error": str(exc), "probe": probe, "prewarm": prewarm},
+                )
                 raise ReadinessError(f"failed to initialize LiteRT-LM engine: {exc}") from exc
 
             self._engine_context = engine_context
             self._engine = engine
+            write_runtime_snapshot(
+                "backend-prepare-success",
+                {"backend_name": self.backend_name, "model_file": str(self.model_file), "probe": probe, "prewarm": prewarm},
+            )
 
     def create_conversation(self, system_prompt: str | None) -> ConversationSession:
         self.prepare()
@@ -332,26 +364,62 @@ def _resolve_backend(litert_lm: object, backend_name: str):
 
 
 def _extract_text(response: object) -> str:
+    if response is None:
+        return ""
+
     if isinstance(response, str):
-        return response.strip()
+        stripped = response.strip()
+        literal_text = _extract_text_from_literal(stripped)
+        if literal_text:
+            return literal_text
+        return stripped
+
+    if isinstance(response, bool | int | float):
+        return str(response).strip()
+
+    if isinstance(response, list | tuple):
+        for item in response:
+            candidate_text = _extract_text(item)
+            if candidate_text:
+                return candidate_text
+        return ""
 
     if isinstance(response, Mapping):
-        for key in ("text", "content", "message", "response"):
+        for key in ("text", "content", "parts", "message", "response"):
             value = response.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-            if isinstance(value, Mapping):
-                nested = _extract_text(value)
-                if nested:
-                    return nested
+            nested = _extract_text(value)
+            if nested:
+                return nested
 
     text_attr = getattr(response, "text", None)
-    if isinstance(text_attr, str) and text_attr.strip():
-        return text_attr.strip()
+    if text_attr is not None and text_attr is not response:
+        text_value = _extract_text(text_attr)
+        if text_value:
+            return text_value
 
     content_attr = getattr(response, "content", None)
-    if isinstance(content_attr, str) and content_attr.strip():
-        return content_attr.strip()
+    if content_attr is not None and content_attr is not response:
+        content_value = _extract_text(content_attr)
+        if content_value:
+            return content_value
+
+    parts_attr = getattr(response, "parts", None)
+    if parts_attr is not None and parts_attr is not response:
+        parts_value = _extract_text(parts_attr)
+        if parts_value:
+            return parts_value
+
+    message_attr = getattr(response, "message", None)
+    if message_attr is not None and message_attr is not response:
+        message_value = _extract_text(message_attr)
+        if message_value:
+            return message_value
+
+    response_attr = getattr(response, "response", None)
+    if response_attr is not None and response_attr is not response:
+        response_value = _extract_text(response_attr)
+        if response_value:
+            return response_value
 
     candidates = getattr(response, "candidates", None)
     if isinstance(candidates, list):
@@ -360,4 +428,108 @@ def _extract_text(response: object) -> str:
             if candidate_text:
                 return candidate_text
 
-    return str(response).strip()
+    fallback = str(response).strip()
+    literal_text = _extract_text_from_literal(fallback)
+    if literal_text:
+        return literal_text
+    return fallback
+
+
+def _extract_text_from_literal(value: str) -> str:
+    if not value or value[:1] not in "[{(":
+        regex_text = _extract_text_from_serialized_mapping(value)
+        if regex_text:
+            return regex_text
+        return ""
+
+    try:
+        parsed = ast.literal_eval(value)
+    except (ValueError, SyntaxError):
+        return _extract_text_from_serialized_mapping(value)
+
+    if parsed == value:
+        return _extract_text_from_serialized_mapping(value)
+
+    return _extract_text(parsed)
+
+
+def _extract_text_from_serialized_mapping(value: str) -> str:
+    match = re.search(r"['\"]text['\"]\s*:\s*(['\"])(.*?)\1", value, re.DOTALL)
+    if not match:
+        return ""
+
+    text_value = match.group(2).strip()
+    return text_value
+
+
+def _collect_gpu_prepare_probe() -> dict[str, object] | None:
+    if os.environ.get("HYBRID_AI_GPU_LIVE_PROBE", "0") != "1":
+        return None
+
+    probe: dict[str, object] = {
+        "vendor_library_loads": {},
+        "paths": {
+            "vulkaninfo": shutil.which("vulkaninfo"),
+            "nvidia-smi": shutil.which("nvidia-smi"),
+        },
+    }
+
+    for library_path in _gpu_vendor_libraries():
+        try:
+            ctypes.CDLL(library_path)
+        except OSError as exc:
+            probe["vendor_library_loads"][library_path] = f"error: {exc}"
+        else:
+            probe["vendor_library_loads"][library_path] = "ok"
+
+    probe["vulkaninfo"] = _run_probe_command(["vulkaninfo", "--summary"])
+    probe["nvidia_smi"] = _run_probe_command(
+        ["nvidia-smi", "--query-gpu=index,name,driver_version,memory.total", "--format=csv,noheader"]
+    )
+    return probe
+
+
+def _prewarm_gpu_vendor_libraries(*, backend_name: str) -> dict[str, object] | None:
+    if (backend_name or "cpu").strip().lower() != "gpu":
+        return None
+
+    vendor_libraries = _gpu_vendor_libraries()
+    result: dict[str, object] = {"loads": {}, "enabled": True}
+    if not vendor_libraries:
+        result["status"] = "no-vendor-libraries"
+        return result
+
+    for library_path in vendor_libraries:
+        try:
+            ctypes.CDLL(library_path)
+        except OSError as exc:
+            result["loads"][library_path] = f"error: {exc}"
+        else:
+            result["loads"][library_path] = "ok"
+    return result
+
+
+def _gpu_vendor_libraries() -> list[str]:
+    return [item for item in os.environ.get("HYBRID_AI_GPU_VENDOR_LIBRARIES", "").split(":") if item]
+
+
+def _run_probe_command(command: list[str]) -> dict[str, object]:
+    executable = shutil.which(command[0])
+    if executable is None:
+        return {"command": command, "available": False}
+
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, env=os.environ.copy())
+    except Exception as exc:  # pragma: no cover - diagnostic path
+        return {"command": command, "available": True, "error": str(exc)}
+
+    output = (completed.stdout or completed.stderr or "").strip()
+    if len(output) > 2000:
+        output = output[:2000] + "..."
+
+    return {
+        "command": command,
+        "available": True,
+        "returncode": completed.returncode,
+        "output": output,
+    }

@@ -54,6 +54,8 @@ PY
 }
 
 hybrid_ai_python_gpu_validate_inner() {
+    local snapshot_dir="${HYBRID_AI_GPU_DEBUG_SNAPSHOT_DIR:-}"
+
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/python/python_env.sh"
   # shellcheck disable=SC1090
@@ -61,10 +63,18 @@ hybrid_ai_python_gpu_validate_inner() {
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
+    hybrid_ai_linux_gpu_scrub_runtime_env
   hybrid_ai_activate_python_env
+    hybrid_ai_linux_gpu_rebuild_runtime_path
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND=gpu
+
+    if [[ -n "$snapshot_dir" ]]; then
+        mkdir -p "$snapshot_dir"
+        "$project_root/scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh" \
+            validate "$snapshot_dir/validate.json" >/dev/null
+    fi
 
   cd "$project_root/src/python"
   hybrid_ai_python_gpu_run_phase \
@@ -76,6 +86,40 @@ import ctypes.util
 libvulkan = ctypes.util.find_library("vulkan")
 if not libvulkan:
     fail("ctypes could not resolve the Vulkan loader")
+PY
+
+  hybrid_ai_python_gpu_run_phase \
+    managed-vulkan-tooling \
+    '{"gpu_validation":"phase-ok","phase":"managed-vulkan-tooling"}' \
+    managed-vulkan-tooling <<'PY'
+import os
+import shutil
+
+vulkaninfo = shutil.which("vulkaninfo")
+if not vulkaninfo:
+    fail("managed runtime could not resolve vulkaninfo")
+
+flox_env = os.environ.get("FLOX_ENV")
+if flox_env and not vulkaninfo.startswith(f"{flox_env}/"):
+    fail(f"vulkaninfo resolved outside FLOX_ENV: {vulkaninfo}")
+PY
+
+  hybrid_ai_python_gpu_run_phase \
+    icd-vendor-library-loadability \
+    '{"gpu_validation":"phase-ok","phase":"icd-vendor-library-loadability"}' \
+    icd-vendor-library-loadability <<'PY'
+import ctypes
+import os
+
+vendor_libraries = [item for item in os.environ.get("HYBRID_AI_GPU_VENDOR_LIBRARIES", "").split(":") if item]
+if not vendor_libraries:
+    fail("no resolved GPU vendor libraries were exported")
+
+for library_path in vendor_libraries:
+    try:
+        ctypes.CDLL(library_path)
+    except OSError as exc:
+        fail(f"managed runtime could not load GPU vendor library {library_path}: {exc}")
 PY
 
   hybrid_ai_python_gpu_run_phase \
@@ -308,6 +352,27 @@ if thread_error:
     fail(thread_error[0])
 PY
 
+    if [[ "${HYBRID_AI_GPU_STRICT_VULKANINFO:-0}" == "1" ]]; then
+        hybrid_ai_python_gpu_run_phase \
+            vulkan-adapter-enumeration \
+            '{"gpu_validation":"phase-ok","phase":"vulkan-adapter-enumeration"}' \
+            vulkan-adapter-enumeration <<'PY'
+import os
+import subprocess
+
+completed = subprocess.run(
+        ["vulkaninfo", "--summary"],
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+)
+
+if completed.returncode != 0:
+        output = (completed.stderr or completed.stdout or "").strip()
+        fail(f"vulkaninfo --summary failed: {output}")
+PY
+    fi
+
   hybrid_ai_python_gpu_run_phase \
     backend-readiness \
     '{"gpu_validation":"phase-ok","phase":"backend-readiness"}' \
@@ -322,6 +387,39 @@ finally:
 
 if not payload.get("ready"):
     fail("; ".join(payload.get("issues", [])) or "backend readiness returned ready=false")
+PY
+
+  hybrid_ai_python_gpu_run_phase \
+    threaded-backend-readiness \
+    '{"gpu_validation":"phase-ok","phase":"threaded-backend-readiness"}' \
+    threaded-backend-readiness <<'PY'
+import threading
+
+from hybrid_ai.backend import BackendService
+
+thread_error = []
+
+
+def worker() -> None:
+    service = BackendService()
+    try:
+        payload = service.readiness_payload()
+    except Exception as exc:
+        thread_error.append(str(exc))
+        return
+    finally:
+        service.shutdown()
+
+    if not payload.get("ready"):
+        thread_error.append("; ".join(payload.get("issues", [])) or "backend readiness returned ready=false")
+
+
+thread = threading.Thread(target=worker, name="hybrid-ai-backend-readiness")
+thread.start()
+thread.join()
+
+if thread_error:
+    fail(thread_error[0])
 PY
 
   python - <<'PY'

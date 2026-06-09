@@ -1,36 +1,47 @@
 # Use Case 05: Inference Server Workflow
 
-Date: 2026-06-08
-Status: Implemented
+Date: 2026-06-09
+Status: Implemented for CPU serving and for Linux GPU serving on the supported NVIDIA plus Vulkan host class
 Primary scripts:
 - `scripts/env/setup_litert_lm.sh`
 - `scripts/env/setup_gemma4_e4b.sh`
+- `scripts/env/run_inference_local_gpu_smoke.sh`
 - `scripts/env/toolchain/inference/linux_gpu_contract.sh`
 - `scripts/env/toolchain/python/python_gpu_validate.sh`
+- `scripts/env/toolchain/python/python_gpu_smoke.sh`
 - `scripts/env/toolchain/python/python_server_run.sh`
 - `scripts/env/toolchain/python/python_server_gpu_run.sh`
 - `scripts/env/toolchain/python/python_run.sh`
 
 ## 1. Goal
 
-Run the Linux inference server end to end inside the repository-managed Python
-environment so that:
+Run the Linux inference server inside the repository-managed Python environment
+so that:
 - LiteRT-LM is resolved from the Poetry-managed Python dependency set
 - the pinned Gemma 4 E4B model file lives under `volumes/models/litert-lm`
 - backend readiness checks validate the pinned runtime and pinned model assets
 - no host-global Python environment or host-global cache becomes part of the
   runtime path
 
-This workflow covers the complete server path:
+This workflow covers the complete promoted path for CPU serving and the complete
+promoted path for Linux GPU serving on the supported host class:
 - Flox activation
 - Python environment sync
 - LiteRT-LM dependency verification
 - Linux GPU host-contract verification
 - Linux GPU managed-runtime validation
 - pinned model bootstrap
-- server startup
-- readiness and chat smoke tests
+- CPU server startup
+- CPU readiness and chat smoke tests
 - Swift live integration validation against the running Python backend
+
+For Linux GPU specifically:
+- `preflight` is promoted
+- `validate` is promoted
+- `serve` is promoted for the current supported Linux host class:
+  - NVIDIA driver stack
+  - Vulkan ICD discovery
+  - repo-managed Python runtime under `env/python`
 
 ## 2. Why This Workflow Exists
 
@@ -58,8 +69,8 @@ This workflow assumes:
 - the nix daemon socket exists at `/nix/var/nix/daemon-socket/socket`
 - the repository root is `/home/nkse/projects/hybrid-ai`
 - the Python dependency graph is managed by Poetry under `src/python`
-- the backend should prefer the CPU LiteRT-LM backend on Linux unless explicitly
-  overridden
+- the CPU workflow is the currently promoted serving path on Linux
+- the GPU workflow is supported for the current NVIDIA plus Vulkan host class
 
 ## 4. Files Involved
 
@@ -149,6 +160,15 @@ The backend:
 The Linux GPU path adds two explicit gates before server startup:
 - a host-contract check that verifies device visibility and Vulkan ICD registration
 - a managed-runtime validation that proves the Flox-managed Python process can initialize LiteRT-LM with `Backend.GPU`
+
+Current promotion status:
+- the repo supports Linux GPU `preflight`, `validate`, and `serve` for the current NVIDIA plus Vulkan host class
+- the supported serve bridge is narrow absolute-path loading of the resolved vendor library before LiteRT-LM engine creation
+- broad host-library mutation through `LD_LIBRARY_PATH` remains rejected
+
+Supported shell entrypoints:
+- `scripts/env/run_inference_local_gpu_smoke.sh`
+- `scripts/env/toolchain/python/python_gpu_smoke.sh`
 
 ## 6. Complete Workflow
 
@@ -247,6 +267,33 @@ cd /home/nkse/projects/hybrid-ai
 ```
 
 Expected result:
+
+### 6.4 Linux GPU end-to-end smoke
+
+The repo now has a single-command GPU smoke workflow that mirrors the staged Flox serving style as closely as the current LiteRT-LM Linux path allows.
+
+Run:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+./scripts/env/run_inference_local_gpu_smoke.sh
+```
+
+What it does:
+- runs `nvidia-smi` to confirm the host driver sees a GPU
+- runs `python_gpu_validate.sh`
+- starts the GPU server with the current narrow serve bridge
+- polls `/ready`
+- fetches `/health`
+- creates one conversation
+- sends one message and verifies a normalized assistant text reply exists
+
+Useful overrides:
+- `HYBRID_AI_PORT`
+- `HYBRID_AI_HOST`
+- `HYBRID_AI_GPU_SMOKE_SYSTEM_PROMPT`
+- `HYBRID_AI_GPU_SMOKE_MESSAGE`
+- `HYBRID_AI_GPU_SMOKE_STARTUP_TIMEOUT_SECONDS`
 - `Verified litert-lm==0.13.1`
 
 ### 6.4 Bootstrap The Pinned Gemma 4 E4B Model
@@ -263,7 +310,7 @@ Expected result:
 - pinned model metadata is written under `volumes/models/litert-lm`
 - the model file exists at `volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm`
 
-### 6.5 Start The Inference Server
+### 6.5 Start The CPU Inference Server
 
 Default local server:
 
@@ -305,7 +352,7 @@ Expected result:
 - `libvulkan` is resolved
 - the payload includes the pinned `.litertlm` model file
 
-Linux GPU server:
+Linux GPU serve:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -316,9 +363,10 @@ HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
 Expected result:
 - the host-contract check passes
 - the GPU validation script passes
-- the server starts without an immediate LiteRT-LM GPU initialization error
+- the server starts and can satisfy `/ready`, `/health`, and conversation requests on supported hosts
+- the server uses the narrow vendor-library prewarm bridge rather than broad host linker-path mutation
 
-### 6.6 Readiness Smoke Test
+### 6.6 CPU Readiness Smoke Test
 
 In another terminal:
 
@@ -332,12 +380,12 @@ Expected result:
 - JSON payload with `"ready": true`
 - `"backend": "cpu"`
 
-For the Linux GPU launcher, expected result is:
+For Linux GPU on supported hosts, expected result is:
 - HTTP `200`
 - JSON payload with `"ready": true`
 - `"backend": "gpu"`
 
-### 6.7 Health Smoke Test
+### 6.7 CPU Health Smoke Test
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -348,7 +396,7 @@ Expected result:
 - HTTP `200`
 - JSON payload containing service name, pinned model info, and issue list
 
-### 6.8 Conversation Smoke Test
+### 6.8 CPU Conversation Smoke Test
 
 Create a conversation:
 
@@ -384,7 +432,7 @@ curl -i -X DELETE http://127.0.0.1:8080/v1/conversations/<conversation-id>
 Expected result:
 - HTTP `204`
 
-### 6.9 Swift Live Integration Test
+### 6.9 Swift Live Integration Test Against The Promoted Server Path
 
 After the Python backend is already running and `/ready` returns `"ready": true`,
 validate the Swift app-side transport against the live server:
@@ -456,6 +504,8 @@ Expected result:
 - the script reports at least one GPU device node
 - the script reports one or more Vulkan ICD files
 - the script reports one or more resolved vendor libraries
+- the output is observational and does not imply that those host libraries should
+  be injected into `LD_LIBRARY_PATH`
 
 ### 7.5 Verify Managed GPU Validation
 
@@ -467,8 +517,22 @@ cd /home/nkse/projects/hybrid-ai
 Expected result:
 - JSON payload with `"gpu_validation": "ok"`
 - the validation runs from the managed Python environment under `env/python`
+- no `LD_LIBRARY_PATH` mutation is required for the validated path
 
-### 7.6 Verify The Server Log Path
+### 7.6 Promotion Boundary Summary
+
+Current Linux GPU boundary:
+- promoted: `scripts/env/toolchain/inference/linux_gpu_contract.sh`
+- promoted: `scripts/env/toolchain/python/python_gpu_validate.sh`
+- promoted: live GPU serving through `scripts/env/toolchain/python/python_server_gpu_run.sh`
+- promoted: end-to-end live verification through `scripts/env/run_inference_local_gpu_smoke.sh`
+
+Reason:
+- the current LiteRT-LM Linux GPU path now has a verified narrow driver-facing
+  serve bridge based on absolute-path loading of the resolved vendor library
+  without broad host dynamic-linker mutation
+
+### 7.7 Verify The Server Log Path
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -478,7 +542,7 @@ ls -l volumes/logs/python_server.log
 Expected result:
 - the file exists under `volumes/logs`
 
-### 7.7 Verify The Swift Live Integration Path
+### 7.8 Verify The Swift Live Integration Path
 
 Run the dedicated live integration test script:
 

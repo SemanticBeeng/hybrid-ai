@@ -42,6 +42,62 @@ hybrid_ai_linux_gpu_join_by() {
   printf '\n'
 }
 
+hybrid_ai_linux_gpu_scrub_runtime_env() {
+  local var_name
+  local -a scrubbed_vars
+
+  scrubbed_vars=(
+    CUDA_CACHE_DISABLE
+    CUDA_CACHE_MAXSIZE
+    CUDA_CACHE_PATH
+    CUDA_DEVICE_ORDER
+    CUDA_FORCE_PTX_JIT
+    CUDA_HOME
+    CUDA_MODULE_LOADING
+    CUDA_PATH
+    CUDA_ROOT
+    CUDA_VISIBLE_DEVICES
+    DYLD_INSERT_LIBRARIES
+    LD_PRELOAD
+    NVIDIA_DRIVER_CAPABILITIES
+    NVIDIA_VISIBLE_DEVICES
+    VK_ADD_DRIVER_FILES
+    VK_DEVICE_LAYERS
+    VK_DRIVER_FILES
+    VK_ICD_FILENAMES
+    VK_INSTANCE_LAYERS
+    VK_LAYER_PATH
+    VK_LOADER_DEBUG
+    __EGL_VENDOR_LIBRARY_FILENAMES
+    __NV_PRIME_RENDER_OFFLOAD
+    __VK_LAYER_NV_optimus
+  )
+
+  for var_name in "${scrubbed_vars[@]}"; do
+    unset "$var_name"
+  done
+}
+
+hybrid_ai_linux_gpu_rebuild_runtime_path() {
+  local -a path_entries
+  local rebuilt_path
+
+  path_entries=()
+
+  if [[ -n "${HYBRID_AI_PYTHON_VENV:-}" ]]; then
+    path_entries+=("$HYBRID_AI_PYTHON_VENV/bin")
+  fi
+
+  if [[ -n "${FLOX_ENV:-}" ]]; then
+    path_entries+=("$FLOX_ENV/bin" "$FLOX_ENV/sbin")
+  fi
+
+  path_entries+=("/usr/bin" "/bin")
+  rebuilt_path="$(hybrid_ai_linux_gpu_join_by ':' "${path_entries[@]}")"
+  rebuilt_path="${rebuilt_path%$'\n'}"
+  export PATH="$rebuilt_path"
+}
+
 hybrid_ai_linux_gpu_collect_device_nodes() {
   local -n out_ref=$1
   local path
@@ -238,10 +294,6 @@ hybrid_ai_linux_gpu_apply_bridge_env() {
   fi
 
   export VK_ICD_FILENAMES="$HYBRID_AI_GPU_ICD_FILES"
-
-  if [[ "${HYBRID_AI_GPU_BRIDGE_HOST_LIB_DIRS:-0}" == "1" ]] && [[ -n "${HYBRID_AI_GPU_HOST_LIB_DIRS:-}" ]]; then
-    export LD_LIBRARY_PATH="$HYBRID_AI_GPU_HOST_LIB_DIRS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-  fi
 }
 
 hybrid_ai_linux_gpu_print_env() {
@@ -251,7 +303,6 @@ hybrid_ai_linux_gpu_print_env() {
 
   printf 'VK_ICD_FILENAMES=%s\n' "$HYBRID_AI_GPU_ICD_FILES"
   printf 'HYBRID_AI_GPU_HOST_LIB_DIRS=%s\n' "$HYBRID_AI_GPU_HOST_LIB_DIRS"
-  printf 'HYBRID_AI_GPU_BRIDGE_HOST_LIB_DIRS=%s\n' "${HYBRID_AI_GPU_BRIDGE_HOST_LIB_DIRS:-0}"
 }
 
 hybrid_ai_linux_gpu_contract_main() {

@@ -15,6 +15,17 @@ Use `HTTP + JSON` for request-response behavior and add streaming through `SSE` 
 3. It is compatible with the shared Swift runtime abstraction.
 4. It avoids coupling Linux behavior to in-process interpreter shortcuts.
 
+## Linux GPU Consequence
+
+For the current LiteRT-LM Linux GPU path, the transport decision remains correct even though live GPU serving is not yet promoted.
+
+That means:
+
+1. HTTP remains the preferred process boundary for the Linux backend path
+2. GPU capability probing can be promoted before long-lived GPU serving is promoted
+3. transport design should not be changed just to compensate for unresolved Linux GPU runtime-bridge issues
+4. unresolved Linux GPU runtime promotion remains a runtime-boundary concern, not a reason to collapse transport boundaries
+
 ## Rejected Or Deferred Defaults
 
 1. `PythonKit` as the primary Linux integration path

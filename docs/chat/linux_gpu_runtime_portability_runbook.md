@@ -550,6 +550,11 @@ Validation should answer:
 - can the runtime reach at least one usable adapter path?
 - does the bridged process fail before LiteRT-LM initialization or during LiteRT-LM initialization?
 
+Implementation note after initial probing:
+- the validated bridge should not mutate `LD_LIBRARY_PATH` as part of the normal path
+- early experiments that injected host vendor library directories into `LD_LIBRARY_PATH` caused Python process instability and violated the intended flow boundary
+- until a narrower sanctioned bridge is identified, the promoted implementation boundary should stop at `validate`, not `serve`
+
 Exit criteria:
 - the repo can answer "can the managed runtime see the bridged GPU stack?" separately from "can LiteRT-LM serve requests?"
 
@@ -566,14 +571,14 @@ Responsibilities:
 - run host-contract discovery
 - run bridged runtime validation
 - force `HYBRID_AI_LITERT_BACKEND=gpu`
-- launch the existing Python backend entrypoint only if the earlier gates pass
+- launch the existing Python backend entrypoint only after the earlier gates pass and the live serve stage has been explicitly promoted
 
 Non-goals:
 - this script should not become a generic shell environment manager
 - it should not guess at multiple incompatible host runtime layouts in an unbounded way
 
 Exit criteria:
-- there is exactly one documented Linux GPU launch path for LiteRT-LM in this repo
+- there is exactly one documented Linux GPU launch path for LiteRT-LM in this repo, and it is not promoted beyond validation until a non-`LD_LIBRARY_PATH` bridge is proven
 
 #### Phase 5: Add optional diagnostics as a separate layer
 
@@ -621,6 +626,301 @@ The `3.1` path should be considered implemented only when all of the following a
 4. The GPU server launcher is the only supported Linux GPU start path
 5. Failure classes are documented and actionable
 6. The environment and wrapper contract can be versioned together
+7. Live serving does not depend on broad `LD_LIBRARY_PATH` mutation
+
+### 3.1.k Current promotion boundary after implementation probing
+
+The initial implementation probing changes the recommended promotion boundary for
+this repo.
+
+Current state:
+- `preflight` is implemented and promoted
+- `validate` is implemented and promoted
+- `serve` is implemented only as an experimental launcher boundary
+
+Reason:
+- the current LiteRT-LM Linux GPU path can be validated inside the managed
+   Python environment with host-contract discovery plus `VK_ICD_FILENAMES`
+- attempts to promote live serving by mutating `LD_LIBRARY_PATH` to include host
+   vendor library directories caused Python process instability and violated the
+   intended narrow-bridge model from the cited flow resources
+- therefore the current implementation should not treat live GPU serving as a
+   promoted path until a narrower sanctioned serve bridge is identified
+
+Practical consequence:
+- the repo should treat `python_gpu_validate.sh` as the promoted GPU gate
+- `python_server_gpu_run.sh` should remain explicitly experimental beyond that
+   gate
+- documentation should not describe Linux GPU serving as fully implemented in
+   the same sense as the CPU server workflow
+
+What this does not mean:
+- it does not invalidate `3.1`
+- it means `3.1` is currently promoted only through validation, not through
+   long-lived server serving
+
+### 3.1.l Re-evaluation after prompt challenging the host pollution diagnosis
+
+User prompt to preserve:
+
+> "Not so sure about this because this host has cuda & vulkan tools installed and it seems the flox env is polluted by references to those binaries either directly or indirectly."
+
+Requested follow-up from the same prompt:
+- explore that challenge before proceeding
+- consider reusing one of the strongest Flox references from the `agentic-lmstudio` or `agentic-ollama` materials to prove that local GPU can be used by Gemma 4 on this host
+- use that hands-on exercise to improve troubleshooting of the Python inference-server crash
+
+What was tested:
+
+1. Inspect the actual repo-managed runtime surface
+   - reviewed [env/python/manifest.toml](env/python/manifest.toml), [env/inference/manifest.toml](env/inference/manifest.toml), [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh), [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh), [scripts/env/toolchain/python/python_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_gpu_validate.sh), and [scripts/env/toolchain/python/python_server_gpu_run.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_server_gpu_run.sh)
+   - confirmed that the repo deliberately exposes a controlled GPU-related surface:
+      - `env/python` installs `vulkan-loader`
+      - `python_env.sh` prepends the Flox runtime lib directory to `LD_LIBRARY_PATH`
+      - plain Flox activation still preserves host `PATH` entries such as `/usr/bin`
+
+2. Compare normal validation with a nearly clean shell
+   - ran `python_gpu_validate.sh` normally
+   - reran it from a near-empty `env -i` shell with only essential variables restored
+   - both runs passed through `threaded-backend-readiness`
+
+3. Inspect LiteRT-LM linkage directly
+   - `liblitert-lm.so` links to `libvulkan.so.1`
+   - it does not directly link to `libcuda.so.1` or other CUDA toolkit libraries
+   - `RUNPATH` is `$ORIGIN`
+
+4. Test which libraries the managed Python runtime can actually load
+   - inside the Flox-managed Python runtime:
+      - `ctypes.CDLL("libvulkan.so.1")` works
+      - `ctypes.CDLL("libcuda.so.1")` works
+      - `ctypes.CDLL("libGLX_nvidia.so.0")` fails with `cannot open shared object file`
+   - the same NVIDIA GLX library does exist on the host and is visible to `ldconfig`
+   - loading the library by absolute path works:
+      - `ctypes.CDLL("/lib/x86_64-linux-gnu/libGLX_nvidia.so.0")`
+
+5. Reproduce the live server failure again
+   - launched the experimental server on an alternate port
+   - `/ready` returned HTTP 503 with:
+      - `failed to initialize LiteRT-LM engine`
+   - `/health` still reported service status `ok`
+   - server logs again showed the Vulkan and WebGPU path failing during live engine creation
+
+6. Compare host GPU diagnostics directly
+   - `vulkaninfo --summary` on this host currently fails to detect a valid GPU
+   - `nvidia-smi -L` currently fails to enumerate a usable device handle
+
+7. Test a narrower bridge hypothesis without changing repo code
+   - created a temporary ICD JSON with an absolute `library_path` pointing at `/lib/x86_64-linux-gnu/libGLX_nvidia.so.0`
+   - used that file through `VK_ICD_FILENAMES`
+   - result: the soname lookup problem was bypassed, but Vulkan still could not enumerate a valid adapter inside the Flox process
+
+8. Test the old broad-host-library idea one more time as a safety check
+   - temporarily prepending `/lib/x86_64-linux-gnu` to `LD_LIBRARY_PATH` caused crashes and ABI breakage again
+   - this reconfirmed that broad host-library bridging is not a safe promoted solution
+
+Revised findings after these probes:
+
+1. The current problem is not best explained as generic Flox shell pollution
+   - inherited shell state does exist
+   - but the promoted validator still passes from a nearly clean shell
+   - that weakens the theory that ambient host shell references are the main cause
+
+2. The managed runtime has a narrower loader-boundary problem
+   - the Flox-managed Python runtime can load `libvulkan.so.1` and `libcuda.so.1`
+   - it cannot load the NVIDIA ICD vendor library by soname from the host ICD JSON
+   - this matches the live-server log line:
+      - `libGLX_nvidia.so.0: cannot open shared object file`
+
+3. The immediate live failure is consistent with Vulkan ICD or adapter initialization failure in-process
+   - the server log shows:
+      - `vkCreateInstance failed with VK_ERROR_INCOMPATIBLE_DRIVER`
+      - `Found 0 adapters`
+      - `Failed to initialize WebGPU environment: No adapters found`
+   - the failure still occurs inside live `prepare()` or engine creation, not during the earlier validation ladder
+
+4. There is also an underlying host GPU visibility problem on this machine right now
+   - host `vulkaninfo` does not enumerate a valid GPU
+   - host `nvidia-smi` cannot enumerate a usable device cleanly
+   - even after bypassing the ICD vendor-library soname issue with an absolute-path ICD JSON, Vulkan still fails to enumerate a valid adapter
+
+5. The old `LD_LIBRARY_PATH` workaround remains rejected
+   - direct experimentation again showed process instability and ABI mismatch when broad host library directories were injected into the managed runtime
+
+Current interpretation after this re-evaluation:
+- the earlier statement that this is not mainly a CUDA dev-tool packaging problem still stands
+- but it should be refined
+- the meaningful host interaction is not generic binary pollution from host CUDA or Vulkan tools on `PATH`
+- the meaningful host interaction is:
+   - host Vulkan ICD metadata
+   - host NVIDIA vendor-library lookup from a Flox or Nix-managed process
+   - actual host GPU adapter enumeration
+
+Practical consequence for the repo:
+- the validator should eventually gain a stricter probe than `find_library()` alone
+- future validation should explicitly test:
+   - whether the managed process can load the ICD vendor library named by the selected ICD
+   - whether a minimal adapter-enumeration path succeeds before LiteRT-LM tries to serve
+- any future bridge experiment should prefer a narrow sanctioned mechanism, such as explicit ICD rewriting or equivalent targeted handling, rather than broad `LD_LIBRARY_PATH` mutation
+
+Result of the requested Flox reference exercise:
+- attempted to use the remote `flox/agentic-ollama` environment as the strongest near-term reference stack for proving local GPU-backed Gemma serving on this host
+- the environment resolved far enough to begin downloading `ollama-cuda`
+- activation then failed because the package was not signed by a trusted key in the current Flox policy context
+- therefore the reference exercise did not produce a Gemma 4 proof on this machine yet
+- however, the lower-level host probes already suggest that even a trusted activation would still be blocked by the current host GPU enumeration failures unless the host driver state is corrected first
+
+### 3.1.m Narrow isolation hardening implemented after the re-evaluation
+
+Implemented changes:
+
+1. Managed Vulkan tooling was added to the Python server environment
+   - [env/python/manifest.toml](env/python/manifest.toml) now includes `vulkan-tools` in addition to `vulkan-loader`
+   - this gives the GPU validation path a Flox-managed `vulkaninfo` instead of relying on a host-installed diagnostic binary
+
+2. The GPU path now scrubs ambient CUDA and Vulkan environment variables before activation
+   - [scripts/env/toolchain/inference/linux_gpu_contract.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference/linux_gpu_contract.sh) now unsets ambient GPU-related variables such as:
+      - `LD_PRELOAD`
+      - `CUDA_*`
+      - `VK_*`
+      - `NVIDIA_*`
+   - this is intentionally narrow to the GPU validation and GPU server-launch path; it does not change the default CPU workflow
+
+3. The GPU path now rebuilds a narrower runtime `PATH`
+   - after Python activation, the GPU scripts rebuild `PATH` to prefer:
+      - the managed Python venv
+      - `FLOX_ENV/bin`
+      - `FLOX_ENV/sbin`
+      - `/usr/bin`
+      - `/bin`
+   - this reduces accidental dependence on user-level host tool paths while still allowing the residual host driver boundary to be reached through the standard system runtime
+
+4. The promoted validator gained stricter isolation-oriented checks
+   - [scripts/env/toolchain/python/python_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_gpu_validate.sh) now includes:
+      - `managed-vulkan-tooling`
+         - verifies that `vulkaninfo` resolves from inside `FLOX_ENV`
+      - `icd-vendor-library-loadability`
+         - verifies that the resolved GPU vendor library paths exported by the contract helper can be loaded by the managed Python runtime
+   - an optional stricter probe is also available:
+      - `HYBRID_AI_GPU_STRICT_VULKANINFO=1`
+      - this adds a managed `vulkaninfo --summary` adapter-enumeration phase to the validator
+
+Observed outcome after these changes:
+- the promoted validator still succeeds under the narrowed GPU runtime path
+- the stricter managed `vulkaninfo` phase also succeeds when enabled
+- at that stage the live server still failed on `/ready` with LiteRT-LM engine creation failure
+
+Interpretation:
+- these changes improved runtime isolation and made the validator more trustworthy as a managed-environment check
+- they did not eliminate the separate live-serving failure boundary
+- therefore the repo remains in the same promotion state:
+   - validation is promoted
+   - live GPU serving remains experimental
+
+### 3.1.n Experimental narrow serve bridge found after live request-thread probing
+
+Additional investigation after `3.1.m`:
+- added an env-gated request-thread probe in [src/python/hybrid_ai/backend.py](/home/nkse/projects/hybrid-ai/src/python/hybrid_ai/backend.py) so the live `prepare()` path could capture what the actual HTTP request thread sees immediately before LiteRT-LM engine creation
+- this probe records:
+   - whether the resolved NVIDIA vendor library can be loaded by absolute path
+   - `nvidia-smi` output from the request thread
+   - `vulkaninfo --summary` output from the request thread
+
+Observed breakthrough:
+- the broad live probe unexpectedly changed the live outcome:
+   - `/ready` returned `ready: true`
+   - `backend-prepare-success` was captured from `Thread-1 (process_request_thread)`
+- the probe output showed that the request thread could load the resolved NVIDIA vendor library by absolute path and that `nvidia-smi` returned normal device metadata
+- removing the probe again caused live `/ready` to fall back to engine creation failure
+
+Isolation of the winning behavior:
+- a narrower prewarm path was added
+- this path loads the resolved vendor library paths from `HYBRID_AI_GPU_VENDOR_LIBRARIES` by absolute path in `LiteRTEngineRuntime.prepare()` before LiteRT-LM engine creation
+- once this prewarm was present in the live GPU path:
+   - `/ready` returned `ready: true`
+   - `/health` returned `ready: true`
+   - creating a conversation and sending a real message through `/v1/conversations/.../messages` succeeded
+
+Important nuance:
+- the successful request-thread probe also showed that `vulkaninfo --summary` launched from inside Python subprocess execution can still fail with a glibc-related mismatch even while LiteRT-LM engine creation succeeds
+- therefore the most meaningful serve-path indicator here is not subprocess `vulkaninfo`, but whether the NVIDIA vendor library can be loaded by absolute path inside the managed process before engine creation
+
+Current interpretation after this experiment:
+- a narrow serve bridge likely exists for this host class
+- that bridge is not broad `LD_LIBRARY_PATH` mutation
+- the currently successful narrow mechanism is:
+   - keep the isolated managed runtime path from `3.1.m`
+   - resolve the vendor library path during host-contract discovery
+   - prewarm the vendor library by absolute path before LiteRT-LM engine creation in the live server path
+
+Current repo status after this result:
+- validation remains promoted
+- live GPU serving is no longer blocked in the same way on this host when the experimental vendor-library prewarm flag is enabled
+- however, the serve bridge is still experimental until the project decides whether this prewarm should be:
+   - promoted as the supported narrow Linux serve bridge
+   - constrained to NVIDIA-only handling
+   - or replaced with a still cleaner sanctioned mechanism
+
+Operator flags still relevant to this runbook:
+- `HYBRID_AI_GPU_LIVE_PROBE=1`
+   - enables the richer request-thread diagnostic probe used to isolate the winning behavior
+
+### 3.1.o Verified end-to-end smoke and promotion decision
+
+Verified result captured after implementing the repo-local smoke workflow:
+- the repo-level shell entrypoint [scripts/env/run_inference_local_gpu_smoke.sh](scripts/env/run_inference_local_gpu_smoke.sh) now wraps [scripts/env/toolchain/python/python_gpu_smoke.sh](scripts/env/toolchain/python/python_gpu_smoke.sh)
+- the shell smoke workflow was executed end to end on this host on a fresh port after hardening cleanup and port checks
+- the smoke workflow completed successfully through all stages:
+   - host `nvidia-smi` check
+   - managed GPU validation
+   - GPU server startup
+   - `/ready`
+   - `/health`
+   - conversation creation
+   - one message round-trip
+- the verified ready payload reported:
+   - `ready: true`
+   - `backend: gpu`
+- the verified health payload reported:
+   - `status: ok`
+   - `ready: true`
+- the verified round-trip returned assistant content through the live HTTP API
+- after backend normalization and stale-listener cleanup hardening, the verified message payload returned normalized plain assistant text:
+   - `Hello there, how are you?`
+
+Follow-up issue found during that smoke:
+- the first successful end-to-end smoke exposed that the backend was returning a stringified structured LiteRT response object instead of normalized plain assistant text
+- this was fixed at the backend extraction boundary in [src/python/hybrid_ai/backend.py](/home/nkse/projects/hybrid-ai/src/python/hybrid_ai/backend.py) by normalizing:
+   - structured content-part lists
+   - stringified structured payloads that serialize as Python literals
+- the smoke wrapper was also hardened so repeated local runs do not silently reuse stale listeners:
+   - it now checks whether the requested port is already in use
+   - it logs per-port under `/tmp/hybrid-ai-gpu-smoke-server-<port>.log`
+   - it tears down the background server process group rather than only one PID
+
+Promotion decision:
+- promote the narrow absolute-path vendor-library prewarm as the supported Linux GPU serve bridge for the current repository target
+
+Scope of that promotion:
+- Linux
+- NVIDIA driver stack
+- Vulkan ICD-based discovery
+- repo-managed Python runtime in `env/python`
+
+Why this is now the right promotion point:
+- the serve bridge is now exercised by a deterministic repo-local shell smoke path rather than only ad hoc terminal probes
+- the bridge no longer depends on broad `LD_LIBRARY_PATH` mutation
+- the bridge is narrow, inspectable, and derived from the same host-contract data already exported by `linux_gpu_contract.sh`
+- the end-to-end API path now returns normalized plain assistant text instead of implementation-shaped response objects
+
+What remains constrained even after promotion:
+- this is still a host-driver boundary, not a fully host-independent GPU stack
+- this promotion should be treated as NVIDIA-specific unless and until another vendor path is implemented and verified
+- if a future LiteRT-LM release removes the need for absolute-path prewarm, the bridge should be simplified again rather than preserved out of inertia
+
+Practical repo consequence:
+- Linux GPU `serve` is now promoted for the supported host class above
+- the vendor-library prewarm should no longer be described as experimental in the main workflow docs
+- the shell smoke entrypoint should remain part of the supported verification ladder because it proves the live server contract, not just the validation ladder
 
 #### Proposed work order in this repo
 

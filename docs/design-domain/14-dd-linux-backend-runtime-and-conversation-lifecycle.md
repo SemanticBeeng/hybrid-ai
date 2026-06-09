@@ -38,6 +38,18 @@ This document isolates Linux backend runtime and conversation ownership beneath 
 2. App-level transcript isolation maps cleanly to backend conversation state.
 3. Linux lifecycle still fits the one-runtime-many-conversations model shared with Apple-native integration.
 
+## Current Linux GPU Lifecycle Note
+
+For the current LiteRT-LM Linux GPU path, the lifecycle model is promoted in two layers:
+
+1. GPU preflight and managed-runtime validation are promoted as a capability boundary
+2. long-lived server preparation and conversation-serving remain experimental until the live runtime bridge is promoted
+
+The lifecycle model itself does not change, but the promotion boundary does:
+
+1. one-runtime-many-conversations remains the intended steady-state model
+2. the repo should not claim that this steady state is promoted for Linux GPU until live runtime preparation is stable without broad linker-path mutation
+
 ## Design Constraint
 
 Do not regress to one-request-one-runtime or one-process-per-conversation as the Linux backend default.

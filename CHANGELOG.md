@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-06-09
+
+### Linux GPU inference boundary and diagnostics
+- implemented Linux GPU host-contract preflight in `scripts/env/toolchain/inference/linux_gpu_contract.sh` and promoted it as part of the supported GPU rehearsal boundary
+- implemented managed Linux GPU validation in `scripts/env/toolchain/python/python_gpu_validate.sh`, including phased checks for Vulkan loader resolution, LiteRT-LM import, backend selection, engine creation, conversation creation, and backend readiness
+- implemented `scripts/env/toolchain/python/python_server_gpu_run.sh` as the Linux GPU launcher wrapper for the promoted supported host class
+- added GPU runtime snapshot tooling in `scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh` and snapshot diff tooling in `scripts/env/toolchain/python/python_gpu_snapshot_diff.sh`
+- added in-process Python debug snapshots in `src/python/hybrid_ai/debug_snapshot.py` and wired them into `src/python/hybrid_ai/server.py` and `src/python/hybrid_ai/backend.py` so the live server process can be compared against the promoted validation path
+- tightened `scripts/env/toolchain/python/python_env.sh` to deduplicate `PATH` and `LD_LIBRARY_PATH` entries during nested wrapper activation so runtime snapshots are stable and easier to compare
+
+### Linux GPU current status
+- Linux GPU is now promoted through `preflight`, `validate`, and live `serve` for the current supported NVIDIA plus Vulkan host class
+- the promoted GPU gate is `scripts/env/toolchain/python/python_gpu_validate.sh`
+- the promoted Linux GPU serve bridge is a narrow absolute-path vendor-library prewarm in `src/python/hybrid_ai/backend.py`, not broad `LD_LIBRARY_PATH` mutation
+- a repo-local end-to-end shell smoke path now verifies `/ready`, `/health`, conversation creation, and message round-trip through `scripts/env/run_inference_local_gpu_smoke.sh`
+- the backend now normalizes structured LiteRT response payloads to plain assistant text before returning HTTP JSON responses
+- the GPU smoke wrapper now refuses occupied ports and cleans up the whole background server process group so repeated local runs do not silently talk to stale listeners
+
+### Linux GPU re-evaluation outcome
+- rejected broad host dynamic-linker mutation through `LD_LIBRARY_PATH` as the normal Linux GPU fix layer because it caused Python instability and violated the intended narrow bridge model
+- preserved the existing Python Flox environment at `env/python` as the single Python server runtime boundary rather than introducing a separate GPU runtime environment
+- documented the current promotion boundary and Linux GPU lifecycle status in:
+	- `docs/usecases/05-inference-server-workflow.md`
+	- `docs/chat/linux_gpu_runtime_portability_runbook.md`
+	- `docs/design-domain/13-dd-linux-backend-runtime-adapter.md`
+	- `docs/design-domain/14-dd-linux-backend-runtime-and-conversation-lifecycle.md`
+	- `docs/design-domain/04-dd-backend-transport-and-error-boundary.md`
+
+### Most likely remaining cause
+- wrapper-level runtime assembly is no longer the leading suspect; validate and serve-launch snapshots are effectively identical apart from process metadata
+- the request-thread investigation showed that live success depends on loading the resolved NVIDIA vendor library by absolute path before LiteRT-LM engine creation in the server process
+- the prewarm is now promoted as the supported narrow Linux serve bridge for the current NVIDIA plus Vulkan host class, while remaining explicitly vendor-scoped rather than treated as a generic cross-vendor abstraction
+
 ## 2026-06-05
 
 ### Toolchain source-boundary cleanup

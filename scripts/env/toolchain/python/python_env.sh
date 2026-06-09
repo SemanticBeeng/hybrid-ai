@@ -23,6 +23,33 @@ hybrid_ai_python_venv_dir() {
   printf '%s\n' "$FLOX_ENV_CACHE/python"
 }
 
+hybrid_ai_dedup_colon_path_var() {
+  local var_name="$1"
+  local value="${!var_name:-}"
+  local entry
+  local result=""
+  local seen=""
+
+  if [[ -z "$value" ]]; then
+    return 0
+  fi
+
+  IFS=':' read -r -a entries <<< "$value"
+  for entry in "${entries[@]}"; do
+    [[ -n "$entry" ]] || continue
+    case ":$seen:" in
+      *":$entry:"*)
+        continue
+        ;;
+    esac
+    seen="${seen:+$seen:}$entry"
+    result="${result:+$result:}$entry"
+  done
+
+  printf -v "$var_name" '%s' "$result"
+  export "$var_name"
+}
+
 hybrid_ai_export_python_env() {
   local python_dir=""
   local venv_dir=""
@@ -69,6 +96,9 @@ hybrid_ai_activate_python_env() {
   if [[ -d "$runtime_dir" ]]; then
     export LD_LIBRARY_PATH="$runtime_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   fi
+
+  hybrid_ai_dedup_colon_path_var PATH
+  hybrid_ai_dedup_colon_path_var LD_LIBRARY_PATH
 }
 
 hybrid_ai_setup_python_env() {
