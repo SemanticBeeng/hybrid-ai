@@ -539,6 +539,31 @@ Reason:
   serve bridge based on absolute-path loading of the resolved vendor library
   without broad host dynamic-linker mutation
 
+Important packaging note:
+- the current `env/python/manifest.toml` explicitly installs the Vulkan loader,
+  Vulkan diagnostics tooling, and the Linux userspace graphics libraries needed
+  by the resolved NVIDIA vendor path
+- this is an interim runtime-closure expression, not the desired long-term
+  application manifest shape
+- the design target is a higher-level LiteRT-LM Linux GPU runtime environment or
+  package that would own:
+  - pinned Python and LiteRT-LM
+  - the supported native-library closure
+  - the `preflight`, `validate`, and `serve` wrapper commands
+  - the documented host-driver contract
+- until that runtime exists, the explicit manifest entries remain the honest
+  and reproducible way to express the current supported Linux GPU boundary
+- the intended long-term direction is a composed runtime layout rather than a
+  single application env curating all engine-specific native closures directly;
+  see the design notes in
+  [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
+  for:
+  - reusable Flox runtime patterns from `llama.cpp`, `vLLM`, `SGLang`,
+    `Triton`, `LM Studio`, and `Ollama`
+  - the future multi-engine environment layout for this repo
+  - the separate Apple-hosted LiteRT-LM environment needed to support the iOS
+    deployment path
+
 ### 7.7 Verify The Server Log Path
 
 ```bash

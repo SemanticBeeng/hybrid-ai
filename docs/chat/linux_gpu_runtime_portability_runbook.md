@@ -1284,6 +1284,298 @@ The recommended direction is therefore:
 3. Evaluate Linux options by how well they preserve those same effects
 4. Keep the shared Swift runtime contract stable across all of the above
 
+### 4.1 Packaging Direction For The LiteRT-LM Linux GPU Runtime
+
+The current repository state proves that LiteRT-LM GPU serving can run on the
+supported Linux NVIDIA plus Vulkan host class through a narrow host-driver
+bridge and a Flox-managed Python runtime.
+
+The current `env/python/manifest.toml` should not be treated as the desired
+long-term packaging boundary.
+
+Why it currently looks granular:
+- the manifest currently installs the Vulkan loader, Vulkan diagnostics tooling,
+   and the X11 or XCB userspace libraries that the resolved NVIDIA vendor
+   library requires at runtime
+- this is not arbitrary library collection; it is the explicitly discovered
+   native closure required for the current LiteRT-LM Linux GPU path
+- however, it still expresses transitive runtime details at the application
+   environment layer rather than through a named runtime capability
+
+Recommended target shape:
+- move toward a dedicated LiteRT-LM Linux GPU runtime environment or package
+- keep the application-facing `env/python` manifest small and product-oriented
+- treat the Linux GPU runtime as a named and versioned capability rather than a
+   growing list of native libraries
+
+That target runtime should own:
+- the pinned Python runtime used by the server
+- the pinned LiteRT-LM package set
+- the Vulkan loader and any diagnostics tools that are part of supported
+   validation
+- the required Linux userspace graphics-library closure for the supported host
+   class
+- the wrapper commands for preflight, validate, and serve
+- the documented host contract for what remains outside Flox:
+   - NVIDIA driver stack
+   - device-node visibility
+   - Vulkan ICD registration
+
+Preferred near-term structure:
+
+1. A composed LiteRT-LM runtime base
+    - Python
+    - Poetry or uv as needed
+    - LiteRT-LM and related Python dependencies
+
+2. A Linux GPU support layer
+    - Vulkan loader and diagnostics tooling
+    - the required Linux userspace graphics-library closure
+    - vendor-library discovery and validation helpers
+
+3. A server product layer
+    - preflight command
+    - managed-runtime validation command
+    - server launch command
+    - logging, snapshots, and readiness policy
+
+Implications for this repo:
+- the current explicit native-library installs are acceptable as an interim
+   implementation because they make the runtime boundary inspectable and
+   reproducible
+- they should eventually move under a dedicated runtime environment or package
+   so that `env/python` depends on a higher-level runtime capability instead of
+   curating transitive Linux GPU libraries directly
+- the wrapper scripts already point in that direction because they separate:
+   - host-contract discovery
+   - managed-runtime validation
+   - server launch
+
+In short:
+- the current manifest is explicit but still low-level
+- the desired end state is equally explicit, but at the level of a named
+   LiteRT-LM Linux GPU runtime contract rather than individual Vulkan or X11
+   libraries
+
+### 4.2 Reusable Flox Runtime Patterns From Existing GPU Environments
+
+The existing Flox GPU-serving environments are still useful to this repo even
+though they are mostly NVIDIA and Linux oriented and do not package LiteRT-LM
+itself.
+
+The most reusable parts are higher-level runtime patterns, not their exact
+engine binaries or exact native-library sets.
+
+Reusable patterns already proven in Flox environments:
+
+1. Runtime package plus wrapper-command split
+    - `llamacpp` uses `flox/llamacpp-flox-runtime`
+    - `vllm` uses `flox/vllm-flox-runtime`
+    - `sglang` uses `flox/sglang-flox-runtime`
+    - the key reuse idea is to publish stable commands such as:
+       - `preflight`
+       - `resolve-model`
+       - `serve`
+    - this is directly applicable to LiteRT-LM and is better than leaving all
+       runtime behavior embedded in the application environment manifest
+
+2. Service pipeline as the unit of promotion
+    - `llamacpp`, `vllm`, `sglang`, and `nvidia-triton` all promote a service
+       command chain instead of a raw binary invocation
+    - this aligns with the current repo direction of separating:
+       - host-contract discovery
+       - managed-runtime validation
+       - server launch
+
+3. Model resolution as a distinct concern
+    - `llamacpp`, `vllm`, and `nvidia-triton` all distinguish runtime setup from
+       model provisioning
+    - supported source patterns include:
+       - Flox-packaged models from the Nix store
+       - local project models
+       - Hugging Face cache or Hugging Face download
+       - object-store sources such as R2
+    - this is directly reusable for LiteRT-LM even if the actual model file type
+       differs from GGUF or Hugging Face directories
+
+4. Host-driver bridge encapsulation
+    - `lmstudio` and `ollama-cuda` show a higher-level boundary than direct
+       application-manifest references to native libraries
+    - the key idea is that the package or runtime wrapper owns the host-driver
+       bridge instead of the application env curating low-level link inputs
+    - for LiteRT-LM, this is the main reusable idea behind eventually replacing
+       direct `vulkan-loader` and `xorg.*` entries in `env/python/manifest.toml`
+
+5. Activation-time defaults and cache ownership
+    - the existing runtimes consistently use:
+       - activation-time environment-variable defaults
+       - `$FLOX_ENV_CACHE` for generated state, logs, and staged assets
+       - explicit service commands under `[services]`
+    - this is reusable as-is for LiteRT-LM Linux and for an Apple-hosted
+       development environment
+
+6. Platform-specific runtime packaging under one logical product
+    - `lmstudio` already demonstrates a single logical runtime with different
+       Linux and Apple implementation details
+    - that pattern is directly relevant to a future split between:
+       - `litert-lm-linux-gpu-runtime`
+       - `litert-lm-ios-hosted-runtime`
+    - the logical contract can stay stable while the packaged runtime differs by
+       platform
+
+What is not directly reusable:
+- the exact CUDA package selections from `llama.cpp`, `vLLM`, `SGLang`, and
+   `Triton`
+- the exact Linux driver probes they use, because LiteRT-LM on Linux currently
+   depends on the Vulkan-backed path rather than a CUDA-native engine path
+- the exact model packaging layout used by GGUF- and Hugging Face-based engines
+
+Therefore the best reuse target is:
+- reuse the runtime packaging pattern
+- reuse the service-pipeline pattern
+- reuse the model-resolution pattern
+- do not copy their exact native dependency closure or assume that CUDA-native
+   runtime logic automatically solves LiteRT-LM's Vulkan-backed Linux path
+
+### 4.3 Engine Comparison Matrix For Future Repo Extension
+
+The table below compares the engines and runtimes most relevant to a future
+multi-engine `hybrid-ai` layout.
+
+| Engine or Runtime | Existing Flox runtime evidence | Best reusable parts for this repo | Main mismatch with current LiteRT-LM path | Fit for future `hybrid-ai` |
+| --- | --- | --- | --- | --- |
+| LiteRT-LM | No existing Flox runtime found in checked repos | N/A, this repo would author the runtime | Linux GPU path is Vulkan-backed and app-specific today | Required, custom runtime |
+| llama.cpp | Strong: `flox-cuda/llama-cpp` plus `flox/llamacpp-flox-runtime` | Clean `preflight -> resolve-model -> serve` pipeline, model provisioning, service promotion | GGUF and CUDA offload are a different runtime model | High |
+| vLLM | Strong: `flox-cuda/python3Packages.vllm` plus `flox/vllm-flox-runtime` | Python-engine packaging, model resolution, service scripts, OpenAI-compatible serving | CUDA-native and Hugging Face oriented, not Vulkan-backed | High |
+| SGLang | Strong: `flox/sglang-python312-cuda12_8-*` plus `flox/sglang-flox-runtime` | Explicit runtime package ownership, multi-GPU server shape, packaged models | CUDA-native package family, not aligned with LiteRT-LM API surface | Medium to high |
+| NVIDIA Triton | Strong: `flox/triton-server` plus backend packages and service pipeline | Multi-backend serving plane, preflight, model repository assembly, backend separation | Much heavier operational model than current repo needs | Medium |
+| Ollama | Strong: `ollama`, `ollama-cuda`, multiple env examples | Product-grade local runtime packaging, service composition, operational maturity | Internal engine abstraction hides too much for LiteRT-LM-style runtime authoring | Medium |
+| LM Studio | Strong: packaged runtime in `flox/floxenvs` and `agentic-development-with-flox` | Cross-platform runtime packaging, host-driver mediation, local API shape, composition | Product package rather than engine-authoring template; unfree upstream | Medium |
+| oMLX | Strong on Apple only: `flox/omlx` | Apple-hosted inference env shape, service and composition pattern | Apple-only and MLX-specific, not LiteRT-LM | Medium for iOS-hosted design inspiration |
+| MLC-LM | No existing Flox runtime found in checked repos | None found in checked repos | Would likely require custom packaging similar to LiteRT-LM | Possible custom future runtime |
+| cactus engine | No existing Flox runtime found in checked repos | None found in checked repos | Unknown packaging surface in Flox ecosystem | Possible custom future runtime |
+
+Recommended interpretation:
+- the repo should treat `llama.cpp` and `vLLM` as the strongest reusable design
+   references for a future custom LiteRT-LM runtime
+- `SGLang` is also relevant where explicit packaged CUDA server runtimes are
+   useful design input
+- `LM Studio` is the best reference for cross-platform local-runtime packaging
+   where Linux and Apple use different runtime internals under one product name
+- `oMLX` is useful as an Apple-hosted packaging reference, not as a LiteRT-LM
+   substitute
+
+### 4.4 Proposed Multi-Engine And iOS-Oriented Flox Layout
+
+The repo requirement is broader than Linux NVIDIA GPU serving.
+The app must also preserve a path to iOS deployment, which implies an Apple-side
+LiteRT-LM runtime contract in addition to the Linux GPU runtime.
+
+Important constraint:
+- a Flox environment cannot be the on-device iOS runtime itself
+- the iOS runtime that ships to the device remains the app bundle and its
+   Apple-managed packaging path
+- what Flox can provide is the hosted build, validation, packaging, fixture,
+   and approximation environment used to prepare and verify that iOS runtime
+
+That means the future repo layout should distinguish:
+
+1. Hosted runtime environments
+    - reusable development and validation environments running on Linux or macOS
+
+2. Product packaging targets
+    - the actual deployed Swift or Apple runtime packaged into the app
+
+Recommended future environment layout:
+
+1. `env/inference-litert-base`
+    - shared LiteRT-LM contract surface
+    - shared model, cache, and log policy
+    - shared wrapper naming and helper functions
+    - no Linux GPU-specific or Apple-specific native closure
+
+2. `env/inference-litert-linux-gpu`
+    - Linux x86_64 only
+    - owns the supported Linux NVIDIA plus Vulkan runtime closure
+    - owns:
+       - preflight
+       - validate
+       - serve
+       - model resolution for `.litertlm` assets
+    - eventually replaces direct native-library curation in `env/python`
+
+3. `env/inference-litert-ios-hosted`
+    - macOS Apple Silicon only
+    - does not pretend to run iOS inside Flox
+    - owns the hosted environment needed to:
+       - validate LiteRT-LM Apple backend assumptions
+       - stage pinned model assets and metadata for app packaging
+       - run Swift-side contract tests against the Apple-native runtime adapter
+       - prepare bundle-friendly asset layout for iOS or Mac Catalyst workflows
+    - should be interpreted as the hosted companion to the on-device iOS runtime,
+       not a substitute for it
+
+4. `env/inference-llamacpp`
+    - future optional engine env
+    - wraps an OpenAI-compatible local server contract
+
+5. `env/inference-vllm`
+    - future optional engine env
+    - wraps the OpenAI-compatible high-throughput server contract
+
+6. `env/inference-sglang`
+    - future optional engine env
+    - wraps the structured-generation server contract
+
+7. `env/inference-router`
+    - optional later composition env
+    - owns engine selection and shared client-facing configuration
+    - could expose a stable backend contract to Swift and Python callers while
+       selecting a concrete runtime underneath
+
+8. `env/app-dev`
+    - application-facing env that composes:
+       - shared toolchain envs
+       - one selected inference env
+       - test and smoke utilities
+
+Resulting product-facing contract:
+- the app and tests target one shared backend contract
+- each engine env owns its own runtime closure and service semantics
+- LiteRT-LM remains first-class on both:
+   - Linux via `env/inference-litert-linux-gpu`
+   - Apple-hosted development and iOS packaging via
+      `env/inference-litert-ios-hosted`
+
+### 4.5 Immediate Design Guidance For LiteRT-LM
+
+Based on the existing Flox runtime ecosystem, the next evolution of the current
+LiteRT-LM env should be:
+
+1. Do not keep growing `env/python/manifest.toml` as the permanent owner of raw
+    Linux GPU link inputs
+
+2. Move toward a dedicated LiteRT-LM Linux runtime package or composed env that
+    owns:
+    - native closure
+    - validation commands
+    - serve command
+    - host-contract documentation
+
+3. Define a separate Apple-hosted LiteRT-LM env for the iOS path so the repo
+    keeps the Apple deployment authority explicit instead of treating Linux GPU
+    as the only runtime that matters
+
+4. Reuse existing Flox runtime ideas at the service and packaging layer,
+    especially from:
+    - `llamacpp`
+    - `vllm`
+    - `lmstudio`
+
+5. Avoid direct reuse of CUDA-native dependency decisions where LiteRT-LM's
+    Linux path is still Vulkan-backed and Apple deployment remains a separate
+    product requirement
+
 ## 5. Apple Backend Surface
 
 LiteRT-LM should be treated as exposing the following public backend surface on Apple platforms:
