@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-06-10
+
+### GPU server launcher simplification
+- deleted `env/inference/` — only added curl/jq/git already provided by `env/base`
+- removed `env/inference` include from root manifest, `inference-litert-base`, and `inference-litert-linux-gpu`
+- `inference-litert-base` now includes `../base` directly
+- replaced the self-recursive `server_gpu_run.sh` (90+ lines with embedded functions) with a linear two-file design:
+  - `server_gpu_run.sh` — 30-line outer entry point that recovers `LD_AUDIT` from root env when missing, then activates GPU env and exec's inner
+  - `server_gpu_inner.sh` — 25-line inner script that ensures venv, runs contract check, applies bridge env, exec's python
+- removed `hybrid_ai_python_server_restore_flox_loader_state()` — no longer needed as a separate function; LD_AUDIT recovery moved to outer script as an 8-line inline block
+- removed `hybrid_ai_linux_gpu_scrub_runtime_env()` (30 lines) from `linux_gpu_contract.sh` — defensive unsetting of vars that cannot leak through the clean Flox activation boundary
+- removed `gpu_validate.sh` call from server launch path (kept as standalone diagnostic tool)
+- gated snapshot machinery behind `HYBRID_AI_GPU_DEBUG` env var instead of always evaluating it
+- re-locked root, `inference-litert-base`, and `inference-litert-linux-gpu` Flox environments after manifest changes
+- validated: server starts from fully clean external shell (all loader vars unset), returns `{"ready": true, "backend": "gpu", "issues": []}`
+
 ## 2026-06-09
 
 ### Linux GPU inference boundary and diagnostics

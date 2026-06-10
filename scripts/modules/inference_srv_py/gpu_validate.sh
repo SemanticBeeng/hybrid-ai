@@ -63,7 +63,6 @@ hybrid_ai_python_gpu_validate_inner() {
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
-    hybrid_ai_linux_gpu_scrub_runtime_env
     inference_srv_py_activate_env
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env

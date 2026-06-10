@@ -76,12 +76,16 @@ This workflow assumes:
 
 Environment and wrappers:
 - `env/python/manifest.toml`
+- `env/inference-litert-linux-gpu/manifest.toml`
 - `scripts/env/toolchain/nix/flox_env_init.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 - `scripts/modules/inference_srv_py/run.sh`
 - `scripts/modules/inference_srv_py/server_run.sh`
+- `scripts/modules/inference_srv_py/server_gpu_run.sh`
+- `scripts/modules/inference_srv_py/server_gpu_inner.sh`
 - `scripts/env/toolchain/inference_env.sh`
+- `scripts/env/toolchain/inference/linux_gpu_contract.sh`
 
 Pinned setup scripts:
 - `scripts/env/setup_litert_lm.sh`
@@ -126,12 +130,15 @@ was entered through the repository root Flox environment.
 
 Composition now differs by path:
 - `env/python` remains the standalone CPU-safe Python runtime and includes `env/base`
-- `env/inference-litert-linux-gpu` composes `env/python` with `env/inference` and sets the LiteRT engine selection locally
-- `env/inference-litert-base` remains a reusable LiteRT inference layer on top of `env/inference`
+- `env/inference-litert-linux-gpu` composes `env/python` directly and sets the LiteRT engine selection locally
+- `env/inference-litert-base` remains a reusable LiteRT inference layer on top of `env/base`
 
 That means the Linux GPU env inherits the Python toolchain from `env/python` and adds the LiteRT-LM GPU-native
 closure itself. A resync must account for direct packages in the selected runtime env and packages inherited from
 included environments.
+
+Note: `env/inference/` was removed because it only added packages (curl, jq, git) already provided by `env/base`.
+Its inference_env.sh exports are now sourced directly by the scripts that need them.
 
 ### 5.2 LiteRT-LM Dependency Management
 
@@ -165,11 +172,12 @@ The backend:
 - defaults to `HYBRID_AI_LITERT_BACKEND=cpu`
 - maintains one runtime with many backend-managed conversations
 
-The Linux GPU path adds two explicit gates before server startup:
-- a host-contract check that verifies device visibility and Vulkan ICD registration
-- a managed-runtime validation that proves the Flox-managed Python process can initialize LiteRT-LM with `Backend.GPU`
+The Linux GPU path adds a host-contract check before server startup that verifies
+device visibility, Vulkan ICD registration, and vendor library resolution.
 
-The GPU-specific wrappers now default to `env/inference-litert-linux-gpu` rather than `env/python`.
+The GPU-specific wrappers default to `env/inference-litert-linux-gpu` rather than `env/python`.
+The standalone `gpu_validate.sh` script remains available as a diagnostic tool but is
+no longer called as part of the normal server launch path.
 
 Current promotion status:
 - the repo supports Linux GPU `preflight`, `validate`, and `serve` for the current NVIDIA plus Vulkan host class
@@ -302,6 +310,8 @@ What it does:
 Useful overrides:
 - `HYBRID_AI_PORT`
 - `HYBRID_AI_HOST`
+- `HYBRID_AI_GPU_DEBUG` — set to any non-empty value to enable runtime snapshot capture during server launch
+- `HYBRID_AI_GPU_DEBUG_SNAPSHOT_DIR` — directory for snapshot output (defaults to `/tmp/hybrid-ai-gpu-snapshot-$$`)
 - `HYBRID_AI_GPU_SMOKE_SYSTEM_PROMPT`
 - `HYBRID_AI_GPU_SMOKE_MESSAGE`
 - `HYBRID_AI_GPU_SMOKE_STARTUP_TIMEOUT_SECONDS`
@@ -372,11 +382,15 @@ HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
 ./scripts/modules/inference_srv_py/server_gpu_run.sh
 ```
 
+The GPU server uses a two-file linear design:
+- `server_gpu_run.sh` — outer entry point that recovers `LD_AUDIT`/`GLIBC_TUNABLES` from the root env when missing, strips inherited Flox/venv state, then activates the GPU env and exec's the inner script
+- `server_gpu_inner.sh` — inner script that ensures the Python venv is active, runs the GPU host-contract check, applies the Vulkan bridge env, and exec's the Python server
+
 Expected result:
 - the host-contract check passes
-- the GPU validation script passes
 - the server starts and can satisfy `/ready`, `/health`, and conversation requests on supported hosts
 - the server uses the narrow vendor-library prewarm bridge rather than broad host linker-path mutation
+- `LD_AUDIT` is present in the server process (recovered from root env if launched from an external shell)
 
 ### 6.7 CPU Readiness Smoke Test
 
@@ -634,6 +648,8 @@ Why this happens:
   it installed
 - if it was installed out of band, `poetry sync` can remove it because the lock
   file is the source of truth for the managed venv
+- if the Flox environment was re-locked (via `flox edit -f`), the Python venv is
+  recreated from scratch and `litert_lm` must be reinstalled via Poetry sync
 
 Then rerun:
 

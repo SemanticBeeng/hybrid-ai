@@ -42,42 +42,6 @@ hybrid_ai_linux_gpu_join_by() {
   printf '\n'
 }
 
-hybrid_ai_linux_gpu_scrub_runtime_env() {
-  local var_name
-  local -a scrubbed_vars
-
-  scrubbed_vars=(
-    CUDA_CACHE_DISABLE
-    CUDA_CACHE_MAXSIZE
-    CUDA_CACHE_PATH
-    CUDA_DEVICE_ORDER
-    CUDA_FORCE_PTX_JIT
-    CUDA_HOME
-    CUDA_MODULE_LOADING
-    CUDA_PATH
-    CUDA_ROOT
-    CUDA_VISIBLE_DEVICES
-    DYLD_INSERT_LIBRARIES
-    LD_PRELOAD
-    NVIDIA_DRIVER_CAPABILITIES
-    NVIDIA_VISIBLE_DEVICES
-    VK_ADD_DRIVER_FILES
-    VK_DEVICE_LAYERS
-    VK_DRIVER_FILES
-    VK_ICD_FILENAMES
-    VK_INSTANCE_LAYERS
-    VK_LAYER_PATH
-    VK_LOADER_DEBUG
-    __EGL_VENDOR_LIBRARY_FILENAMES
-    __NV_PRIME_RENDER_OFFLOAD
-    __VK_LAYER_NV_optimus
-  )
-
-  for var_name in "${scrubbed_vars[@]}"; do
-    unset "$var_name"
-  done
-}
-
 hybrid_ai_linux_gpu_collect_device_nodes() {
   local -n out_ref=$1
   local path

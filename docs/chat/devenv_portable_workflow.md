@@ -66,7 +66,7 @@ Requirement: Make all build/runtime paths explicit, justify exceptions.
 
 Design:
 - There is no central manifest policy script. Flox modules source narrow concern helpers directly.
-- `env/base/manifest.toml` owns project-local `HOME`/`XDG_*` setup by sourcing `scripts/env/toolchain/xdg_env.sh`; `env/python`, `env/swift`, and `env/inference` include `env/base`.
+- `env/base/manifest.toml` owns project-local `HOME`/`XDG_*` setup by sourcing `scripts/env/toolchain/xdg_env.sh`; `env/python` and `env/swift` include `env/base`.
 - Flox `[vars]` own static constants: base Nix/Flox defaults, Python behavior flags, and Swiftly version/path defaults. Shell helpers keep dynamic values that depend on checkout location, `FLOX_ENV_CACHE`, host account discovery, or runtime probing.
 - PYTHONPATH intentionally not globally forced by default to avoid import ambiguity; only set in module wrappers when required for controlled local package execution.
 
@@ -112,7 +112,8 @@ Repository config and docs:
 - env/base/
 - env/python/
 - env/swift/
-- env/inference/
+- env/inference-litert-base/
+- env/inference-litert-linux-gpu/
 - .flox/env/manifest.toml
 - .flox/env.json
 - scripts/env/
@@ -168,13 +169,14 @@ Documented exceptions:
 - env/base: shell, git, jq, yq, just, task runner, baseline utility tools, common hooks.
 - env/python: python runtime, poetry/pip/uv tooling.
 - env/swift: Swift support layer that activates Swiftly and carries native helper dependencies; it does not install Nix Swift packages.
-- env/inference: LiteRT-LM integration, inference helper scripts, model path policy.
-- .flox/env/manifest.toml: root-attached composed top-level environment importing base + python + swift + inference.
+- env/inference-litert-base: reusable LiteRT inference layer on top of env/base.
+- env/inference-litert-linux-gpu: Linux GPU LiteRT-LM runtime composing env/python with Vulkan loader and tools.
+- .flox/env/manifest.toml: root-attached composed top-level environment importing base + python + swift.
 
 Relationship to source modules:
 - env/python supports the Python source module under `src/inference_srv_py`.
 - env/swift supports the Swift source module under `src/swift` by sourcing the Swiftly activation helper.
-- env/inference supports inference wrappers and runtime workflows that are currently script-driven rather than isolated in a dedicated `src/inference` tree.
+- env/inference-litert-linux-gpu supports the Linux GPU inference server workflow.
 - env/base provides shared tooling and activation policy used across all source modules.
 - the root `.flox` environment is the top-level developer environment used when working across the whole repository.
 
@@ -274,7 +276,7 @@ Deliverables:
 - scripts/env/toolchain/nix/nix_isolation_check.sh
 
 Phase 2: Flox composition scaffolding
-1. Create env/base, env/python, env/swift, env/inference manifests.
+1. Create env/base, env/python, env/swift manifests.
 2. Create the root `.flox/env/manifest.toml` composed manifest.
 3. Add activation hooks that export all XDG and module-specific paths.
 4. Keep environment labels out of manifests unless a script consumes them; activation hooks should only set functional runtime state.
@@ -356,7 +358,8 @@ Recommended immediate scaffold:
 - env/base/manifest.toml
 - env/python/manifest.toml
 - env/swift/manifest.toml
-- env/inference/manifest.toml
+- env/inference-litert-base/manifest.toml
+- env/inference-litert-linux-gpu/manifest.toml
 - .flox/env/manifest.toml
 - .flox/env.json
 - scripts/env/toolchain/nix/host_bootstrap.sh

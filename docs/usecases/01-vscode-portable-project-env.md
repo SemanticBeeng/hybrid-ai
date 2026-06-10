@@ -371,7 +371,7 @@ Mostly yes, for a stable session.
 Root Flox activation creates the project-local directory structure through the module manifests and concern helpers:
 
 - `env/base/manifest.toml` sources `xdg_env.sh`, which creates project-local XDG and HOME directories
-- `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` include `env/base`
+- `env/python/manifest.toml` and `env/swift/manifest.toml` include `env/base`
 - `swift_env.sh` sources the Swift path module, which creates Swift build/cache directories
 - `inference_env.sh` creates model/cache/log/artifact/dependency directories
 
@@ -396,7 +396,7 @@ This supports a session-initialization model:
 
 - `scripts/env/start_vscode.sh` is the canonical VS Code/Copilot session initializer
 - `flox activate` from the repository root is the canonical interactive fullstack shell
-- direct module activation uses `flox activate -d env/python`, `flox activate -d env/swift`, or `flox activate -d env/inference`
+- direct module activation uses `flox activate -d env/python`, `flox activate -d env/swift`, or `flox activate -d env/inference-litert-linux-gpu`
 - external shells may source `scripts/env/toolchain/common.sh` for broad compatibility, but normal wrappers should not require that
 - scripts that require helper functions should source the specific concern module they use, or a wrapper that owns that boundary
 
@@ -411,13 +411,13 @@ The target model is **Model A: root fullstack plus module environments**.
 In that model:
 
 - `.flox/env/manifest.toml` is the canonical fullstack developer environment attached to the repository root
-- `env/base/manifest.toml`, `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` remain reusable module environments
+- `env/base/manifest.toml`, `env/python/manifest.toml`, and `env/swift/manifest.toml` remain reusable module environments
 - activating from the repository root with `flox activate` makes the repository root the activation working directory and the canonical Flox environment directory
 - module environments can still be activated directly with `flox activate -d env/python`, `flox activate -d env/swift`, and similar commands
 - static environment constants live in Flox `[vars]`; scripts only retain dynamic values that depend on the checkout path, `FLOX_ENV_CACHE`, host account discovery, or runtime probing
 
 This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, keep manifest hooks project-relative, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
 
-The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, `env/swift`, and `env/inference` remain as reusable module environments.
+The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, and `env/swift` remain as reusable module environments.
 
 With the root-attached environment validated, manifest-level root recovery is no longer part of the canonical fullstack activation path. Standalone wrapper scripts may still derive a lowercase local `project_root` from their own location when they need to run from outside the repository root.

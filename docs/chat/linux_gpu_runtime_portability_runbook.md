@@ -306,9 +306,9 @@ Recommended reuse stance:
   - is there a future adapter path worth building directly on LiteRT instead of LiteRT-LM?
 
 Practical implication for this repo:
-- keep `env/inference` minimal
-- if this package is evaluated, do it in a dedicated environment such as `env/litert-probe` or `env/inference-gpu-linux`
-- treat that work as architectural investigation, not as an in-place dependency substitution
+- `env/inference/` has been removed (it only added packages already in `env/base`)
+- dedicated GPU environments like `env/inference-litert-linux-gpu` compose `env/python` directly
+- treat GPU runtime investigation as architectural work in a dedicated environment, not as an in-place dependency substitution
 
 Reference takeaways worth preserving in this runbook:
 - Flox can own and version much more of the GPU user space than a naive Linux setup typically does
@@ -459,9 +459,9 @@ For the current repo and current evidence, the best interpretation is:
 - if eliminating that remaining custom bridge work is more important than keeping LiteRT-LM as the Linux engine, the project should prefer `3.3` or `3.5` with a Flox-supported serving runtime instead
 
 Current environment note:
-- the existing [env/inference/manifest.toml](env/inference/manifest.toml) is intentionally minimal and does not yet represent a Linux GPU runtime environment
-- the re-evaluated `3.1` path should extend [env/python/manifest.toml](env/python/manifest.toml) because that is already the Python server runtime boundary
-- [env/inference/manifest.toml](env/inference/manifest.toml) should remain a minimal inference-policy module unless the repo later removes it entirely
+- `env/inference/` has been removed; its packages were already in `env/base`
+- the Linux GPU runtime is now expressed through `env/inference-litert-linux-gpu`, which composes `env/python` directly
+- `env/inference-litert-base` remains as a shared LiteRT layer on top of `env/base`
 
 ### 3.1.j Implementation roadmap
 
@@ -473,9 +473,9 @@ Goal:
 - preserve the current Python server surface while making Linux GPU the intended runtime path through the existing Python environment
 
 Actions:
-- leave [env/inference/manifest.toml](env/inference/manifest.toml) minimal
-- use [env/python/manifest.toml](env/python/manifest.toml) as the single Python server environment boundary
-- add Linux GPU support to [env/python/manifest.toml](env/python/manifest.toml) and [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh) only where that support is part of the normal server runtime contract
+- use [env/inference-litert-linux-gpu/manifest.toml](env/inference-litert-linux-gpu/manifest.toml) as the Linux GPU Python server environment boundary
+- the environment composes `env/python` directly and adds Vulkan loader packages
+- add Linux GPU support to [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh) only where that support is part of the normal server runtime contract
 
 Exit criteria:
 - the existing Python server entrypoint remains the only backend application surface
@@ -486,11 +486,11 @@ Goal:
 - make Linux GPU support part of the existing Python server runtime boundary instead of introducing a second server environment
 
 Files to update:
-- [env/python/manifest.toml](env/python/manifest.toml)
+- [env/inference-litert-linux-gpu/manifest.toml](env/inference-litert-linux-gpu/manifest.toml)
 
 Files to reference or include:
 - [env/base/](env/base)
-- [env/inference/manifest.toml](env/inference/manifest.toml)
+- [env/python/manifest.toml](env/python/manifest.toml)
 
 Recommended shape:
 - Linux-only via system constraints
@@ -1007,7 +1007,6 @@ Practical lesson:
 
 This roadmap does not attempt to:
 - replace `litert-lm` with another inference engine
-- turn [env/inference/manifest.toml](env/inference/manifest.toml) into the Python server runtime boundary
 - make Linux GPU behavior the canonical product proof instead of Apple-native validation
 - support arbitrary host CUDA toolkit installations as part of the normal runtime path
 
@@ -1587,21 +1586,17 @@ Environment composition sketch:
 flowchart TD
    B[env/base\nshared project-local HOME/XDG setup]
    P[env/python\nstandalone Python runtime\npython311, poetry, uv, venv lifecycle]
-   I[env/inference\nstandalone inference policy\nmodel paths, cache paths, backend defaults]
    LB[env/inference-litert-base\nLiteRT inference layer\nHYBRID_AI_INFERENCE_ENGINE=litert-lm]
-   LG[env/inference-litert-linux-gpu\ncomposed runtime\nenv/python plus LiteRT inference plus GPU native libs]
+   LG[env/inference-litert-linux-gpu\ncomposed runtime\nenv/python plus Vulkan loader plus GPU native libs]
    PE[inference_srv_py_env.sh\ncreate and activate managed venv\nPoetry sync for src/inference_srv_py]
    IE[inference_env.sh\nexport model paths\nand inference caches]
    LE[litert_env.sh\nadd LiteRT-specific vars\nand artifacts dirs]
-   W[GPU wrapper scripts\ninference_srv_py_gpu_validate.sh\ninference_srv_py_server_gpu_run.sh\ninference_srv_py_gpu_runtime_snapshot.sh]
+   W[GPU wrapper scripts\nserver_gpu_run.sh\nserver_gpu_inner.sh\ngpu_validate.sh\ngpu_runtime_snapshot.sh]
 
    B --> P
-   B --> I
-   I --> LB
+   B --> LB
    P --> LG
-   LB --> LG
    PE --> P
-   IE --> I
    IE --> LE
    LE --> LB
    PE --> LG
@@ -1613,11 +1608,11 @@ flowchart TD
 ```
 
 Interpretation:
-- `env/python` remains a standalone Python runtime and does not include `env/inference`
-- `env/inference` remains a standalone inference-policy env and does not include `env/python`
-- older Python server entrypoints bridged the two concerns at the script layer by sourcing both `inference_srv_py_env.sh` and `inference_env.sh`
-- `env/inference-litert-linux-gpu` now composes `env/python` with `env/inference-litert-base`, so the Python toolchain is inherited once and the GPU-native closure is owned only by the GPU env
-- the new LiteRT-LM path moves that composition into `env/inference-litert-linux-gpu`, which activates both the Python helper and the LiteRT inference helper in one env boundary
+- `env/inference/` has been removed (it only added packages already in `env/base`)
+- `env/python` remains a standalone Python runtime
+- `env/inference-litert-linux-gpu` composes `env/python` directly and adds the Vulkan loader and tools
+- `env/inference-litert-base` remains as a shared LiteRT layer on top of `env/base`
+- the GPU server uses a two-file linear design: `server_gpu_run.sh` (outer) → `server_gpu_inner.sh` (inner)
 
 ### 4.5 Immediate Design Guidance For LiteRT-LM
 

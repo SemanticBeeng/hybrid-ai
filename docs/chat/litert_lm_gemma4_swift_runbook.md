@@ -144,8 +144,8 @@ At the time of the original review, the Python server was only a health-oriented
 3. Historical gap: the LiteRT-LM integration was bootstrap-only and not production-shaped.
 The original concern was that local inference still looked like exploration, with weak pinning and no stable server contract. Current state is stronger: the repo now has pinned runtime metadata, pinned model bootstrap workflow, a promoted Linux GPU serve path for the supported host class, and a repo-level smoke command that verifies end-to-end serving semantics.
 
-4. The inference environment does not yet declare a complete runtime contract.
-The inference manifest currently only installs curl, jq, and git and activates directory path exports in `env/inference/manifest.toml`. That means model runtime dependencies are being pulled dynamically rather than represented as a first-class repo contract. For a service you will want explicit package ownership, pinned LiteRT-LM versioning, and a defined model bootstrap/import step.
+4. The inference environment now uses dedicated composed environments.
+The previous `env/inference/manifest.toml` (which only installed curl, jq, and git) has been removed. The GPU runtime is now expressed through `env/inference-litert-linux-gpu`, which composes `env/python` directly and adds Vulkan loader packages. Model runtime dependencies and the LiteRT-LM version are managed through Poetry under `src/inference_srv_py/pyproject.toml` with explicit setup scripts for bootstrap and verification.
 
 5. The Swift shared layer is not ready to host chat state or transport abstractions.
 The shared Swift library only exposes a static status string in `src/swift/Sources/HybridAI/HybridAI.swift`. The existing roadmap already points toward shared app state and platform-specific shells in [[swift_ui_cross_platform_roadmap]], but that architecture has not been implemented yet. Without that layer, wiring the UI straight to HTTP or inference details will create avoidable churn.

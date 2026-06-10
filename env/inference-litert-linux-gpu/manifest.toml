@@ -19,7 +19,6 @@ xorg-libxdmcp.systems = ["x86_64-linux"]
 [include]
 environments = [
 	{ dir = "../python" },
-	{ dir = "../inference" },
 ]
 
 [vars]
