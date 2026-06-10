@@ -1565,6 +1565,14 @@ Recommended future environment layout:
        - one selected inference env
        - test and smoke utilities
 
+Initial scaffold status:
+- the first skeletons for this layout now exist in the repo:
+   - `env/inference-litert-base`
+   - `env/inference-litert-linux-gpu`
+   - `env/inference-litert-ios-hosted`
+- they are intentionally minimal and should be treated as the starting point for
+   migrating current LiteRT-LM runtime ownership out of `env/python`
+
 Resulting product-facing contract:
 - the app and tests target one shared backend contract
 - each engine env owns its own runtime closure and service semantics
@@ -1572,6 +1580,44 @@ Resulting product-facing contract:
    - Linux via `env/inference-litert-linux-gpu`
    - Apple-hosted development and iOS packaging via
       `env/inference-litert-ios-hosted`
+
+Environment composition sketch:
+
+```mermaid
+flowchart TD
+   B[env/base\nshared project-local HOME/XDG setup]
+   P[env/python\nstandalone Python runtime\npython311, poetry, uv, venv lifecycle]
+   I[env/inference\nstandalone inference policy\nmodel paths, cache paths, backend defaults]
+   LB[env/inference-litert-base\nLiteRT inference layer\nHYBRID_AI_INFERENCE_ENGINE=litert-lm]
+   LG[env/inference-litert-linux-gpu\ncomposed runtime\nenv/python plus LiteRT inference plus GPU native libs]
+   PE[python_env.sh\ncreate and activate managed venv\nPoetry sync for src/python]
+   IE[inference_env.sh\nexport model paths\nand inference caches]
+   LE[litert_env.sh\nadd LiteRT-specific vars\nand artifacts dirs]
+   W[GPU wrapper scripts\npython_gpu_validate.sh\npython_server_gpu_run.sh\npython_gpu_runtime_snapshot.sh]
+
+   B --> P
+   B --> I
+   I --> LB
+   P --> LG
+   LB --> LG
+   PE --> P
+   IE --> I
+   IE --> LE
+   LE --> LB
+   PE --> LG
+   LE --> LG
+   W --> PE
+   W --> IE
+   W --> LE
+   W --> LG
+```
+
+Interpretation:
+- `env/python` remains a standalone Python runtime and does not include `env/inference`
+- `env/inference` remains a standalone inference-policy env and does not include `env/python`
+- older Python server entrypoints bridged the two concerns at the script layer by sourcing both `python_env.sh` and `inference_env.sh`
+- `env/inference-litert-linux-gpu` now composes `env/python` with `env/inference-litert-base`, so the Python toolchain is inherited once and the GPU-native closure is owned only by the GPU env
+- the new LiteRT-LM path moves that composition into `env/inference-litert-linux-gpu`, which activates both the Python helper and the LiteRT inference helper in one env boundary
 
 ### 4.5 Immediate Design Guidance For LiteRT-LM
 

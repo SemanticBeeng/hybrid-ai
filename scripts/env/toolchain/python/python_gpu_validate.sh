@@ -2,8 +2,8 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-python_env_dir="${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/python}"
-python_manifest_path="$python_env_dir/manifest.toml"
+runtime_env_dir="${HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR:-${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/inference-litert-linux-gpu}}"
+runtime_manifest_path="$runtime_env_dir/manifest.toml"
 
 hybrid_ai_python_gpu_run_phase() {
     local phase_name="$1"
@@ -447,12 +447,12 @@ print(
 PY
 }
 
-if [[ "${FLOX_ENV:-}" == "$python_env_dir"/.flox/run/* ]]; then
+if [[ "${FLOX_ENV:-}" == "$runtime_env_dir"/.flox/run/* ]]; then
   hybrid_ai_python_gpu_validate_inner
   exit 0
 fi
 
-exec env FLOX_ENV_DIR="$python_env_dir" FLOX_MANIFEST_PATH="$python_manifest_path" \
+exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
   bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/python/python_gpu_validate.sh" "$@"' \
   bash "$project_root" "$@"

@@ -108,22 +108,30 @@ Logs:
 
 ### 5.1 Flox And Python Activation
 
-The inference server uses the dedicated Python Flox environment at `env/python`.
+The default CPU inference server uses the dedicated Python Flox environment at `env/python`.
+
+The Linux GPU wrappers use the dedicated LiteRT-LM GPU Flox environment at `env/inference-litert-linux-gpu`.
 
 That environment is expected to provide:
 - Python 3.11
 - Poetry
 - the Vulkan loader runtime library needed by the LiteRT-LM Python wheel
 
-The managed Python venv is created under:
-- `env/python/.flox/cache/python`
+The managed Python venv is created under the active Flox environment cache:
+- `env/python/.flox/cache/python` for the default CPU path
+- `env/inference-litert-linux-gpu/.flox/cache/python` for the Linux GPU path
 
-The Python wrappers intentionally target `env/python` even if the current shell
+The wrappers intentionally target their own Flox environment boundary even if the current shell
 was entered through the repository root Flox environment.
 
-`env/python` also includes `env/base`, so the realized environment depends on
-both manifests. A resync must account for direct packages in `env/python` and
-packages inherited from included environments.
+Composition now differs by path:
+- `env/python` remains the standalone CPU-safe Python runtime and includes `env/base`
+- `env/inference-litert-linux-gpu` composes `env/python` with `env/inference-litert-base`
+- `env/inference-litert-base` composes `env/inference`
+
+That means the Linux GPU env inherits the Python toolchain from `env/python` and adds the LiteRT-LM GPU-native
+closure itself. A resync must account for direct packages in the selected runtime env and packages inherited from
+included environments.
 
 ### 5.2 LiteRT-LM Dependency Management
 
@@ -160,6 +168,8 @@ The backend:
 The Linux GPU path adds two explicit gates before server startup:
 - a host-contract check that verifies device visibility and Vulkan ICD registration
 - a managed-runtime validation that proves the Flox-managed Python process can initialize LiteRT-LM with `Backend.GPU`
+
+The GPU-specific wrappers now default to `env/inference-litert-linux-gpu` rather than `env/python`.
 
 Current promotion status:
 - the repo supports Linux GPU `preflight`, `validate`, and `serve` for the current NVIDIA plus Vulkan host class

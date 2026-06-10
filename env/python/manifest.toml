@@ -9,20 +9,6 @@ uv.pkg-path = "uv"
 uv.systems = ["x86_64-linux"]
 libgcc.pkg-path = "libgcc"
 libgcc.systems = ["x86_64-linux"]
-vulkan-loader.pkg-path = "vulkan-loader"
-vulkan-loader.systems = ["x86_64-linux"]
-vulkan-tools.pkg-path = "vulkan-tools"
-vulkan-tools.systems = ["x86_64-linux"]
-xorg-libx11.pkg-path = "xorg.libX11"
-xorg-libx11.systems = ["x86_64-linux"]
-xorg-libxext.pkg-path = "xorg.libXext"
-xorg-libxext.systems = ["x86_64-linux"]
-xorg-libxcb.pkg-path = "xorg.libxcb"
-xorg-libxcb.systems = ["x86_64-linux"]
-xorg-libxau.pkg-path = "xorg.libXau"
-xorg-libxau.systems = ["x86_64-linux"]
-xorg-libxdmcp.pkg-path = "xorg.libXdmcp"
-xorg-libxdmcp.systems = ["x86_64-linux"]
 
 [include]
 environments = [
