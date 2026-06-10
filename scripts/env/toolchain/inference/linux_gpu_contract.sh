@@ -78,26 +78,6 @@ hybrid_ai_linux_gpu_scrub_runtime_env() {
   done
 }
 
-hybrid_ai_linux_gpu_rebuild_runtime_path() {
-  local -a path_entries
-  local rebuilt_path
-
-  path_entries=()
-
-  if [[ -n "${HYBRID_AI_PYTHON_VENV:-}" ]]; then
-    path_entries+=("$HYBRID_AI_PYTHON_VENV/bin")
-  fi
-
-  if [[ -n "${FLOX_ENV:-}" ]]; then
-    path_entries+=("$FLOX_ENV/bin" "$FLOX_ENV/sbin")
-  fi
-
-  path_entries+=("/usr/bin" "/bin")
-  rebuilt_path="$(hybrid_ai_linux_gpu_join_by ':' "${path_entries[@]}")"
-  rebuilt_path="${rebuilt_path%$'\n'}"
-  export PATH="$rebuilt_path"
-}
-
 hybrid_ai_linux_gpu_collect_device_nodes() {
   local -n out_ref=$1
   local path
@@ -221,12 +201,10 @@ hybrid_ai_linux_gpu_contract_check() {
   local -a device_nodes
   local -a icd_files
   local -a resolved_libraries
-  local -a host_lib_dirs
   local -a raw_library_paths
   local icd_file
   local library_path
   local resolved_path
-  local dir_path
 
   if [[ "$(uname -s)" != "Linux" ]]; then
     hybrid_ai_linux_gpu_fail 'linux GPU contract checks are only supported on Linux'
@@ -260,7 +238,6 @@ hybrid_ai_linux_gpu_contract_check() {
   fi
 
   resolved_libraries=()
-  host_lib_dirs=()
   for icd_file in "${icd_files[@]}"; do
     while IFS= read -r library_path; do
       [[ -n "$library_path" ]] || continue
@@ -271,17 +248,12 @@ hybrid_ai_linux_gpu_contract_check() {
       if ! hybrid_ai_linux_gpu_append_unique "$resolved_path" "${resolved_libraries[@]}"; then
         resolved_libraries+=("$resolved_path")
       fi
-      dir_path="$(dirname "$resolved_path")"
-      if ! hybrid_ai_linux_gpu_append_unique "$dir_path" "${host_lib_dirs[@]}"; then
-        host_lib_dirs+=("$dir_path")
-      fi
     done < <(hybrid_ai_linux_gpu_extract_library_paths "$icd_file")
   done
 
   export HYBRID_AI_GPU_DEVICE_NODES="$(hybrid_ai_linux_gpu_join_by ':' "${device_nodes[@]}")"
   export HYBRID_AI_GPU_ICD_FILES="$(hybrid_ai_linux_gpu_join_by ':' "${icd_files[@]}")"
   export HYBRID_AI_GPU_VENDOR_LIBRARIES="$(hybrid_ai_linux_gpu_join_by ':' "${resolved_libraries[@]}")"
-  export HYBRID_AI_GPU_HOST_LIB_DIRS="$(hybrid_ai_linux_gpu_join_by ':' "${host_lib_dirs[@]}")"
 
   hybrid_ai_linux_gpu_note "gpu_device_nodes=$HYBRID_AI_GPU_DEVICE_NODES"
   hybrid_ai_linux_gpu_note "gpu_icd_files=$HYBRID_AI_GPU_ICD_FILES"
@@ -289,7 +261,7 @@ hybrid_ai_linux_gpu_contract_check() {
 }
 
 hybrid_ai_linux_gpu_apply_bridge_env() {
-  if [[ -z "${HYBRID_AI_GPU_ICD_FILES:-}" || -z "${HYBRID_AI_GPU_HOST_LIB_DIRS:-}" ]]; then
+  if [[ -z "${HYBRID_AI_GPU_ICD_FILES:-}" ]]; then
     hybrid_ai_linux_gpu_contract_check || return 1
   fi
 
@@ -297,12 +269,11 @@ hybrid_ai_linux_gpu_apply_bridge_env() {
 }
 
 hybrid_ai_linux_gpu_print_env() {
-  if [[ -z "${HYBRID_AI_GPU_ICD_FILES:-}" || -z "${HYBRID_AI_GPU_HOST_LIB_DIRS:-}" ]]; then
+  if [[ -z "${HYBRID_AI_GPU_ICD_FILES:-}" ]]; then
     hybrid_ai_linux_gpu_contract_check || return 1
   fi
 
   printf 'VK_ICD_FILENAMES=%s\n' "$HYBRID_AI_GPU_ICD_FILES"
-  printf 'HYBRID_AI_GPU_HOST_LIB_DIRS=%s\n' "$HYBRID_AI_GPU_HOST_LIB_DIRS"
 }
 
 hybrid_ai_linux_gpu_contract_main() {

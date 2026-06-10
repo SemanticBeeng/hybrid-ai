@@ -65,7 +65,6 @@ hybrid_ai_python_gpu_validate_inner() {
 
     hybrid_ai_linux_gpu_scrub_runtime_env
     inference_srv_py_activate_env
-    hybrid_ai_linux_gpu_rebuild_runtime_path
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND=gpu

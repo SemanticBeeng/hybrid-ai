@@ -29,6 +29,7 @@ def _env_subset() -> dict[str, str | None]:
     keys = (
         "FLOX_ENV",
         "FLOX_ENV_CACHE",
+        "GLIBC_TUNABLES",
         "HYBRID_AI_LITERT_BACKEND",
         "HYBRID_AI_LITERT_MODEL",
         "HYBRID_AI_LITERT_MODEL_PATH",
@@ -36,10 +37,12 @@ def _env_subset() -> dict[str, str | None]:
         "HYBRID_AI_GPU_DEVICE_NODES",
         "HYBRID_AI_GPU_ICD_FILES",
         "HYBRID_AI_GPU_VENDOR_LIBRARIES",
-        "HYBRID_AI_GPU_HOST_LIB_DIRS",
         "VK_ICD_FILENAMES",
+        "LD_AUDIT",
+        "LD_FLOXLIB_FILES_PATH",
         "LD_LIBRARY_PATH",
         "PATH",
+        "SANDBOX_LD_AUDIT",
     )
     return {key: os.environ.get(key) for key in keys}
 
