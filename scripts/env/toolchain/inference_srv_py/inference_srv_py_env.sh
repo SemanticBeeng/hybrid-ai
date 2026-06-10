@@ -8,8 +8,6 @@ inference_srv_py_unset_host_python_env() {
   unset VIRTUAL_ENV_PROMPT
 }
 
-inference_srv_py_unset_host_python_env
-
 inference_srv_py_dir() {
   printf '%s\n' "$project_root/src/inference_srv_py"
 }
@@ -75,7 +73,6 @@ inference_srv_py_export_env() {
 
 inference_srv_py_activate_env() {
   local venv_dir=""
-  local runtime_dir=""
 
   inference_srv_py_export_env
   venv_dir="$(inference_srv_py_venv_dir)"
@@ -92,13 +89,7 @@ inference_srv_py_activate_env() {
     export PATH="$venv_dir/bin:$PATH"
   fi
 
-  runtime_dir="$FLOX_ENV/lib"
-  if [[ -d "$runtime_dir" ]]; then
-    export LD_LIBRARY_PATH="$runtime_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-  fi
-
   inference_srv_py_dedup_colon_path_var PATH
-  inference_srv_py_dedup_colon_path_var LD_LIBRARY_PATH
 }
 
 inference_srv_py_setup_env() {
@@ -136,32 +127,4 @@ inference_srv_py_setup_env() {
     poetry -C "$python_dir" sync --no-interaction
     printf '%s\n' "$current_stamp" > "$deps_stamp"
   fi
-}
-
-hybrid_ai_unset_host_python_env() {
-  inference_srv_py_unset_host_python_env "$@"
-}
-
-hybrid_ai_python_dir() {
-  inference_srv_py_dir "$@"
-}
-
-hybrid_ai_python_venv_dir() {
-  inference_srv_py_venv_dir "$@"
-}
-
-hybrid_ai_dedup_colon_path_var() {
-  inference_srv_py_dedup_colon_path_var "$@"
-}
-
-hybrid_ai_export_python_env() {
-  inference_srv_py_export_env "$@"
-}
-
-hybrid_ai_activate_python_env() {
-  inference_srv_py_activate_env "$@"
-}
-
-hybrid_ai_setup_python_env() {
-  inference_srv_py_setup_env "$@"
 }

@@ -27,7 +27,7 @@ echo "Using LiteRT-LM release tag: $LITERT_LM_TAG"
 echo "Using LiteRT-LM PyPI package: $LITERT_LM_PYPI_PACKAGE==$LITERT_LM_PYPI_VERSION"
 
 echo "Validating Poetry-managed LiteRT-LM dependency in project Flox Python environment..."
-"$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh" - <<'PY'
+"$project_root/scripts/modules/inference_srv_py/run.sh" - <<'PY'
 from importlib import metadata
 
 package_name = "litert-lm"
@@ -48,5 +48,5 @@ PY
 
 echo "Swift binding setup guidance:"
 echo "1) Add LiteRT-LM Swift package dependency to src/swift/Package.swift using exact tag $LITERT_LM_TAG"
-echo "2) Run scripts/env/toolchain/swift/swift_run.sh package resolve"
-echo "3) Run scripts/env/toolchain/swift/swift_run.sh build"
+echo "2) Run scripts/modules/swift/run.sh package resolve"
+echo "3) Run scripts/modules/swift/run.sh build"

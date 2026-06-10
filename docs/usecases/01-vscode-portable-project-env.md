@@ -23,9 +23,9 @@ For this repository, that means:
 This repository deliberately isolates developer tooling from the host machine.
 
 The normal command-line wrappers already do this:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
-- `scripts/env/toolchain/swift/swift_run.sh`
+- `scripts/modules/inference_srv_py/run.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
+- `scripts/modules/swift/run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 
 However, editor extensions do not automatically inherit those wrappers just
@@ -282,7 +282,7 @@ Meaning:
 Recovery:
 - close stale VS Code windows and relaunch with `scripts/env/start_vscode.sh`
 - run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `.flox/cache/python`
-- use `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` as the authoritative CLI runtime check if editor state is still unclear
+- use `scripts/modules/inference_srv_py/run.sh` as the authoritative CLI runtime check if editor state is still unclear
 
 ## 11. Relationship To The Other Docs
 

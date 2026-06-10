@@ -3,9 +3,9 @@
 Date: 2026-06-03
 Status: Implemented
 Primary scripts:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- `scripts/modules/inference_srv_py/enter.sh`
+- `scripts/modules/inference_srv_py/run.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
 
 ## 1. Goal
 
@@ -47,9 +47,9 @@ This workflow assumes:
 ## 4. Files Involved
 
 Runtime wrappers:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- `scripts/modules/inference_srv_py/enter.sh`
+- `scripts/modules/inference_srv_py/run.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 
@@ -78,14 +78,14 @@ Repository-managed writable paths used by this workflow:
 
 ### 5.1 CLI Wrapper
 
-`scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` does the following:
+`scripts/modules/inference_srv_py/run.sh` does the following:
 - defaults to `python -m inference_srv_py` when no explicit arguments are given
 - if already inside the active Flox environment, it activates the managed venv and runs `python` directly
 - otherwise it launches through `scripts/env/toolchain/nix/flox_with.sh` and activates the managed venv in the command shell
 - dynamic paths such as `PYTHON_DIR`, `HYBRID_AI_PYTHON_VENV`, and cache directories remain in `inference_srv_py_env.sh` because they depend on the checkout path or `FLOX_ENV_CACHE`
-- uses `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the single source of truth for host virtualenv cleanup, venv creation, dependency sync, cache paths, and runtime library activation
+- uses `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the single source of truth for host virtualenv cleanup, venv creation, dependency sync, cache paths, and venv activation
 
-`scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh` does the following:
+`scripts/modules/inference_srv_py/enter.sh` does the following:
 - activates the composed Flox environment
 - sources `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 - activates the managed Python venv
@@ -97,7 +97,7 @@ Current default behavior of the module entrypoint:
 
 ### 5.2 Server Wrapper
 
-`scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` does the following:
+`scripts/modules/inference_srv_py/server_run.sh` does the following:
 - creates `volumes/logs` if needed
 - appends server output to `volumes/logs/python_server.log`
 - activates the managed venv and runs `python -m inference_srv_py.server`
@@ -114,7 +114,7 @@ Current server behavior:
 Run the default module entrypoint:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh
+scripts/modules/inference_srv_py/run.sh
 ```
 
 Expected behavior today:
@@ -138,7 +138,7 @@ If you want an interactive shell with the managed Python venv already active,
 use:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh
+scripts/modules/inference_srv_py/enter.sh
 ```
 
 This enters the composed Flox environment, activates the managed Python venv,
@@ -149,9 +149,9 @@ and lands in `src/inference_srv_py`.
 Run arbitrary Python commands inside the repository environment:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import sys; print(sys.executable)'
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import inference_srv_py; print(inference_srv_py.hello())'
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -m inference_srv_py
+scripts/modules/inference_srv_py/run.sh -c 'import sys; print(sys.executable)'
+scripts/modules/inference_srv_py/run.sh -c 'import inference_srv_py; print(inference_srv_py.hello())'
+scripts/modules/inference_srv_py/run.sh -m inference_srv_py
 ```
 
 ### 6.5 Python Server
@@ -159,13 +159,13 @@ scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -m inference_srv_
 Start the server with defaults:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+scripts/modules/inference_srv_py/server_run.sh
 ```
 
 Override host and port when needed:
 
 ```bash
-HYBRID_AI_HOST=0.0.0.0 HYBRID_AI_PORT=8090 scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+HYBRID_AI_HOST=0.0.0.0 HYBRID_AI_PORT=8090 scripts/modules/inference_srv_py/server_run.sh
 ```
 
 ## 7. Verification Workflow
@@ -175,7 +175,7 @@ HYBRID_AI_HOST=0.0.0.0 HYBRID_AI_PORT=8090 scripts/env/toolchain/inference_srv_p
 Use the wrapper to print the active interpreter path:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import sys; print(sys.executable)'
+scripts/modules/inference_srv_py/run.sh -c 'import sys; print(sys.executable)'
 ```
 
 Expected result:
@@ -185,7 +185,7 @@ Expected result:
 You can verify the interactive Python shell path too:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh
+scripts/modules/inference_srv_py/enter.sh
 which python
 ```
 
@@ -197,7 +197,7 @@ Expected result:
 Print the key Python paths:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import os; print(os.environ["PIP_CACHE_DIR"]); print(os.environ["POETRY_CACHE_DIR"]); print(os.environ["UV_CACHE_DIR"]); print(os.environ["PYTHONPYCACHEPREFIX"])'
+scripts/modules/inference_srv_py/run.sh -c 'import os; print(os.environ["PIP_CACHE_DIR"]); print(os.environ["POETRY_CACHE_DIR"]); print(os.environ["UV_CACHE_DIR"]); print(os.environ["PYTHONPYCACHEPREFIX"])'
 ```
 
 Expected result:
@@ -206,7 +206,7 @@ Expected result:
 ### 7.3 Verify The Default CLI Entry
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import inference_srv_py; print(inference_srv_py.hello())'
+scripts/modules/inference_srv_py/run.sh -c 'import inference_srv_py; print(inference_srv_py.hello())'
 ```
 
 Expected result:
@@ -217,7 +217,7 @@ Expected result:
 Use the wrapper to prove NumPy can load its native extension runtime:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
+scripts/modules/inference_srv_py/run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
 ```
 
 Expected result:
@@ -228,7 +228,7 @@ Expected result:
 Start the server in one terminal:
 
 ```bash
-scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+scripts/modules/inference_srv_py/server_run.sh
 ```
 
 Then query it from another terminal:
@@ -261,7 +261,7 @@ Expected result:
 
 When this workflow is correct:
 - `flox activate` yields a shell that can run project Python commands against the managed venv
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh` yields an interactive Python-focused shell with the managed venv already active
+- `scripts/modules/inference_srv_py/enter.sh` yields an interactive Python-focused shell with the managed venv already active
 - wrapper-based Python commands bootstrap the same managed venv when no activated shell exists
 - bytecode and Python package caches are written under `.flox/cache/`
 - server logs are written under `volumes/logs`
@@ -290,15 +290,15 @@ Symptom:
 - `sys.executable` does not point into `.flox/cache/python/bin/python`
 
 Recovery:
-- rerun through `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
+- rerun through `scripts/modules/inference_srv_py/run.sh`
 - activate the environment with `flox activate` before invoking `python` directly
-- or use `scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh` to enter a shell with the managed Python venv already active
+- or use `scripts/modules/inference_srv_py/enter.sh` to enter a shell with the managed Python venv already active
 - if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
 
 ### 9.3 Server Does Not Start
 
 Symptom:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` exits immediately
+- `scripts/modules/inference_srv_py/server_run.sh` exits immediately
 
 Checks:
 - inspect `volumes/logs/python_server.log`
@@ -313,7 +313,7 @@ Symptom:
 Recovery:
 - inspect `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 - rerun `scripts/env/toolchain/check_env.sh`
-- make sure the command was started via `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`, `scripts/env/toolchain/inference_srv_py/inference_srv_py_enter.sh`, or an activated Flox shell rather than host Python
+- make sure the command was started via `scripts/modules/inference_srv_py/run.sh`, `scripts/modules/inference_srv_py/enter.sh`, or an activated Flox shell rather than host Python
 
 ## 10. Relationship To Other Docs
 

@@ -14,22 +14,22 @@
     {
       "label": "inference-srv-py:run",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh"
+      "command": "${workspaceFolder}/scripts/modules/inference_srv_py/run.sh"
     },
     {
       "label": "inference-srv-py:server",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh"
+      "command": "${workspaceFolder}/scripts/modules/inference_srv_py/server_run.sh"
     },
     {
       "label": "swift:build",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/swift/swift_run.sh build"
+      "command": "${workspaceFolder}/scripts/modules/swift/run.sh build"
     },
     {
       "label": "swift:test",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/swift/swift_run.sh test"
+      "command": "${workspaceFolder}/scripts/modules/swift/run.sh test"
     },
     {
       "label": "inference:local",

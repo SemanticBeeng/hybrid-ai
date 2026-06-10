@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 host="${HYBRID_AI_HOST:-127.0.0.1}"
 port="${HYBRID_AI_PORT:-18090}"
 server_url="http://${host}:${port}"
@@ -36,12 +36,12 @@ echo "==> host GPU check"
 nvidia-smi --query-gpu=index,name,driver_version,memory.total --format=csv,noheader
 
 echo "==> managed GPU validation"
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
+./scripts/modules/inference_srv_py/gpu_validate.sh
 
 echo "==> starting GPU server on ${server_url}"
 setsid env HYBRID_AI_HOST="$host" \
 HYBRID_AI_PORT="$port" \
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh >"$server_log" 2>&1 &
+./scripts/modules/inference_srv_py/server_gpu_run.sh >"$server_log" 2>&1 &
 server_pid="$!"
 
 echo "==> waiting for /ready"

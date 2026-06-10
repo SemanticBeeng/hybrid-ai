@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOG_PATH="$project_root/volumes/logs/python_server.log"
 runtime_env_dir="${HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR:-${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/inference-litert-linux-gpu}}"
 runtime_manifest_path="$runtime_env_dir/manifest.toml"
@@ -25,11 +25,11 @@ hybrid_ai_python_server_gpu_inner() {
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND=gpu
 
-  "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh"
+  "$project_root/scripts/modules/inference_srv_py/gpu_validate.sh"
 
   if [[ -n "$snapshot_dir" ]]; then
     mkdir -p "$snapshot_dir"
-    "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh" \
+    "$project_root/scripts/modules/inference_srv_py/gpu_runtime_snapshot.sh" \
       serve-launch "$snapshot_dir/serve-launch.json" >/dev/null
   fi
 
@@ -45,5 +45,5 @@ fi
 mkdir -p "$(dirname "$LOG_PATH")"
 exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
-  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh" "$@"' \
+  bash -lc 'project_root="$1"; shift; "$project_root/scripts/modules/inference_srv_py/server_gpu_run.sh" "$@"' \
   bash "$project_root" "$@" 2>&1 | tee -a "$LOG_PATH"

@@ -74,7 +74,7 @@ What this would look like in this repo:
 What it would take to implement:
 
 1. Add a dedicated Linux GPU server wrapper
-    - create a wrapper such as `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+    - create a wrapper such as `scripts/modules/inference_srv_py/server_gpu_run.sh`
     - keep `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the generic Python activation path
     - avoid polluting the default Python environment activation with Linux GPU host-library assumptions
 
@@ -83,7 +83,7 @@ What it would take to implement:
     - source `scripts/env/toolchain/inference_env.sh`
     - force `HYBRID_AI_LITERT_BACKEND=gpu`
     - unset host variables known to destabilize the runtime, especially `LD_PRELOAD`
-    - optionally sanitize or rebuild `LD_LIBRARY_PATH` instead of inheriting it blindly
+   - optionally sanitize or rebuild inherited host library search state instead of inheriting it blindly
 
 3. Discover and validate the host GPU contract before starting Python
     - detect required device nodes such as `/dev/dri/renderD128`
@@ -241,7 +241,7 @@ Based on the Flox references, `3.1` should be interpreted as a three-layer desig
    - explicit environment-variable passthrough
    - no broad inheritance of arbitrary host shell state
 
-This is materially better than a single wrapper script that mutates `LD_LIBRARY_PATH` and hopes for the best.
+This is materially better than a single wrapper script that mutates broad host library search state and hopes for the best.
 
 ### 3.1.d What to investigate next from these references
 
@@ -362,7 +362,7 @@ Clarification:
        - sanitize inherited host environment variables
        - inject only the selected ICD and the minimal host driver-facing library surface
        - preserve repo-owned paths for models, caches, logs, and artifacts
-    - the launcher must not become a second package manager or an unbounded `LD_LIBRARY_PATH` accumulator
+    - the launcher must not become a second package manager or an unbounded host-library path accumulator
 
 6. Keep diagnostics separate from the normal runtime
     - if richer tools are needed, add a small layered diagnostics environment rather than bloating the serving path
@@ -536,7 +536,7 @@ Goal:
 - prove that a Flox-managed Python process can see the required GPU-facing runtime surface after controlled environment assembly
 
 Files to add:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+- `scripts/modules/inference_srv_py/gpu_validate.sh`
 
 Responsibilities:
 - activate the existing Python server environment
@@ -551,8 +551,8 @@ Validation should answer:
 - does the bridged process fail before LiteRT-LM initialization or during LiteRT-LM initialization?
 
 Implementation note after initial probing:
-- the validated bridge should not mutate `LD_LIBRARY_PATH` as part of the normal path
-- early experiments that injected host vendor library directories into `LD_LIBRARY_PATH` caused Python process instability and violated the intended flow boundary
+- the validated bridge should not mutate broad host library search paths as part of the normal path
+- early experiments that injected host vendor library directories into the loader search path caused Python process instability and violated the intended flow boundary
 - until a narrower sanctioned bridge is identified, the promoted implementation boundary should stop at `validate`, not `serve`
 
 Exit criteria:
@@ -564,7 +564,7 @@ Goal:
 - create one supported path for starting the Linux GPU-backed inference server
 
 Files to add:
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+- `scripts/modules/inference_srv_py/server_gpu_run.sh`
 
 Responsibilities:
 - activate the existing Python server environment
@@ -578,7 +578,7 @@ Non-goals:
 - it should not guess at multiple incompatible host runtime layouts in an unbounded way
 
 Exit criteria:
-- there is exactly one documented Linux GPU launch path for LiteRT-LM in this repo, and it is not promoted beyond validation until a non-`LD_LIBRARY_PATH` bridge is proven
+- there is exactly one documented Linux GPU launch path for LiteRT-LM in this repo, and it is not promoted beyond validation until a narrower sanctioned serve bridge is proven
 
 #### Phase 5: Add optional diagnostics as a separate layer
 
@@ -626,7 +626,7 @@ The `3.1` path should be considered implemented only when all of the following a
 4. The GPU server launcher is the only supported Linux GPU start path
 5. Failure classes are documented and actionable
 6. The environment and wrapper contract can be versioned together
-7. Live serving does not depend on broad `LD_LIBRARY_PATH` mutation
+7. Live serving does not depend on broad host-library search-path mutation
 
 ### 3.1.k Current promotion boundary after implementation probing
 
@@ -673,10 +673,10 @@ Requested follow-up from the same prompt:
 What was tested:
 
 1. Inspect the actual repo-managed runtime surface
-   - reviewed [env/python/manifest.toml](env/python/manifest.toml), [env/inference/manifest.toml](env/inference/manifest.toml), [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh), [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh), [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh), and [scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh)
+   - reviewed [env/python/manifest.toml](env/python/manifest.toml), [env/inference/manifest.toml](env/inference/manifest.toml), [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh), [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh), [scripts/modules/inference_srv_py/gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/modules/inference_srv_py/gpu_validate.sh), and [scripts/modules/inference_srv_py/server_gpu_run.sh](/home/nkse/projects/hybrid-ai/scripts/modules/inference_srv_py/server_gpu_run.sh)
    - confirmed that the repo deliberately exposes a controlled GPU-related surface:
       - `env/python` installs `vulkan-loader`
-      - `inference_srv_py_env.sh` prepends the Flox runtime lib directory to `LD_LIBRARY_PATH`
+      - `inference_srv_py_env.sh` activates the managed Python venv without broad host-library path mutation
       - plain Flox activation still preserves host `PATH` entries such as `/usr/bin`
 
 2. Compare normal validation with a nearly clean shell
@@ -743,7 +743,7 @@ Revised findings after these probes:
    - host `nvidia-smi` cannot enumerate a usable device cleanly
    - even after bypassing the ICD vendor-library soname issue with an absolute-path ICD JSON, Vulkan still fails to enumerate a valid adapter
 
-5. The old `LD_LIBRARY_PATH` workaround remains rejected
+5. The old broad host-library workaround remains rejected
    - direct experimentation again showed process instability and ABI mismatch when broad host library directories were injected into the managed runtime
 
 Current interpretation after this re-evaluation:
@@ -760,7 +760,7 @@ Practical consequence for the repo:
 - future validation should explicitly test:
    - whether the managed process can load the ICD vendor library named by the selected ICD
    - whether a minimal adapter-enumeration path succeeds before LiteRT-LM tries to serve
-- any future bridge experiment should prefer a narrow sanctioned mechanism, such as explicit ICD rewriting or equivalent targeted handling, rather than broad `LD_LIBRARY_PATH` mutation
+- any future bridge experiment should prefer a narrow sanctioned mechanism, such as explicit ICD rewriting or equivalent targeted handling, rather than broad host-library search-path mutation
 
 Result of the requested Flox reference exercise:
 - attempted to use the remote `flox/agentic-ollama` environment as the strongest near-term reference stack for proving local GPU-backed Gemma serving on this host
@@ -795,7 +795,7 @@ Implemented changes:
    - this reduces accidental dependence on user-level host tool paths while still allowing the residual host driver boundary to be reached through the standard system runtime
 
 4. The promoted validator gained stricter isolation-oriented checks
-   - [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh) now includes:
+   - [scripts/modules/inference_srv_py/gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/modules/inference_srv_py/gpu_validate.sh) now includes:
       - `managed-vulkan-tooling`
          - verifies that `vulkaninfo` resolves from inside `FLOX_ENV`
       - `icd-vendor-library-loadability`
@@ -846,7 +846,7 @@ Important nuance:
 
 Current interpretation after this experiment:
 - a narrow serve bridge likely exists for this host class
-- that bridge is not broad `LD_LIBRARY_PATH` mutation
+- that bridge is not broad host-library search-path mutation
 - the currently successful narrow mechanism is:
    - keep the isolated managed runtime path from `3.1.m`
    - resolve the vendor library path during host-contract discovery
@@ -867,7 +867,7 @@ Operator flags still relevant to this runbook:
 ### 3.1.o Verified end-to-end smoke and promotion decision
 
 Verified result captured after implementing the repo-local smoke workflow:
-- the repo-level shell entrypoint [scripts/env/run_inference_local_gpu_smoke.sh](scripts/env/run_inference_local_gpu_smoke.sh) now wraps [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh](scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh)
+- the repo-level shell entrypoint [scripts/env/run_inference_local_gpu_smoke.sh](scripts/env/run_inference_local_gpu_smoke.sh) now wraps [scripts/modules/inference_srv_py/gpu_smoke.sh](scripts/modules/inference_srv_py/gpu_smoke.sh)
 - the shell smoke workflow was executed end to end on this host on a fresh port after hardening cleanup and port checks
 - the smoke workflow completed successfully through all stages:
    - host `nvidia-smi` check
@@ -908,7 +908,7 @@ Scope of that promotion:
 
 Why this is now the right promotion point:
 - the serve bridge is now exercised by a deterministic repo-local shell smoke path rather than only ad hoc terminal probes
-- the bridge no longer depends on broad `LD_LIBRARY_PATH` mutation
+- the bridge no longer depends on broad host-library search-path mutation
 - the bridge is narrow, inspectable, and derived from the same host-contract data already exported by `linux_gpu_contract.sh`
 - the end-to-end API path now returns normalized plain assistant text instead of implementation-shaped response objects
 
@@ -993,14 +993,14 @@ Verification sequence that proved the fix:
 Practical lesson:
 - when `inference_srv_py_gpu_validate.sh` passes but live `/ready` still fails, inspect the live snapshot files before assuming the bridge model is wrong
 - the live serve path can still surface missing transitive dependencies of the resolved vendor library even when the earlier validation ladder succeeds
-- the correct repair is to add the missing userspace runtime libraries to `env/python`, not to broaden `LD_LIBRARY_PATH`
+- the correct repair is to add the missing userspace runtime libraries to `env/python`, not to broaden host-library search paths
 
 #### Proposed work order in this repo
 
 1. Update [env/python/manifest.toml](env/python/manifest.toml)
 2. Add `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-3. Add `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
-4. Add `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+3. Add `scripts/modules/inference_srv_py/gpu_validate.sh`
+4. Add `scripts/modules/inference_srv_py/server_gpu_run.sh`
 5. Update [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md)
 
 #### Explicit non-goals for the roadmap
@@ -2044,7 +2044,7 @@ Any chosen solution should be judged against these questions:
 ## 13. Non-Recommendations
 
 The project should not rely on the following as durable solutions:
-- manual `LD_LIBRARY_PATH` patching in ad hoc developer shells
+- manual loader-path patching in ad hoc developer shells
 - undocumented `LD_PRELOAD` interactions
 - implicit host session state
 - one-off machine-specific fixes that are not codified as wrappers or contracts

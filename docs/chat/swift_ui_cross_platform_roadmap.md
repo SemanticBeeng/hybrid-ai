@@ -174,7 +174,7 @@ Given the current setup and goals, use this path:
 4. Add a Linux UI target only after choosing GTK/libadwaita or Qt; for the first proof, make it a mobile-form-factor shell, not a desktop-style app.
 5. Add macOS/iOS SwiftUI app projects on macOS that import the same `HybridAI` Swift package.
 6. Use CI/build matrix:
-   - Linux: `scripts/env/toolchain/swift/swift_run.sh build/test` plus Linux UI target if added
+   - Linux: `scripts/modules/swift/run.sh build/test` plus Linux UI target if added
    - macOS: Swift package tests plus macOS SwiftUI app build
    - iOS: Xcode build/archive on macOS
 
@@ -197,7 +197,7 @@ hybrid-ai swift module ready
 Then verify:
 
 ```text
-scripts/env/toolchain/swift/swift_ui_run.sh build --product hybrid-ai-mobile-chat
+scripts/modules/swift/ui_run.sh build --product hybrid-ai-mobile-chat
 ```
 
 Design constraints for this proof:

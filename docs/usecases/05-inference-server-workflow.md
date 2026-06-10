@@ -7,11 +7,11 @@ Primary scripts:
 - `scripts/env/setup_gemma4_e4b.sh`
 - `scripts/env/run_inference_local_gpu_smoke.sh`
 - `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
+- `scripts/modules/inference_srv_py/gpu_validate.sh`
+- `scripts/modules/inference_srv_py/gpu_smoke.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
+- `scripts/modules/inference_srv_py/server_gpu_run.sh`
+- `scripts/modules/inference_srv_py/run.sh`
 
 ## 1. Goal
 
@@ -79,8 +79,8 @@ Environment and wrappers:
 - `scripts/env/toolchain/nix/flox_env_init.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- `scripts/modules/inference_srv_py/run.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
 - `scripts/env/toolchain/inference_env.sh`
 
 Pinned setup scripts:
@@ -126,8 +126,8 @@ was entered through the repository root Flox environment.
 
 Composition now differs by path:
 - `env/python` remains the standalone CPU-safe Python runtime and includes `env/base`
-- `env/inference-litert-linux-gpu` composes `env/python` with `env/inference-litert-base`
-- `env/inference-litert-base` composes `env/inference`
+- `env/inference-litert-linux-gpu` composes `env/python` with `env/inference` and sets the LiteRT engine selection locally
+- `env/inference-litert-base` remains a reusable LiteRT inference layer on top of `env/inference`
 
 That means the Linux GPU env inherits the Python toolchain from `env/python` and adds the LiteRT-LM GPU-native
 closure itself. A resync must account for direct packages in the selected runtime env and packages inherited from
@@ -153,7 +153,7 @@ The script accepts either:
 
 ### 5.4 Backend Lifecycle
 
-`scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`:
+`scripts/modules/inference_srv_py/server_run.sh`:
 - activates `env/python`
 - activates the managed Python venv
 - runs `python -m inference_srv_py.server`
@@ -178,7 +178,7 @@ Current promotion status:
 
 Supported shell entrypoints:
 - `scripts/env/run_inference_local_gpu_smoke.sh`
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh`
+- `scripts/modules/inference_srv_py/gpu_smoke.sh`
 
 ## 6. Complete Workflow
 
@@ -251,10 +251,10 @@ source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
 inference_srv_py_activate_env
 
 ./scripts/env/setup_litert_lm.sh
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/modules/inference_srv_py/run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+./scripts/modules/inference_srv_py/server_run.sh
 ```
 
 Expected preflight results before `curl /ready`:
@@ -328,7 +328,7 @@ Default local server:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-HYBRID_AI_LITERT_BACKEND=cpu ./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+HYBRID_AI_LITERT_BACKEND=cpu ./scripts/modules/inference_srv_py/server_run.sh
 ```
 
 Explicit host and port:
@@ -336,7 +336,7 @@ Explicit host and port:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+./scripts/modules/inference_srv_py/server_run.sh
 ```
 
 Linux GPU preflight:
@@ -356,7 +356,7 @@ Linux GPU managed-runtime validation:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
+./scripts/modules/inference_srv_py/gpu_validate.sh
 ```
 
 Expected result:
@@ -369,7 +369,7 @@ Linux GPU serve:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh
+./scripts/modules/inference_srv_py/server_gpu_run.sh
 ```
 
 Expected result:
@@ -480,7 +480,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import sys; print(sys.executable)"
+./scripts/modules/inference_srv_py/run.sh -c "import sys; print(sys.executable)"
 ```
 
 Expected result:
@@ -490,7 +490,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import litert_lm; print(litert_lm.__file__)"
+./scripts/modules/inference_srv_py/run.sh -c "import litert_lm; print(litert_lm.__file__)"
 ```
 
 Expected result:
@@ -500,7 +500,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/modules/inference_srv_py/run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 ```
 
 Expected result:
@@ -524,7 +524,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
+./scripts/modules/inference_srv_py/gpu_validate.sh
 ```
 
 Expected result:
@@ -540,8 +540,8 @@ Important note:
 
 Current Linux GPU boundary:
 - promoted: `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-- promoted: `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
-- promoted: live GPU serving through `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+- promoted: `scripts/modules/inference_srv_py/gpu_validate.sh`
+- promoted: live GPU serving through `scripts/modules/inference_srv_py/server_gpu_run.sh`
 - promoted: end-to-end live verification through `scripts/env/run_inference_local_gpu_smoke.sh`
 
 Reason:
@@ -652,7 +652,7 @@ Symptom:
 Recovery:
 - resync `env/python` so `vulkan-loader` is included
 - verify `ctypes.util.find_library('vulkan')` returns `libvulkan.so.1`
-- restart the backend through `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- restart the backend through `scripts/modules/inference_srv_py/server_run.sh`
 
 Why this happens:
 - `libvulkan.so.1` is provided by the Flox native environment, not by Poetry
@@ -665,7 +665,7 @@ Why this happens:
 ### 9.3 Live GPU `/ready` Fails With `Found 0 adapters` Even Though Validation Passes
 
 Symptom:
-- `./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh` passes
+- `./scripts/modules/inference_srv_py/gpu_validate.sh` passes
 - `inference_srv_py_server_gpu_run.sh` starts
 - live `/ready` still returns `503`
 - server log contains:
@@ -718,10 +718,10 @@ cd /home/nkse/projects/hybrid-ai
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/modules/inference_srv_py/run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
+./scripts/modules/inference_srv_py/server_run.sh
 ```
 
 ### 9.3 Wrong Flox Environment Selected

@@ -227,19 +227,19 @@ Verification requirements:
 ## 6. Execution Scenarios to Validate
 
 ### 6.1 Python CLI execution
-- Command-line: run through `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
+- Command-line: run through `scripts/modules/inference_srv_py/run.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
 - Activated shell: `flox activate`, then run Python directly from `src/inference_srv_py`.
 - Copilot/VS Code: tasks should continue to invoke the repository wrapper for authoritative CLI/runtime behavior.
-- Validation: run `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `.flox/cache/`.
+- Validation: run `scripts/modules/inference_srv_py/env_check.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `.flox/cache/`.
 
 ### 6.2 Python server execution
-- Launch server via scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh.
+- Launch server via scripts/modules/inference_srv_py/server_run.sh.
 - Validate logs to volumes/logs and temp/cache under build/ or volumes/cache.
 
 ### 6.3 Swift build and test
-- Command-line: scripts/env/toolchain/swift/swift_run.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
+- Command-line: scripts/modules/swift/run.sh build/run/test with explicit --build-path bound to SWIFT_BUILD_PATH.
 - Copilot/VS Code: build tasks call same wrapper.
-- Validation: run `scripts/env/toolchain/swift/swift_env_check.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/env/toolchain/swift/swift_run.sh build`, `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`, and `scripts/env/toolchain/swift/swift_run.sh test`, then ensure no unintended source-adjacent build output is relied on.
+- Validation: run `scripts/modules/swift/env_check.sh`, confirm Swiftly Swift `6.3.2`, run `scripts/modules/swift/run.sh build`, `scripts/modules/swift/run.sh run hybrid-ai-cli`, and `scripts/modules/swift/run.sh test`, then ensure no unintended source-adjacent build output is relied on.
 
 ### 6.4 Inference workflow (Gemma 4 + multi-engine)
 - Local Linux VM: run LiteRT-LM using LITERT_LM_MODELS under volumes/models/litert-lm.
@@ -362,9 +362,9 @@ Recommended immediate scaffold:
 - scripts/env/toolchain/nix/host_bootstrap.sh
 - scripts/env/toolchain/nix/flox_enter.sh
 - scripts/env/start_vscode.sh
-- scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh
-- scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
-- scripts/env/toolchain/swift/swift_run.sh
+- scripts/modules/inference_srv_py/run.sh
+- scripts/modules/inference_srv_py/server_run.sh
+- scripts/modules/swift/run.sh
 - scripts/env/run_inference_local.sh
 - scripts/env/run_inference_remote.sh
 - scripts/env/toolchain/nix/nix_fstab_manage.sh
@@ -424,15 +424,15 @@ Implemented now:
 
 Verified in this workspace:
 - `scripts/env/toolchain/check_env.sh` confirms project-local HOME/XDG/cache paths and the active daemon socket.
-- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh` confirms Python resolves to `.flox/cache/python/bin/python`.
+- `scripts/modules/inference_srv_py/env_check.sh` confirms Python resolves to `.flox/cache/python/bin/python`.
 - Python smoke tests pass: `python -c 'import inference_srv_py; print(inference_srv_py.hello())'` prints `inference-srv-py ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
-- `scripts/env/toolchain/swift/swift_env_check.sh` confirms Swiftly paths:
+- `scripts/modules/swift/env_check.sh` confirms Swiftly paths:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
   - `sourcekit_lsp_bin=/opt/bin/dev/swiftly/bin/sourcekit-lsp`
   - `lldb_bin=/opt/bin/dev/swiftly/bin/lldb`
   - `Swift version 6.3.2 (swift-6.3.2-RELEASE)`
-- `scripts/env/toolchain/swift/swift_run.sh build`, `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`, and `scripts/env/toolchain/swift/swift_run.sh test` all pass.
+- `scripts/modules/swift/run.sh build`, `scripts/modules/swift/run.sh run hybrid-ai-cli`, and `scripts/modules/swift/run.sh test` all pass.
 - Swift tests use Swift 6 built-in `Testing`, not manual Linux `XCTest` manifests.
 - Flox no longer installs Nix `swift`, `swiftpm`, `XCTest`, or `clang`; `env/swift` currently resolves only `cmake`.
 - `flake.nix` and `flake.lock` have been removed from the canonical workflow.
@@ -448,8 +448,8 @@ Important note:
 - `env/base/manifest.toml` is the single owner of `xdg_env.sh`; module manifests include `env/base` rather than duplicating `HOME`/`XDG_*` setup.
 - Static activation values now live in Flox `[vars]`: base sets Nix/Flox daemon defaults, Python sets packaging/runtime flags, and Swift sets Swiftly constants. Scripts retain fallbacks only for host-side setup or execution outside an activated Flox shell.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
-- The Python workflow now relies on `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
-- The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization; `swift_env.sh` sources Swift path setup internally.
+- The Python workflow now relies on `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and venv activation.
+- The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, and Swift build paths; `swift_env.sh` sources Swift path setup internally.
 
 ## 13. Application Runtime Reference
 
@@ -508,8 +508,8 @@ Current operating sequence:
   - `nix --version`
   - `flox --version`
   - `scripts/env/toolchain/nix/flox_with.sh python --version`
-  - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
-  - `scripts/env/toolchain/swift/swift_env_check.sh`
+  - `scripts/modules/inference_srv_py/env_check.sh`
+  - `scripts/modules/swift/env_check.sh`
   - `scripts/env/start_vscode.sh --print-env`
   - confirm VS Code tools resolve Python from the managed Flox venv and Swift from Swiftly without a root shell
 
