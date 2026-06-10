@@ -223,71 +223,106 @@ What this resync does not do:
 - it does not update an already running backend process; that process must be
   restarted after the resync
 
-### 6.2 Optional Interactive Activation
+### 6.2 Verify The LiteRT-LM Dependency
 
-If you want an interactive shell inside the dedicated Python Flox environment:
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-export PATH="/opt/bin/dev/nix/bin:$PATH"
-flox activate -d env/python
-source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
-inference_srv_py_activate_env
-```
-
-This is optional. The wrappers below can activate the same environment without a
-manual shell setup.
-
-Important:
-- `flox activate -d env/python` activates the current realized environment, but it
-  does not rebuild a stale `env/python/.flox/env/manifest.lock`
-- if `env/python/manifest.toml` changed, rerun [Section 6.1](#61-sync-the-dedicated-python-flox-environment) before starting the server
-- if the server was already running before the resync, stop it and start it again so the new runtime libraries are picked up
-- if `curl /ready` fails from a shell that already has `env/python` active, do not assume activation is enough; first resync the Flox env, then restart the server process
-
-Recommended activation-to-ready preflight sequence:
+Ensure the Python Flox environment is synced first (see [Section 6.1](#61-sync-the-dedicated-python-flox-environment)).
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-export PATH="/opt/bin/dev/nix/bin:$PATH"
 
+# Sync the Python env if not already done
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
-flox activate -d env/python
-source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
-inference_srv_py_activate_env
-
-./scripts/env/setup_litert_lm.sh
-./scripts/modules/inference_srv_py/run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
-
-HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/modules/inference_srv_py/server_run.sh
-```
-
-Expected preflight results before `curl /ready`:
-- `setup_litert_lm.sh` prints `Verified litert-lm==0.13.1`
-- the Vulkan check prints `libvulkan.so.1`
-- the server starts without an immediate native-library error
-
-If either preflight check fails:
-- for missing `libvulkan.so.1`, verify `vulkan-loader` is declared in
-  `env/python/manifest.toml` and rerun the Flox resync from [Section 6.1](#61-sync-the-dedicated-python-flox-environment)
-- for missing `litert_lm`, verify `litert-lm` is declared in
-  `src/inference_srv_py/pyproject.toml`, the lockfile is current, and rerun the Poetry sync
-  path described in [Section 9.1](#91-litert_lm-missing-from-the-managed-venv)
-
-### 6.3 Verify The LiteRT-LM Dependency
-
-```bash
-cd /home/nkse/projects/hybrid-ai
+# Verify the dependency
 ./scripts/env/setup_litert_lm.sh
 ```
 
 Expected result:
 - `Verified litert-lm==0.13.1`
 
-### 6.4 Linux GPU End-To-End Smoke
+### 6.3 Bootstrap The Pinned Gemma 4 E4B Model
+
+This step does not require Flox activation — it only writes model metadata and
+downloads the artifact.
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+HYBRID_AI_LITERT_MODEL_URL='https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true' \
+./scripts/env/setup_gemma4_e4b.sh
+```
+
+Expected result:
+- pinned model metadata is written under `volumes/models/litert-lm`
+- the model file exists at `volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm`
+
+### 6.4 Readiness Smoke Test
+
+In another terminal:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+curl -i http://127.0.0.1:8080/ready
+```
+
+Expected result:
+- HTTP `200`
+- JSON payload with `"ready": true`
+- `"backend": "cpu"`
+
+For Linux GPU on supported hosts, expected result is:
+- HTTP `200`
+- JSON payload with `"ready": true`
+- `"backend": "gpu"`
+
+### 6.5 Health Smoke Test
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+curl -i http://127.0.0.1:8080/health
+```
+
+Expected result:
+- HTTP `200`
+- JSON payload containing service name, pinned model info, and issue list
+
+### 6.6 Conversation Smoke Test
+
+Create a conversation:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+curl -sS -X POST http://127.0.0.1:8080/v1/conversations \
+  -H 'Content-Type: application/json' \
+  -d '{"system_prompt":"You are a concise local assistant."}'
+```
+
+Expected result:
+- JSON with a `conversation_id`
+
+Send a message, substituting the returned id:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+curl -sS -X POST http://127.0.0.1:8080/v1/conversations/<conversation-id>/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"Say hello in one sentence."}'
+```
+
+Expected result:
+- JSON payload with an assistant message
+
+Delete the conversation:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+curl -i -X DELETE http://127.0.0.1:8080/v1/conversations/<conversation-id>
+```
+
+Expected result:
+- HTTP `204`
+
+### 6.7 Linux GPU End-To-End Smoke
 
 The repo now has a single-command GPU smoke workflow that mirrors the staged Flox serving style as closely as the current LiteRT-LM Linux path allows.
 
@@ -318,21 +353,23 @@ Useful overrides:
 - the wrapper fails fast if the requested port is already in use
 - server logs are written per port under `/tmp/hybrid-ai-gpu-smoke-server-<port>.log`
 
-### 6.5 Bootstrap The Pinned Gemma 4 E4B Model
+### 6.8 Start The CPU Or GPU Inference Server
 
-Using the Hugging Face direct artifact URL:
+The server wrappers activate Flox internally, but the environment must be synced
+first. If not already done:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-HYBRID_AI_LITERT_MODEL_URL='https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true' \
-./scripts/env/setup_gemma4_e4b.sh
+
+# Sync Python env (CPU path)
+FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
+./scripts/env/toolchain/nix/flox_env_init.sh
+
+# Sync GPU env (GPU path)
+FLOX_ENV_DIR=$PWD/env/inference-litert-linux-gpu \
+FLOX_MANIFEST_PATH=$PWD/env/inference-litert-linux-gpu/manifest.toml \
+./scripts/env/toolchain/nix/flox_env_init.sh
 ```
-
-Expected result:
-- pinned model metadata is written under `volumes/models/litert-lm`
-- the model file exists at `volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm`
-
-### 6.6 Start The CPU Or GPU Inference Server
 
 Default local server:
 
@@ -345,7 +382,7 @@ Explicit host and port:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
+HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
 ./scripts/modules/inference_srv_py/server_run.sh
 ```
 
@@ -392,73 +429,7 @@ Expected result:
 - the server uses the narrow vendor-library prewarm bridge rather than broad host linker-path mutation
 - `LD_AUDIT` is present in the server process (recovered from root env if launched from an external shell)
 
-### 6.7 CPU Readiness Smoke Test
-
-In another terminal:
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-curl -i http://127.0.0.1:8080/ready
-```
-
-Expected result:
-- HTTP `200`
-- JSON payload with `"ready": true`
-- `"backend": "cpu"`
-
-For Linux GPU on supported hosts, expected result is:
-- HTTP `200`
-- JSON payload with `"ready": true`
-- `"backend": "gpu"`
-
-### 6.8 CPU Health Smoke Test
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-curl -i http://127.0.0.1:8080/health
-```
-
-Expected result:
-- HTTP `200`
-- JSON payload containing service name, pinned model info, and issue list
-
-### 6.9 CPU Conversation Smoke Test
-
-Create a conversation:
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-curl -sS -X POST http://127.0.0.1:8080/v1/conversations \
-  -H 'Content-Type: application/json' \
-  -d '{"system_prompt":"You are a concise local assistant."}'
-```
-
-Expected result:
-- JSON with a `conversation_id`
-
-Send a message, substituting the returned id:
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-curl -sS -X POST http://127.0.0.1:8080/v1/conversations/<conversation-id>/messages \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"Say hello in one sentence."}'
-```
-
-Expected result:
-- JSON payload with an assistant message
-
-Delete the conversation:
-
-```bash
-cd /home/nkse/projects/hybrid-ai
-curl -i -X DELETE http://127.0.0.1:8080/v1/conversations/<conversation-id>
-```
-
-Expected result:
-- HTTP `204`
-
-### 6.10 Swift Live Integration Test Against The Promoted Server Path
+### 6.9 Swift Live Integration Test Against The Promoted Server Path
 
 After the Python backend is already running and `/ready` returns `"ready": true`,
 validate the Swift app-side transport against the live server:
@@ -472,7 +443,7 @@ If the backend is running on a non-default URL, override it explicitly:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-HYBRID_AI_BACKEND_BASE_URL=http://127.0.0.1:18080 \
+HYBRID_AI_BACKEND_BASE_URL=http://127.0.0.1:8080 \
 ./scripts/env/run_swift_backend_integration_tests.sh
 ```
 
@@ -487,6 +458,129 @@ What this validates:
 Expected result:
 - the Swift test runner reports the `liveBackend*` tests as passing
 - no server restart is required because this workflow assumes the Python backend is already running
+
+### 6.10 Stop Any Running Inference Server
+
+Before starting a new server, ensure no existing instance is occupying the target port:
+
+```bash
+pkill -f 'python -m inference_srv_py.server' 2>/dev/null || true
+```
+
+Or target a specific port:
+
+```bash
+pids="$(ss -ltnp '( sport = :8080 )' 2>/dev/null | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | sort -u)"
+[[ -z "$pids" ]] || kill $pids
+```
+
+Verify the port is free:
+
+```bash
+ss -ltnp '( sport = :8080 )' || echo "port free"
+```
+
+### 6.11 GPU Clean-Shell Resync And Server Start
+
+Use this when starting from a completely fresh external shell with no prior Flox
+state, or after manifest changes to `env/inference-litert-linux-gpu/manifest.toml`:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+export PATH="/opt/bin/dev/nix/bin:$PATH"
+
+# 1. Re-lock the GPU env after manifest changes
+flox edit -d env/inference-litert-linux-gpu -f env/inference-litert-linux-gpu/manifest.toml
+
+# 2. Reinstall litert_lm in the new venv (venv is recreated after re-lock)
+FLOX_ENV_DIR=$PWD/env/inference-litert-linux-gpu \
+FLOX_MANIFEST_PATH=$PWD/env/inference-litert-linux-gpu/manifest.toml \
+./scripts/env/toolchain/nix/flox_with.sh bash -lc '
+  source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+  inference_srv_py_activate_env
+  poetry -C src/inference_srv_py sync --no-interaction
+'
+
+# 3. Verify litert_lm is installed
+./scripts/env/setup_litert_lm.sh
+
+# 4. Start the GPU server
+HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=18091 \
+./scripts/modules/inference_srv_py/server_gpu_run.sh
+```
+
+In another terminal, verify:
+
+```bash
+curl -sS http://127.0.0.1:18091/ready | python3 -m json.tool
+```
+
+Expected result:
+- `{"ready": true, "backend": "gpu", "issues": []}`
+
+What the outer script (`server_gpu_run.sh`) handles automatically:
+- recovers `LD_AUDIT` and `GLIBC_TUNABLES` from the root project env when they
+  are missing (external shell case)
+- strips inherited `FLOX_ENV`, `VIRTUAL_ENV`, and `VIRTUAL_ENV_PROMPT`
+- activates `env/inference-litert-linux-gpu` via `flox_with.sh`
+- exec's `server_gpu_inner.sh` which ensures the venv, runs the contract check,
+  applies the Vulkan bridge, and starts the Python server
+
+No manual `env -u` flags or `LD_AUDIT` setup is needed by the caller.
+
+### 6.12 Optional Interactive Activation
+
+If you want an interactive shell inside the dedicated Python Flox environment:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+export PATH="/opt/bin/dev/nix/bin:$PATH"
+flox activate -d env/python
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
+```
+
+This is optional. The wrappers above can activate the same environment without a
+manual shell setup.
+
+Important:
+- `flox activate -d env/python` activates the current realized environment, but it
+  does not rebuild a stale `env/python/.flox/env/manifest.lock`
+- if `env/python/manifest.toml` changed, rerun [Section 6.1](#61-sync-the-dedicated-python-flox-environment) before starting the server
+- if the server was already running before the resync, stop it and start it again so the new runtime libraries are picked up
+- if `curl /ready` fails from a shell that already has `env/python` active, do not assume activation is enough; first resync the Flox env, then restart the server process
+
+Recommended activation-to-ready preflight sequence:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+export PATH="/opt/bin/dev/nix/bin:$PATH"
+
+FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
+./scripts/env/toolchain/nix/flox_env_init.sh
+
+flox activate -d env/python
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
+
+./scripts/env/setup_litert_lm.sh
+./scripts/modules/inference_srv_py/run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+
+HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
+./scripts/modules/inference_srv_py/server_run.sh
+```
+
+Expected preflight results before `curl /ready`:
+- `setup_litert_lm.sh` prints `Verified litert-lm==0.13.1`
+- the Vulkan check prints `libvulkan.so.1`
+- the server starts without an immediate native-library error
+
+If either preflight check fails:
+- for missing `libvulkan.so.1`, verify `vulkan-loader` is declared in
+  `env/python/manifest.toml` and rerun the Flox resync from [Section 6.1](#61-sync-the-dedicated-python-flox-environment)
+- for missing `litert_lm`, verify `litert-lm` is declared in
+  `src/inference_srv_py/pyproject.toml`, the lockfile is current, and rerun the Poetry sync
+  path described in [Section 9.1](#91-litert_lm-missing-from-the-managed-venv)
 
 ## 7. Verification Workflow
 
