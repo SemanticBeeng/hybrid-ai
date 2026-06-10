@@ -1406,6 +1406,32 @@ Reusable patterns already proven in Flox environments:
     - for LiteRT-LM, this is the main reusable idea behind eventually replacing
        direct `vulkan-loader` and `xorg.*` entries in `env/python/manifest.toml`
 
+4.a Specific reuse from `lmstudio`
+    - `lmstudio` is especially relevant because its Linux packaging already treats
+       GPU availability as a runtime-owned concern instead of an application-owned
+       manifest concern
+    - the reusable pieces are:
+       - a fail-fast GPU capability gate before server startup
+       - support for more than one Linux GPU discovery path at the probe layer
+          instead of assuming a single CUDA-only signal
+       - wrapper-owned driver and loader mediation on Linux
+       - platform-specific implementation under one logical runtime product name
+    - for this repo, that means the future LiteRT-LM Linux runtime should own a
+       first-stage probe such as:
+       - NVIDIA visibility check
+       - Vulkan-capable discrete adapter check
+       - optional CI bypass switch for install-only validation
+    - this probe would only be the coarse entry gate
+    - the current LiteRT-LM-specific validation would still remain necessary
+       afterward because LiteRT-LM needs more than "a GPU exists":
+       - Vulkan ICD selection
+       - vendor-library resolution
+       - managed-runtime engine construction
+       - live server readiness
+    - in other words, the repo should reuse `lmstudio` for the shape of the
+       runtime-owned Linux GPU gate, not as proof that the same probe is
+       sufficient for LiteRT-LM
+
 5. Activation-time defaults and cache ownership
     - the existing runtimes consistently use:
        - activation-time environment-variable defaults
