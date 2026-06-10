@@ -119,7 +119,7 @@ Execution note:
   - `scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli`
   - `scripts/env/toolchain/swift/swift_run.sh test`
 - Current working Python verification command:
-  - `scripts/env/toolchain/python/python_env_check.sh`
+  - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
 - Manual Linux XCTest workaround remains in place temporarily:
   - `src/swift/Tests/LinuxMain.swift`
   - `src/swift/Tests/HybridAITests/XCTestManifests.swift`
@@ -303,7 +303,7 @@ Recommendation:
 > Remove the flake unless there is a concrete need for non-Flox contributors.
 
 Execution note:
-- `scripts/env/toolchain/python/python_env_check.sh` was used to verify the Flox-managed Python environment.
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh` was used to verify the Flox-managed Python environment.
 - `flake.nix` and `flake.lock` were removed from the repository.
 - Stage 6 was re-verified after the Swiftly migration: no `flake.*` files remain, Flox Python resolves to `.flox/cache/python/bin/python`, and Swift resolves to `/opt/bin/dev/swiftly/bin/swift` with Swift `6.3.2`.
 

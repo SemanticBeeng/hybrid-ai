@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from hybrid_ai.backend import BackendService, ConversationSession, EngineRuntime, NotFoundError, ReadinessError, _extract_text
-from hybrid_ai.bootstrap import BootstrapState
+from inference_srv_py.backend import BackendService, ConversationSession, EngineRuntime, NotFoundError, ReadinessError, _extract_text
+from inference_srv_py.bootstrap import BootstrapState
 
 
 class FakeConversation(ConversationSession):

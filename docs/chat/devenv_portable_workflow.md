@@ -19,7 +19,7 @@ Design:
 Requirement: Python (CLI/server), Swift mobile app, Gemma 4 plus multiple inference engines.
 
 Design:
-- Monorepo with explicit module folders under src/python and src/swift.
+- Monorepo with explicit module folders under src/inference_srv_py and src/swift.
 - Flox composition layers:
   - base: shared system tools, shell policy, git, direnv integration if needed.
   - python: python runtime and packaging workflow.
@@ -44,8 +44,8 @@ Requirement: Python integrated with Flox, with room for stricter Nix packaging l
 Design:
 - Python module has pyproject.toml + poetry.lock as canonical dependency inputs.
 - Flox environment exposes Python executable and packaging tooling for repository workflows.
-- The canonical Python runtime is a Flox-managed venv under `.flox/cache/python`, created and synced by hook logic in `scripts/env/toolchain/python/python_env.sh`.
-- `scripts/env/toolchain/python/python_env.sh` also owns host virtualenv cleanup and Python cache path policy, so Python activation has one source of truth.
+- The canonical Python runtime is a Flox-managed venv under `.flox/cache/python`, created and synced by hook logic in `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`.
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` also owns host virtualenv cleanup and Python cache path policy, so Python activation has one source of truth.
 - Interactive shell use is expected to start with `flox activate` from the repository root; wrapper-based CLI/server use activates the same managed venv explicitly when the shell is not already activated.
 - If CI or release packaging later needs a Nix-built Python artifact, that should be added as a separate explicit path rather than assumed by the default developer workflow.
 - Python package caches and bytecode are redirected under `.flox/cache/`.
@@ -136,7 +136,7 @@ Mandatory exports in Flox activation hooks and wrapper scripts:
   - XDG_STATE_HOME=$PWD/build/xdg/state
   - HOME=$PWD/build/home (only inside controlled wrappers when tools hardcode HOME)
 - Python:
-  - PYTHON_DIR=$PWD/src/python
+  - PYTHON_DIR=$PWD/src/inference_srv_py
   - VIRTUAL_ENV=$PWD/.flox/cache/python
   - PIP_CACHE_DIR=$PWD/.flox/cache/pip-cache
   - POETRY_CACHE_DIR=$PWD/.flox/cache/poetry-cache
@@ -172,7 +172,7 @@ Documented exceptions:
 - .flox/env/manifest.toml: root-attached composed top-level environment importing base + python + swift + inference.
 
 Relationship to source modules:
-- env/python supports the Python source module under `src/python`.
+- env/python supports the Python source module under `src/inference_srv_py`.
 - env/swift supports the Swift source module under `src/swift` by sourcing the Swiftly activation helper.
 - env/inference supports inference wrappers and runtime workflows that are currently script-driven rather than isolated in a dedicated `src/inference` tree.
 - env/base provides shared tooling and activation policy used across all source modules.
@@ -214,9 +214,9 @@ Policy:
 - Launch VS Code through `scripts/env/start_vscode.sh`, which activates the composed Flox environment before the editor process starts.
 - The launcher keeps the editor, extension host, Copilot, and language tools on the project Python venv and Swiftly-backed Swift toolchain while forcing the portable user-data and extensions directories.
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
-- Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/python/python_env.sh`.
+- Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`.
 - Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly.
-- The VS Code launcher uses `scripts/env/toolchain/common.sh` only as a compatibility/helper aggregator, sources `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, and then sources `python_env.sh` plus `swift_env.sh` inside the activated root Flox launch shell before starting the editor.
+- The VS Code launcher uses `scripts/env/toolchain/common.sh` only as a compatibility/helper aggregator, sources `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, and then sources `inference_srv_py_env.sh` plus `swift_env.sh` inside the activated root Flox launch shell before starting the editor.
 
 Verification requirements:
 - Confirm `scripts/env/start_vscode.sh --print-env` reports the managed Flox venv `python`, Swiftly `swift`, SwiftPM `6.3.2`, Swiftly `clang`, `sourcekit-lsp`, and `lldb`.
@@ -227,13 +227,13 @@ Verification requirements:
 ## 6. Execution Scenarios to Validate
 
 ### 6.1 Python CLI execution
-- Command-line: run through `scripts/env/toolchain/python/python_run.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
-- Activated shell: `flox activate`, then run Python directly from `src/python`.
+- Command-line: run through `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` to bootstrap the managed Flox venv when starting from a non-activated shell.
+- Activated shell: `flox activate`, then run Python directly from `src/inference_srv_py`.
 - Copilot/VS Code: tasks should continue to invoke the repository wrapper for authoritative CLI/runtime behavior.
-- Validation: run `scripts/env/toolchain/python/python_env_check.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `.flox/cache/`.
+- Validation: run `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`, then print `sys.executable`, cache dirs, and run a NumPy import proof; ensure the interpreter and caches resolve under `.flox/cache/`.
 
 ### 6.2 Python server execution
-- Launch server via scripts/env/toolchain/python/python_server_run.sh.
+- Launch server via scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh.
 - Validate logs to volumes/logs and temp/cache under build/ or volumes/cache.
 
 ### 6.3 Swift build and test
@@ -284,9 +284,9 @@ Deliverables:
 - Profile selection wrapper.
 
 Phase 3: Python module reproducibility
-1. Initialize src/python package and pyproject.toml + poetry.lock.
+1. Initialize src/inference_srv_py package and pyproject.toml + poetry.lock.
 2. Keep the Flox-managed runtime aligned with locked Python dependencies.
-3. Add wrappers: python_run.sh, python_server_run.sh, run_py_tests.sh.
+3. Add wrappers: inference_srv_py_run.sh, inference_srv_py_server_run.sh, run_py_tests.sh.
 4. Add verification script for Python path/caches/bytecode policy.
 
 Deliverables:
@@ -362,8 +362,8 @@ Recommended immediate scaffold:
 - scripts/env/toolchain/nix/host_bootstrap.sh
 - scripts/env/toolchain/nix/flox_enter.sh
 - scripts/env/start_vscode.sh
-- scripts/env/toolchain/python/python_run.sh
-- scripts/env/toolchain/python/python_server_run.sh
+- scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh
+- scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
 - scripts/env/toolchain/swift/swift_run.sh
 - scripts/env/run_inference_local.sh
 - scripts/env/run_inference_remote.sh
@@ -376,7 +376,7 @@ Recommended immediate scaffold:
 - .vscode/settings.json
 - .vscode/tasks.json
 - .vscode/extensions.json
-- src/python/
+- src/inference_srv_py/
 - src/swift/
 
 ## 9. Practical Verification Checklist
@@ -424,8 +424,8 @@ Implemented now:
 
 Verified in this workspace:
 - `scripts/env/toolchain/check_env.sh` confirms project-local HOME/XDG/cache paths and the active daemon socket.
-- `scripts/env/toolchain/python/python_env_check.sh` confirms Python resolves to `.flox/cache/python/bin/python`.
-- Python smoke tests pass: `python -m hybrid_ai` prints `hybrid-ai python module ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh` confirms Python resolves to `.flox/cache/python/bin/python`.
+- Python smoke tests pass: `python -c 'import inference_srv_py; print(inference_srv_py.hello())'` prints `inference-srv-py ready`, and NumPy demo payload validates `dot == 8.5` and `outer_shape == [4, 4]`.
 - `scripts/env/toolchain/swift/swift_env_check.sh` confirms Swiftly paths:
   - `swift_bin=/opt/bin/dev/swiftly/bin/swift`
   - `clang_bin=/opt/bin/dev/swiftly/bin/clang`
@@ -448,7 +448,7 @@ Important note:
 - `env/base/manifest.toml` is the single owner of `xdg_env.sh`; module manifests include `env/base` rather than duplicating `HOME`/`XDG_*` setup.
 - Static activation values now live in Flox `[vars]`: base sets Nix/Flox daemon defaults, Python sets packaging/runtime flags, and Swift sets Swiftly constants. Scripts retain fallbacks only for host-side setup or execution outside an activated Flox shell.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.
-- The Python workflow now relies on `scripts/env/toolchain/python/python_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
+- The Python workflow now relies on `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the single source of truth for host virtualenv cleanup, managed-venv creation, dependency sync, cache paths, and runtime-library activation.
 - The Swift workflow now relies on `scripts/env/toolchain/swift/swift_env.sh` and `scripts/env/toolchain/swift/swiftly_common.sh` as the source of truth for Swiftly activation, Swift `6.3.2` validation, Swift build paths, and Swiftly-safe `LD_LIBRARY_PATH` sanitization; `swift_env.sh` sources Swift path setup internally.
 
 ## 13. Application Runtime Reference
@@ -508,7 +508,7 @@ Current operating sequence:
   - `nix --version`
   - `flox --version`
   - `scripts/env/toolchain/nix/flox_with.sh python --version`
-  - `scripts/env/toolchain/python/python_env_check.sh`
+  - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
   - `scripts/env/toolchain/swift/swift_env_check.sh`
   - `scripts/env/start_vscode.sh --print-env`
   - confirm VS Code tools resolve Python from the managed Flox venv and Swift from Swiftly without a root shell

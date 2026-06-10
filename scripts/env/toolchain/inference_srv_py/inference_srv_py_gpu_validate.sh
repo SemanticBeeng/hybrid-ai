@@ -57,14 +57,14 @@ hybrid_ai_python_gpu_validate_inner() {
     local snapshot_dir="${HYBRID_AI_GPU_DEBUG_SNAPSHOT_DIR:-}"
 
   # shellcheck disable=SC1090
-  source "$project_root/scripts/env/toolchain/python/python_env.sh"
+  source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
     hybrid_ai_linux_gpu_scrub_runtime_env
-  hybrid_ai_activate_python_env
+    inference_srv_py_activate_env
     hybrid_ai_linux_gpu_rebuild_runtime_path
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
@@ -72,11 +72,11 @@ hybrid_ai_python_gpu_validate_inner() {
 
     if [[ -n "$snapshot_dir" ]]; then
         mkdir -p "$snapshot_dir"
-        "$project_root/scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh" \
+        "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh" \
             validate "$snapshot_dir/validate.json" >/dev/null
     fi
 
-  cd "$project_root/src/python"
+  cd "$project_root/src/inference_srv_py"
   hybrid_ai_python_gpu_run_phase \
     runtime-library-resolution \
     '{"gpu_validation":"phase-ok","phase":"runtime-library-resolution"}' \
@@ -148,7 +148,7 @@ PY
     bootstrap-state \
     '{"gpu_validation":"phase-ok","phase":"bootstrap-state"}' \
     bootstrap-state <<'PY'
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 state = load_bootstrap_state()
 if state.issues:
@@ -160,7 +160,7 @@ PY
     '{"gpu_validation":"phase-ok","phase":"engine-construction"}' \
     engine-construction-crash <<'PY'
 import litert_lm
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 backend_type = getattr(litert_lm, "Backend", None)
 gpu_ctor = getattr(backend_type, "GPU", None) if backend_type is not None else None
@@ -186,7 +186,7 @@ PY
     '{"gpu_validation":"phase-ok","phase":"engine-enter"}' \
     engine-enter-crash <<'PY'
 import litert_lm
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 backend_type = getattr(litert_lm, "Backend", None)
 gpu_ctor = getattr(backend_type, "GPU", None) if backend_type is not None else None
@@ -219,7 +219,7 @@ PY
     '{"gpu_validation":"phase-ok","phase":"conversation-create"}' \
     conversation-create-crash <<'PY'
 import litert_lm
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 backend_type = getattr(litert_lm, "Backend", None)
 gpu_ctor = getattr(backend_type, "GPU", None) if backend_type is not None else None
@@ -283,7 +283,7 @@ PY
 import threading
 
 import litert_lm
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 backend_type = getattr(litert_lm, "Backend", None)
 gpu_ctor = getattr(backend_type, "GPU", None) if backend_type is not None else None
@@ -377,7 +377,7 @@ PY
     backend-readiness \
     '{"gpu_validation":"phase-ok","phase":"backend-readiness"}' \
     backend-readiness <<'PY'
-from hybrid_ai.backend import BackendService
+from inference_srv_py.backend import BackendService
 
 service = BackendService()
 try:
@@ -395,7 +395,7 @@ PY
     threaded-backend-readiness <<'PY'
 import threading
 
-from hybrid_ai.backend import BackendService
+from inference_srv_py.backend import BackendService
 
 thread_error = []
 
@@ -429,7 +429,7 @@ import ctypes.util
 import json
 import os
 
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 state = load_bootstrap_state()
 
@@ -454,5 +454,5 @@ fi
 
 exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
-  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/python/python_gpu_validate.sh" "$@"' \
+  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh" "$@"' \
   bash "$project_root" "$@"

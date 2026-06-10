@@ -12,14 +12,14 @@
       "command": "${workspaceFolder}/scripts/env/start_vscode.sh --print-env"
     },
     {
-      "label": "python:run",
+      "label": "inference-srv-py:run",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/python/python_run.sh"
+      "command": "${workspaceFolder}/scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh"
     },
     {
-      "label": "python:server",
+      "label": "inference-srv-py:server",
       "type": "shell",
-      "command": "${workspaceFolder}/scripts/env/toolchain/python/python_server_run.sh"
+      "command": "${workspaceFolder}/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh"
     },
     {
       "label": "swift:build",

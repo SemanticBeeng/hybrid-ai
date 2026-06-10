@@ -163,13 +163,13 @@ Verification commands:
 
 ```bash
 scripts/env/toolchain/check_env.sh
-scripts/env/toolchain/python/python_env_check.sh
+scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh
 scripts/env/toolchain/swift/swift_env_check.sh
 scripts/env/toolchain/nix/nix_isolation_check.sh
 scripts/env/toolchain/doctor.sh
 test -S /nix/var/nix/daemon-socket/socket && echo daemon_socket_present
-scripts/env/toolchain/python/python_run.sh -c 'import sys; print(sys.executable)'
-scripts/env/toolchain/python/python_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import sys; print(sys.executable)'
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
 scripts/env/toolchain/nix/flox_with.sh swift --version
 ```
 
@@ -270,7 +270,7 @@ Project scripts do not start host Nix services automatically.
 Run one command inside the Flox environment:
 
 ```bash
-scripts/env/toolchain/python/python_run.sh -c 'import sys; print(sys.executable)'
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import sys; print(sys.executable)'
 scripts/env/toolchain/nix/flox_with.sh swift --version
 ```
 
@@ -278,7 +278,7 @@ Dedicated environment verification helpers:
 
 ```bash
 scripts/env/toolchain/check_env.sh
-scripts/env/toolchain/python/python_env_check.sh
+scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh
 scripts/env/toolchain/swift/swift_env_check.sh
 ```
 
@@ -286,20 +286,20 @@ Canonical Python shell workflow:
 
 ```bash
 flox activate
-cd src/python
-python -m hybrid_ai.hello_world
+cd src/inference_srv_py
+python -m inference_srv_py.hello_world
 ```
 
 Notes:
 - `flox activate` from the repository root is now the canonical interactive Python shell entry point
 - the managed Python venv lives under `.flox/cache/python`
-- repository Python wrappers source `scripts/env/toolchain/python/python_env.sh` so non-activated shells reach the same managed venv and runtime-library setup
+- repository Python wrappers source `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` so non-activated shells reach the same managed venv and runtime-library setup
 
 Use task-specific wrappers:
 
 ```bash
-scripts/env/toolchain/python/python_run.sh ...
-scripts/env/toolchain/python/python_server_run.sh ...
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh ...
+scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh ...
 scripts/env/toolchain/swift/swift_run.sh ...
 scripts/env/run_inference_local.sh "healthcheck"
 ```
@@ -336,9 +336,9 @@ scripts/env/start_vscode.sh --check
 Inside VS Code, the repository workspace settings and tasks continue to pin tool
 execution to the repository wrappers:
 - `.vscode/settings.json` points editor extensions at `python` and `swift` from the launcher-activated `PATH`
-- `.vscode/tasks.json` keeps task execution pinned to repository wrappers such as `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/swift/swift_run.sh`
+- `.vscode/tasks.json` keeps task execution pinned to repository wrappers such as `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` and `scripts/env/toolchain/swift/swift_run.sh`
 - `.vscode/tasks.json` exposes `vscode:print-env` to print the live editor toolchain and portable data roots after launch
-- `scripts/env/start_vscode.sh` activates the root `.flox` environment, then sources `scripts/env/toolchain/python/python_env.sh` and `scripts/env/toolchain/swift/swift_env.sh` before launching the editor, so editor-side `python` resolves to the managed venv and `swift` resolves to Swiftly
+- `scripts/env/start_vscode.sh` activates the root `.flox` environment, then sources `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` and `scripts/env/toolchain/swift/swift_env.sh` before launching the editor, so editor-side `python` resolves to the managed venv and `swift` resolves to Swiftly
 - Python CLI/server and native-extension verification should still use the wrappers for repeatable command-line checks, but the editor launch path now shares the same managed Python venv activation model
 
 ### 6.2 Learnings and Pitfalls From This Session
@@ -371,9 +371,9 @@ execution to the repository wrappers:
 
 #### Python Now Uses A Flox-Managed Venv
 
-- The canonical Python runtime is no longer a project-local `.venv` under `src/python`.
-- The managed venv now lives under `.flox/cache/python` and is created/synced by Flox hooks via `scripts/env/toolchain/python/python_env.sh`.
-- Direct shell usage works through `flox activate` from the repository root; wrapper-based usage works through `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/python/python_server_run.sh`.
+- The canonical Python runtime is no longer a project-local `.venv` under `src/inference_srv_py`.
+- The managed venv now lives under `.flox/cache/python` and is created/synced by Flox hooks via `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`.
+- Direct shell usage works through `flox activate` from the repository root; wrapper-based usage works through `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` and `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`.
 - Python package caches and bytecode now live under `.flox/cache/*`, not under `build/python/*`.
 
 #### Host-Derived `LD_LIBRARY_PATH` Was The Wrong Fix Layer

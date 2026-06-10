@@ -3,4 +3,4 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-exec "$project_root/scripts/modules/swift/ui_run.sh" "$@"
+exec "$project_root/scripts/modules/inference_srv_py/env_check.sh" "$@"

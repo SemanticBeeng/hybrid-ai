@@ -190,7 +190,7 @@ Do this in the repository setup direction captured in [[09-dd-model-bootstrap-an
 - Add a smoke check that proves model presence and engine startup before the app runs.
 
 3. Continue evolving the Python inference service.
-The repository already has a real backend surface in `src/python/hybrid_ai/server.py`; the remaining work is to evolve it further with:
+The repository already has a real backend surface in `src/inference_srv_py/inference_srv_py/server.py`; the remaining work is to evolve it further with:
 - a real web framework, preferably FastAPI
 - startup lifecycle that loads or validates Gemma 4 E4B availability
 - `/health` and `/ready` endpoints

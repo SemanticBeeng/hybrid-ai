@@ -1,9 +1,12 @@
 from pathlib import Path
 
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 
-def test_load_bootstrap_state_discovers_pinned_model_file(tmp_path: Path) -> None:
+def test_load_bootstrap_state_discovers_pinned_model_file(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("HYBRID_AI_LITERT_MODEL_PATH", raising=False)
+    monkeypatch.delenv("HYBRID_AI_LITERT_MODEL_FILE", raising=False)
+
     project_root = tmp_path
     model_root = project_root / "volumes/models/litert-lm"
     model_dir = model_root / "gemma4-e4b"
@@ -23,7 +26,10 @@ def test_load_bootstrap_state_discovers_pinned_model_file(tmp_path: Path) -> Non
     assert state.model_reference == "gemma4:e4b"
 
 
-def test_load_bootstrap_state_reports_missing_model_file(tmp_path: Path) -> None:
+def test_load_bootstrap_state_reports_missing_model_file(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("HYBRID_AI_LITERT_MODEL_PATH", raising=False)
+    monkeypatch.delenv("HYBRID_AI_LITERT_MODEL_FILE", raising=False)
+
     project_root = tmp_path
     model_root = project_root / "volumes/models/litert-lm"
     model_dir = model_root / "gemma4-e4b"

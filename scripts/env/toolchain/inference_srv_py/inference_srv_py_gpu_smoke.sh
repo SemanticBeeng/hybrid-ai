@@ -36,12 +36,12 @@ echo "==> host GPU check"
 nvidia-smi --query-gpu=index,name,driver_version,memory.total --format=csv,noheader
 
 echo "==> managed GPU validation"
-./scripts/env/toolchain/python/python_gpu_validate.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
 
 echo "==> starting GPU server on ${server_url}"
 setsid env HYBRID_AI_HOST="$host" \
 HYBRID_AI_PORT="$port" \
-./scripts/env/toolchain/python/python_server_gpu_run.sh >"$server_log" 2>&1 &
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh >"$server_log" 2>&1 &
 server_pid="$!"
 
 echo "==> waiting for /ready"

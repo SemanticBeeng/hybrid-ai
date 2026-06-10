@@ -4,16 +4,16 @@
 
 ### Linux GPU inference boundary and diagnostics
 - implemented Linux GPU host-contract preflight in `scripts/env/toolchain/inference/linux_gpu_contract.sh` and promoted it as part of the supported GPU rehearsal boundary
-- implemented managed Linux GPU validation in `scripts/env/toolchain/python/python_gpu_validate.sh`, including phased checks for Vulkan loader resolution, LiteRT-LM import, backend selection, engine creation, conversation creation, and backend readiness
-- implemented `scripts/env/toolchain/python/python_server_gpu_run.sh` as the Linux GPU launcher wrapper for the promoted supported host class
-- added GPU runtime snapshot tooling in `scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh` and snapshot diff tooling in `scripts/env/toolchain/python/python_gpu_snapshot_diff.sh`
-- added in-process Python debug snapshots in `src/python/hybrid_ai/debug_snapshot.py` and wired them into `src/python/hybrid_ai/server.py` and `src/python/hybrid_ai/backend.py` so the live server process can be compared against the promoted validation path
-- tightened `scripts/env/toolchain/python/python_env.sh` to deduplicate `PATH` and `LD_LIBRARY_PATH` entries during nested wrapper activation so runtime snapshots are stable and easier to compare
+- implemented managed Linux GPU validation in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`, including phased checks for Vulkan loader resolution, LiteRT-LM import, backend selection, engine creation, conversation creation, and backend readiness
+- implemented `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh` as the Linux GPU launcher wrapper for the promoted supported host class
+- added GPU runtime snapshot tooling in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh` and snapshot diff tooling in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_snapshot_diff.sh`
+- added in-process Python debug snapshots in `src/inference_srv_py/inference_srv_py/debug_snapshot.py` and wired them into `src/inference_srv_py/inference_srv_py/server.py` and `src/inference_srv_py/inference_srv_py/backend.py` so the live server process can be compared against the promoted validation path
+- tightened `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` to deduplicate `PATH` and `LD_LIBRARY_PATH` entries during nested wrapper activation so runtime snapshots are stable and easier to compare
 
 ### Linux GPU current status
 - Linux GPU is now promoted through `preflight`, `validate`, and live `serve` for the current supported NVIDIA plus Vulkan host class
-- the promoted GPU gate is `scripts/env/toolchain/python/python_gpu_validate.sh`
-- the promoted Linux GPU serve bridge is a narrow absolute-path vendor-library prewarm in `src/python/hybrid_ai/backend.py`, not broad `LD_LIBRARY_PATH` mutation
+- the promoted GPU gate is `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+- the promoted Linux GPU serve bridge is a narrow absolute-path vendor-library prewarm in `src/inference_srv_py/inference_srv_py/backend.py`, not broad `LD_LIBRARY_PATH` mutation
 - a repo-local end-to-end shell smoke path now verifies `/ready`, `/health`, conversation creation, and message round-trip through `scripts/env/run_inference_local_gpu_smoke.sh`
 - the backend now normalizes structured LiteRT response payloads to plain assistant text before returning HTTP JSON responses
 - the GPU smoke wrapper now refuses occupied ports and cleans up the whole background server process group so repeated local runs do not silently talk to stale listeners
@@ -38,7 +38,7 @@
 
 ### Toolchain source-boundary cleanup
 - clarified the environment design so Flox manifests source narrow concern modules directly while `scripts/env/toolchain/common.sh` remains the full-session compatibility aggregator for external shells and launcher bootstrap
-- folded the former Python path/host-venv cleanup concern into `scripts/env/toolchain/python/python_env.sh`, making it the single Python source of truth for host virtualenv cleanup, managed venv setup, dependency sync, cache paths, and runtime activation
+- folded the former Python path/host-venv cleanup concern into `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`, making it the single Python source of truth for host virtualenv cleanup, managed venv setup, dependency sync, cache paths, and runtime activation
 - made `scripts/env/toolchain/swift/swift_env.sh` source Swift build/cache path setup internally, so manifests and callers no longer need to source `swift_paths.sh` directly
 - documented `scripts/env/toolchain/vscode_paths.sh` as the VS Code portable path owner and updated runbooks to reflect that `scripts/env/start_vscode.sh` now activates the managed Python venv and Swiftly toolchain before launching VS Code
 - updated use-case docs and setup runbooks to describe the cleaned module boundaries and current Python/Swift/VS Code activation model
@@ -123,20 +123,20 @@
 - added `docs/usecases/03-swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
 ### Python Flox alignment
-- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python/python_env.sh`, with hooks creating and syncing the managed venv under the Flox environment cache
+- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`, with hooks creating and syncing the managed venv under the Flox environment cache
 - added Flox profile activation for the Python venv in both the Python module and fullstack manifests
 - removed the host-derived `LD_LIBRARY_PATH` mutation from `scripts/env/toolchain/common.sh` and replaced it with Flox-managed runtime activation from the Python helper
-- simplified `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/python/python_server_run.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
+- simplified `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` and `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
 - declared `libgcc` in the active composed Flox environment and verified NumPy imports correctly from the managed venv (`6.0` sum proof)
 - resolved the earlier wrapper/runtime failure caused by pre-activation host library path pollution
 
 ### Detailed Python workflow changes
-- added `scripts/env/toolchain/python/python_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
+- added `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
 - updated `env/python/manifest.toml` so the Python module now declares `python311`, `poetry`, `uv`, and `libgcc`, boots the managed venv from its hook, and activates it from Flox shell profiles
 - updated the then-current top-level composed manifest so it also bootstrapped and activated the managed Python venv and explicitly exposed `libgcc` in the active runtime
 - updated `scripts/env/toolchain/common.sh` to remove Python-specific cache and venv policy from the shared bootstrap and to stop exporting `LD_LIBRARY_PATH` from host `g++`
 - updated `scripts/env/toolchain/nix/flox_with.sh` so no-argument mode enters a native `flox activate` shell instead of forcing `bash --noprofile --norc`
-- updated `scripts/env/toolchain/python/python_run.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
-- updated `scripts/env/toolchain/python/python_server_run.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
+- updated `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
+- updated `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
 - kept direct shell usage valid through the canonical Flox activation path while preserving wrappers for non-activated shells and tasks
 - verified wrapper bootstrap from a clean shell, direct Flox activation with managed venv activation, and NumPy native-extension loading through both paths

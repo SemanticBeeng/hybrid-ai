@@ -12,7 +12,7 @@ source "$project_root/scripts/env/toolchain/xdg_env.sh"
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/nix/nix_flox_env.sh"
 # shellcheck disable=SC1090
-source "$project_root/scripts/env/toolchain/python/python_env.sh"
+source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/swift/swift_paths.sh"
 # shellcheck disable=SC1090

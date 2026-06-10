@@ -27,18 +27,18 @@ HYBRID_AI_LITERT_BACKEND = "gpu"
 
 [hook]
 on-activate = '''
-source scripts/env/toolchain/python/python_env.sh
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
 source scripts/env/toolchain/inference/litert_env.sh
 hybrid_ai_activate_litert_linux_gpu_env
-hybrid_ai_setup_python_env
+inference_srv_py_setup_env
 '''
 
 [profile]
 common = '''
-source scripts/env/toolchain/python/python_env.sh
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
 source scripts/env/toolchain/inference/litert_env.sh
 hybrid_ai_activate_litert_linux_gpu_env
-hybrid_ai_activate_python_env
+inference_srv_py_activate_env
 '''
 
 [options]

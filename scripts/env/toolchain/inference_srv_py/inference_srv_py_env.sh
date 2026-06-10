@@ -2,19 +2,19 @@
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 
-hybrid_ai_unset_host_python_env() {
+inference_srv_py_unset_host_python_env() {
   # Prevent an already-active host virtualenv from leaking into repository Python workflows.
   unset VIRTUAL_ENV
   unset VIRTUAL_ENV_PROMPT
 }
 
-hybrid_ai_unset_host_python_env
+inference_srv_py_unset_host_python_env
 
-hybrid_ai_python_dir() {
-  printf '%s\n' "$project_root/src/python"
+inference_srv_py_dir() {
+  printf '%s\n' "$project_root/src/inference_srv_py"
 }
 
-hybrid_ai_python_venv_dir() {
+inference_srv_py_venv_dir() {
   if [[ -z "${FLOX_ENV_CACHE:-}" ]]; then
     echo "ERROR: FLOX_ENV_CACHE is required for the managed Python venv." >&2
     return 1
@@ -23,7 +23,7 @@ hybrid_ai_python_venv_dir() {
   printf '%s\n' "$FLOX_ENV_CACHE/python"
 }
 
-hybrid_ai_dedup_colon_path_var() {
+inference_srv_py_dedup_colon_path_var() {
   local var_name="$1"
   local value="${!var_name:-}"
   local entry
@@ -50,14 +50,14 @@ hybrid_ai_dedup_colon_path_var() {
   export "$var_name"
 }
 
-hybrid_ai_export_python_env() {
+inference_srv_py_export_env() {
   local python_dir=""
   local venv_dir=""
 
-  hybrid_ai_unset_host_python_env
+  inference_srv_py_unset_host_python_env
 
-  python_dir="$(hybrid_ai_python_dir)"
-  venv_dir="$(hybrid_ai_python_venv_dir)"
+  python_dir="$(inference_srv_py_dir)"
+  venv_dir="$(inference_srv_py_venv_dir)"
 
   export PYTHON_DIR="$python_dir"
   export HYBRID_AI_PYTHON_VENV="$venv_dir"
@@ -73,15 +73,15 @@ hybrid_ai_export_python_env() {
   mkdir -p "$PIP_CACHE_DIR" "$POETRY_CACHE_DIR" "$UV_CACHE_DIR" "$PYTHONPYCACHEPREFIX"
 }
 
-hybrid_ai_activate_python_env() {
+inference_srv_py_activate_env() {
   local venv_dir=""
   local runtime_dir=""
 
-  hybrid_ai_export_python_env
-  venv_dir="$(hybrid_ai_python_venv_dir)"
+  inference_srv_py_export_env
+  venv_dir="$(inference_srv_py_venv_dir)"
 
   if [[ ! -x "$venv_dir/bin/python" ]]; then
-    hybrid_ai_setup_python_env
+    inference_srv_py_setup_env
   fi
 
   if [[ -f "$venv_dir/bin/activate" ]]; then
@@ -97,11 +97,11 @@ hybrid_ai_activate_python_env() {
     export LD_LIBRARY_PATH="$runtime_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   fi
 
-  hybrid_ai_dedup_colon_path_var PATH
-  hybrid_ai_dedup_colon_path_var LD_LIBRARY_PATH
+  inference_srv_py_dedup_colon_path_var PATH
+  inference_srv_py_dedup_colon_path_var LD_LIBRARY_PATH
 }
 
-hybrid_ai_setup_python_env() {
+inference_srv_py_setup_env() {
   local python_dir=""
   local venv_dir=""
   local state_dir=""
@@ -109,21 +109,22 @@ hybrid_ai_setup_python_env() {
   local current_stamp=""
   local source_file=""
 
-  python_dir="$(hybrid_ai_python_dir)"
-  venv_dir="$(hybrid_ai_python_venv_dir)"
+  python_dir="$(inference_srv_py_dir)"
+  venv_dir="$(inference_srv_py_venv_dir)"
   state_dir="$FLOX_ENV_CACHE/state"
   deps_stamp="$state_dir/python-deps.sha256"
 
-  hybrid_ai_export_python_env
+  inference_srv_py_export_env
 
   mkdir -p "$state_dir"
 
   if [[ ! -x "$venv_dir/bin/python" ]]; then
     python -m venv "$venv_dir"
-    hybrid_ai_activate_python_env
+    inference_srv_py_activate_env
   fi
 
   current_stamp="$({
+    printf '%s\n' "$python_dir"
     for source_file in "$python_dir/pyproject.toml" "$python_dir/poetry.lock"; do
       if [[ -f "$source_file" ]]; then
         cat "$source_file"
@@ -135,4 +136,32 @@ hybrid_ai_setup_python_env() {
     poetry -C "$python_dir" sync --no-interaction
     printf '%s\n' "$current_stamp" > "$deps_stamp"
   fi
+}
+
+hybrid_ai_unset_host_python_env() {
+  inference_srv_py_unset_host_python_env "$@"
+}
+
+hybrid_ai_python_dir() {
+  inference_srv_py_dir "$@"
+}
+
+hybrid_ai_python_venv_dir() {
+  inference_srv_py_venv_dir "$@"
+}
+
+hybrid_ai_dedup_colon_path_var() {
+  inference_srv_py_dedup_colon_path_var "$@"
+}
+
+hybrid_ai_export_python_env() {
+  inference_srv_py_export_env "$@"
+}
+
+hybrid_ai_activate_python_env() {
+  inference_srv_py_activate_env "$@"
+}
+
+hybrid_ai_setup_python_env() {
+  inference_srv_py_setup_env "$@"
 }

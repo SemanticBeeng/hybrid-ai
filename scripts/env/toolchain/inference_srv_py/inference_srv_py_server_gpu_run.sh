@@ -12,29 +12,29 @@ hybrid_ai_python_server_gpu_inner() {
   mkdir -p "$(dirname "$LOG_PATH")"
 
   # shellcheck disable=SC1090
-  source "$project_root/scripts/env/toolchain/python/python_env.sh"
+  source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
   hybrid_ai_linux_gpu_scrub_runtime_env
-  hybrid_ai_activate_python_env
+  inference_srv_py_activate_env
   hybrid_ai_linux_gpu_rebuild_runtime_path
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND=gpu
 
-  "$project_root/scripts/env/toolchain/python/python_gpu_validate.sh"
+  "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh"
 
   if [[ -n "$snapshot_dir" ]]; then
     mkdir -p "$snapshot_dir"
-    "$project_root/scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh" \
+    "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh" \
       serve-launch "$snapshot_dir/serve-launch.json" >/dev/null
   fi
 
-  cd "$project_root/src/python"
-  exec python -m hybrid_ai.server "$@" 2>&1 | tee -a "$LOG_PATH"
+  cd "$project_root/src/inference_srv_py"
+  exec python -m inference_srv_py.server "$@" 2>&1 | tee -a "$LOG_PATH"
 }
 
 if [[ "${FLOX_ENV:-}" == "$runtime_env_dir"/.flox/run/* ]]; then
@@ -45,5 +45,5 @@ fi
 mkdir -p "$(dirname "$LOG_PATH")"
 exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
-  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/python/python_server_gpu_run.sh" "$@"' \
+  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh" "$@"' \
   bash "$project_root" "$@" 2>&1 | tee -a "$LOG_PATH"

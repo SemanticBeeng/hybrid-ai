@@ -22,12 +22,12 @@ POETRY_VIRTUALENVS_CREATE = "false"
 
 [hook]
 on-activate = '''
-source scripts/env/toolchain/python/python_env.sh
-hybrid_ai_setup_python_env
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_setup_env
 '''
 
 [profile]
 common = '''
-source scripts/env/toolchain/python/python_env.sh
-hybrid_ai_activate_python_env
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
 '''

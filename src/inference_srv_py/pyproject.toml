@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "hybrid-ai"
+name = "inference-srv-py"
 version = "0.1.0"
-description = "Hybrid cloud AI python module"
+description = "Python inference server module"
 authors = ["hybrid-ai team"]
-packages = [{ include = "hybrid_ai" }]
+packages = [{ include = "inference_srv_py" }]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"

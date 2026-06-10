@@ -74,8 +74,8 @@ What this would look like in this repo:
 What it would take to implement:
 
 1. Add a dedicated Linux GPU server wrapper
-    - create a wrapper such as `scripts/env/toolchain/python/python_server_gpu_run.sh`
-    - keep `scripts/env/toolchain/python/python_env.sh` as the generic Python activation path
+    - create a wrapper such as `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+    - keep `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the generic Python activation path
     - avoid polluting the default Python environment activation with Linux GPU host-library assumptions
 
 2. Make the GPU wrapper explicitly construct the runtime boundary
@@ -143,13 +143,13 @@ Repository-oriented implementation sketch:
 - keep generic Python activation unchanged except where a narrow extension hook is needed
 
 Concretely in this repo, that likely means:
-- `scripts/env/toolchain/python/python_env.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
    - remains the generic Flox Python activation layer
 - `scripts/env/toolchain/inference_env.sh`
    - continues to own model and cache path defaults
-- new helper under `scripts/env/toolchain/inference/` or `scripts/env/toolchain/python/`
+- new helper under `scripts/env/toolchain/inference/` or `scripts/env/toolchain/inference_srv_py/`
    - discovers ICD JSONs, vendor libs, and device-node visibility
-- new launch wrapper under `scripts/env/toolchain/python/`
+- new launch wrapper under `scripts/env/toolchain/inference_srv_py/`
    - assembles the bridged environment and invokes the existing server entrypoint
 
 Risks and engineering cost:
@@ -475,7 +475,7 @@ Goal:
 Actions:
 - leave [env/inference/manifest.toml](env/inference/manifest.toml) minimal
 - use [env/python/manifest.toml](env/python/manifest.toml) as the single Python server environment boundary
-- add Linux GPU support to [env/python/manifest.toml](env/python/manifest.toml) and [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh) only where that support is part of the normal server runtime contract
+- add Linux GPU support to [env/python/manifest.toml](env/python/manifest.toml) and [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh) only where that support is part of the normal server runtime contract
 
 Exit criteria:
 - the existing Python server entrypoint remains the only backend application surface
@@ -536,7 +536,7 @@ Goal:
 - prove that a Flox-managed Python process can see the required GPU-facing runtime surface after controlled environment assembly
 
 Files to add:
-- `scripts/env/toolchain/python/python_gpu_validate.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
 
 Responsibilities:
 - activate the existing Python server environment
@@ -564,7 +564,7 @@ Goal:
 - create one supported path for starting the Linux GPU-backed inference server
 
 Files to add:
-- `scripts/env/toolchain/python/python_server_gpu_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
 
 Responsibilities:
 - activate the existing Python server environment
@@ -648,8 +648,8 @@ Reason:
    promoted path until a narrower sanctioned serve bridge is identified
 
 Practical consequence:
-- the repo should treat `python_gpu_validate.sh` as the promoted GPU gate
-- `python_server_gpu_run.sh` should remain explicitly experimental beyond that
+- the repo should treat `inference_srv_py_gpu_validate.sh` as the promoted GPU gate
+- `inference_srv_py_server_gpu_run.sh` should remain explicitly experimental beyond that
    gate
 - documentation should not describe Linux GPU serving as fully implemented in
    the same sense as the CPU server workflow
@@ -673,14 +673,14 @@ Requested follow-up from the same prompt:
 What was tested:
 
 1. Inspect the actual repo-managed runtime surface
-   - reviewed [env/python/manifest.toml](env/python/manifest.toml), [env/inference/manifest.toml](env/inference/manifest.toml), [scripts/env/toolchain/python/python_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_env.sh), [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh), [scripts/env/toolchain/python/python_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_gpu_validate.sh), and [scripts/env/toolchain/python/python_server_gpu_run.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_server_gpu_run.sh)
+   - reviewed [env/python/manifest.toml](env/python/manifest.toml), [env/inference/manifest.toml](env/inference/manifest.toml), [scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh), [scripts/env/toolchain/inference_env.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_env.sh), [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh), and [scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh)
    - confirmed that the repo deliberately exposes a controlled GPU-related surface:
       - `env/python` installs `vulkan-loader`
-      - `python_env.sh` prepends the Flox runtime lib directory to `LD_LIBRARY_PATH`
+      - `inference_srv_py_env.sh` prepends the Flox runtime lib directory to `LD_LIBRARY_PATH`
       - plain Flox activation still preserves host `PATH` entries such as `/usr/bin`
 
 2. Compare normal validation with a nearly clean shell
-   - ran `python_gpu_validate.sh` normally
+   - ran `inference_srv_py_gpu_validate.sh` normally
    - reran it from a near-empty `env -i` shell with only essential variables restored
    - both runs passed through `threaded-backend-readiness`
 
@@ -795,7 +795,7 @@ Implemented changes:
    - this reduces accidental dependence on user-level host tool paths while still allowing the residual host driver boundary to be reached through the standard system runtime
 
 4. The promoted validator gained stricter isolation-oriented checks
-   - [scripts/env/toolchain/python/python_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/python/python_gpu_validate.sh) now includes:
+   - [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh](/home/nkse/projects/hybrid-ai/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh) now includes:
       - `managed-vulkan-tooling`
          - verifies that `vulkaninfo` resolves from inside `FLOX_ENV`
       - `icd-vendor-library-loadability`
@@ -819,7 +819,7 @@ Interpretation:
 ### 3.1.n Experimental narrow serve bridge found after live request-thread probing
 
 Additional investigation after `3.1.m`:
-- added an env-gated request-thread probe in [src/python/hybrid_ai/backend.py](/home/nkse/projects/hybrid-ai/src/python/hybrid_ai/backend.py) so the live `prepare()` path could capture what the actual HTTP request thread sees immediately before LiteRT-LM engine creation
+- added an env-gated request-thread probe in [src/inference_srv_py/inference_srv_py/backend.py](/home/nkse/projects/hybrid-ai/src/inference_srv_py/inference_srv_py/backend.py) so the live `prepare()` path could capture what the actual HTTP request thread sees immediately before LiteRT-LM engine creation
 - this probe records:
    - whether the resolved NVIDIA vendor library can be loaded by absolute path
    - `nvidia-smi` output from the request thread
@@ -867,7 +867,7 @@ Operator flags still relevant to this runbook:
 ### 3.1.o Verified end-to-end smoke and promotion decision
 
 Verified result captured after implementing the repo-local smoke workflow:
-- the repo-level shell entrypoint [scripts/env/run_inference_local_gpu_smoke.sh](scripts/env/run_inference_local_gpu_smoke.sh) now wraps [scripts/env/toolchain/python/python_gpu_smoke.sh](scripts/env/toolchain/python/python_gpu_smoke.sh)
+- the repo-level shell entrypoint [scripts/env/run_inference_local_gpu_smoke.sh](scripts/env/run_inference_local_gpu_smoke.sh) now wraps [scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh](scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh)
 - the shell smoke workflow was executed end to end on this host on a fresh port after hardening cleanup and port checks
 - the smoke workflow completed successfully through all stages:
    - host `nvidia-smi` check
@@ -889,7 +889,7 @@ Verified result captured after implementing the repo-local smoke workflow:
 
 Follow-up issue found during that smoke:
 - the first successful end-to-end smoke exposed that the backend was returning a stringified structured LiteRT response object instead of normalized plain assistant text
-- this was fixed at the backend extraction boundary in [src/python/hybrid_ai/backend.py](/home/nkse/projects/hybrid-ai/src/python/hybrid_ai/backend.py) by normalizing:
+- this was fixed at the backend extraction boundary in [src/inference_srv_py/inference_srv_py/backend.py](/home/nkse/projects/hybrid-ai/src/inference_srv_py/inference_srv_py/backend.py) by normalizing:
    - structured content-part lists
    - stringified structured payloads that serialize as Python literals
 - the smoke wrapper was also hardened so repeated local runs do not silently reuse stale listeners:
@@ -927,7 +927,7 @@ Practical repo consequence:
 Follow-up troubleshooting on the same host found one more real serve-path gap even after the narrow vendor-library prewarm was promoted.
 
 Observed symptom:
-- `python_gpu_validate.sh` still passed
+- `inference_srv_py_gpu_validate.sh` still passed
 - the live GPU server process could still fail `/ready` with:
    - `Found 0 adapters`
    - `Failed to initialize WebGPU environment: No adapters found`
@@ -991,7 +991,7 @@ Verification sequence that proved the fix:
 6. Re-run the repo smoke workflow or Swift live integration tests against that fresh port
 
 Practical lesson:
-- when `python_gpu_validate.sh` passes but live `/ready` still fails, inspect the live snapshot files before assuming the bridge model is wrong
+- when `inference_srv_py_gpu_validate.sh` passes but live `/ready` still fails, inspect the live snapshot files before assuming the bridge model is wrong
 - the live serve path can still surface missing transitive dependencies of the resolved vendor library even when the earlier validation ladder succeeds
 - the correct repair is to add the missing userspace runtime libraries to `env/python`, not to broaden `LD_LIBRARY_PATH`
 
@@ -999,8 +999,8 @@ Practical lesson:
 
 1. Update [env/python/manifest.toml](env/python/manifest.toml)
 2. Add `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-3. Add `scripts/env/toolchain/python/python_gpu_validate.sh`
-4. Add `scripts/env/toolchain/python/python_server_gpu_run.sh`
+3. Add `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+4. Add `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
 5. Update [docs/usecases/05-inference-server-workflow.md](docs/usecases/05-inference-server-workflow.md)
 
 #### Explicit non-goals for the roadmap
@@ -1590,10 +1590,10 @@ flowchart TD
    I[env/inference\nstandalone inference policy\nmodel paths, cache paths, backend defaults]
    LB[env/inference-litert-base\nLiteRT inference layer\nHYBRID_AI_INFERENCE_ENGINE=litert-lm]
    LG[env/inference-litert-linux-gpu\ncomposed runtime\nenv/python plus LiteRT inference plus GPU native libs]
-   PE[python_env.sh\ncreate and activate managed venv\nPoetry sync for src/python]
+   PE[inference_srv_py_env.sh\ncreate and activate managed venv\nPoetry sync for src/inference_srv_py]
    IE[inference_env.sh\nexport model paths\nand inference caches]
    LE[litert_env.sh\nadd LiteRT-specific vars\nand artifacts dirs]
-   W[GPU wrapper scripts\npython_gpu_validate.sh\npython_server_gpu_run.sh\npython_gpu_runtime_snapshot.sh]
+   W[GPU wrapper scripts\ninference_srv_py_gpu_validate.sh\ninference_srv_py_server_gpu_run.sh\ninference_srv_py_gpu_runtime_snapshot.sh]
 
    B --> P
    B --> I
@@ -1615,7 +1615,7 @@ flowchart TD
 Interpretation:
 - `env/python` remains a standalone Python runtime and does not include `env/inference`
 - `env/inference` remains a standalone inference-policy env and does not include `env/python`
-- older Python server entrypoints bridged the two concerns at the script layer by sourcing both `python_env.sh` and `inference_env.sh`
+- older Python server entrypoints bridged the two concerns at the script layer by sourcing both `inference_srv_py_env.sh` and `inference_env.sh`
 - `env/inference-litert-linux-gpu` now composes `env/python` with `env/inference-litert-base`, so the Python toolchain is inherited once and the GPU-native closure is owned only by the GPU env
 - the new LiteRT-LM path moves that composition into `env/inference-litert-linux-gpu`, which activates both the Python helper and the LiteRT inference helper in one env boundary
 

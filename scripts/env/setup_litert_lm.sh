@@ -27,7 +27,7 @@ echo "Using LiteRT-LM release tag: $LITERT_LM_TAG"
 echo "Using LiteRT-LM PyPI package: $LITERT_LM_PYPI_PACKAGE==$LITERT_LM_PYPI_VERSION"
 
 echo "Validating Poetry-managed LiteRT-LM dependency in project Flox Python environment..."
-"$project_root/scripts/env/toolchain/python/python_run.sh" - <<'PY'
+"$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh" - <<'PY'
 from importlib import metadata
 
 package_name = "litert-lm"

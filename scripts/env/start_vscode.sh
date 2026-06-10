@@ -85,9 +85,9 @@ print_effective_env() {
     "$FLOX_BIN" activate -d "$FLOX_ENV_DIR" -- bash --noprofile --norc -lc '
       set -euo pipefail
       project_root="$1"
-      source "$project_root/scripts/env/toolchain/python/python_env.sh"
+      source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
       source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
-      hybrid_ai_activate_python_env
+      inference_srv_py_activate_env
       hybrid_ai_activate_swift_env
 
       printf "project_root=%s\n" "$project_root"
@@ -157,9 +157,9 @@ exec env \
     set -euo pipefail
     project_root="$1"
     shift
-    source "$project_root/scripts/env/toolchain/python/python_env.sh"
+    source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
     source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
-    hybrid_ai_activate_python_env
+    inference_srv_py_activate_env
     hybrid_ai_activate_swift_env
     exec "$@"
   ' bash \

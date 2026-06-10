@@ -5,11 +5,11 @@ Status: Implemented
 Primary scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
 - `scripts/env/toolchain/swift/swift_env_check.sh`
 - `scripts/env/toolchain/swift/swifty_check.sh`
 - `scripts/env/toolchain/nix/nix_isolation_check.sh`
-- `scripts/env/toolchain/python/python_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
 - `scripts/env/toolchain/swift/swift_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 
@@ -62,15 +62,15 @@ Key requirements:
 Verification scripts:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
 - `scripts/env/toolchain/swift/swift_env_check.sh`
 - `scripts/env/toolchain/swift/swifty_check.sh`
 - `scripts/env/toolchain/nix/nix_isolation_check.sh`
 
 Runtime scripts used for proof:
-- `scripts/env/toolchain/python/python_run.sh`
-- `scripts/env/toolchain/python/python_server_run.sh`
-- `scripts/env/toolchain/python/python_server_gpu_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
 - `scripts/env/run_inference_local_gpu_smoke.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/swift/swift_run.sh`
@@ -109,7 +109,7 @@ kept consistent with the current environment model.
 
 Current examples:
 - `scripts/env/toolchain/check_env.sh` should stay focused on the common/shared isolation layer
-- `scripts/env/toolchain/python/python_env_check.sh` should verify the Python-specific managed Flox venv layer
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh` should verify the Python-specific managed Flox venv layer
 - `scripts/env/toolchain/swift/swift_env_check.sh` should verify the Swift-specific runtime/toolchain layer, where Swiftly owns Swift and Flox owns the surrounding project shell
 - `scripts/env/toolchain/nix/nix_isolation_check.sh` must follow the current mount policy implemented in `scripts/env/toolchain/nix/nix_flox_env.sh`: mounted and usable `/nix` is required, but brittle source-root equality is not
 
@@ -144,7 +144,7 @@ What it checks today:
 - required repository paths exist
 - `HOME` and `XDG_*` paths are under the repository root
 - daemon profile and daemon socket exist when Nix/Flox wrappers are available
-- forbidden byproducts such as `src/python/__pycache__` and `src/swift/.build` are absent
+- forbidden byproducts such as `src/inference_srv_py/__pycache__` and `src/swift/.build` are absent
 
 Expected result:
 
@@ -174,7 +174,7 @@ Current status:
 Run:
 
 ```bash
-scripts/env/toolchain/python/python_env_check.sh
+scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh
 ```
 
 Intended purpose:
@@ -229,8 +229,8 @@ Current status:
 Run:
 
 ```bash
-scripts/env/toolchain/python/python_run.sh -c 'import sys, os; print(sys.executable); print(os.environ["VIRTUAL_ENV"]); print(os.environ["PIP_CACHE_DIR"])'
-scripts/env/toolchain/python/python_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import sys, os; print(sys.executable); print(os.environ["VIRTUAL_ENV"]); print(os.environ["PIP_CACHE_DIR"])'
+scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c 'import numpy as np; values = np.array([1.0, 2.0, 3.0]); print(values.sum())'
 ```
 
 Expected results:
@@ -274,7 +274,7 @@ Run:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 ./scripts/env/toolchain/inference/linux_gpu_contract.sh
-./scripts/env/toolchain/python/python_gpu_validate.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
 HYBRID_AI_PORT=18090 ./scripts/env/run_inference_local_gpu_smoke.sh
 ```
 
@@ -291,7 +291,7 @@ Expected results:
 These checks should pass in the current setup:
 - `scripts/env/toolchain/doctor.sh`
 - `scripts/env/toolchain/check_env.sh`
-- `scripts/env/toolchain/python/python_env_check.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh`
 - `scripts/env/toolchain/swift/swift_env_check.sh`
 - `scripts/env/toolchain/nix/nix_isolation_check.sh`
 - Python wrapper/runtime isolation proofs
@@ -301,7 +301,7 @@ These checks should pass in the current setup:
 
 Verified on 2026-06-04:
 - `doctor.sh` passed after removing a generated `src/swift/.build` byproduct.
-- `check_env.sh`, `python_env_check.sh`, `swift_env_check.sh`, and `nix_isolation_check.sh` passed.
+- `check_env.sh`, `inference_srv_py_env_check.sh`, `swift_env_check.sh`, and `nix_isolation_check.sh` passed.
 - `nix_isolation_check.sh` emitted the expected mount metadata warning: kernel-reported root `/bin/dev/nix` differs from configured `/opt/bin/dev/nix`, but current policy only requires `/nix` to be mounted and usable.
 - Python proof resolved `sys.executable` to `.flox/cache/python/bin/python`.
 - NumPy proof printed `6.0`.
@@ -354,7 +354,7 @@ Meaning:
 - the verification flow is no longer aligned with the managed Flox Python env or with the current shell state
 
 Recovery:
-- confirm Python runtime isolation with `scripts/env/toolchain/python/python_run.sh`
+- confirm Python runtime isolation with `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
 - verify Flox activation and daemon socket state
 - update the verification script only if the live Python env model changes again
 
@@ -373,7 +373,7 @@ Recovery:
 This use case is fully satisfied only when all of the following are true:
 - `scripts/env/toolchain/doctor.sh` passes
 - `scripts/env/toolchain/check_env.sh` passes and prints the common/shared env model correctly
-- `scripts/env/toolchain/python/python_env_check.sh` passes and prints the Python runtime env correctly
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env_check.sh` passes and prints the Python runtime env correctly
 - `scripts/env/toolchain/swift/swift_env_check.sh` passes and prints the Swiftly-backed Swift runtime env correctly
 - `scripts/env/toolchain/nix/nix_isolation_check.sh` passes and reflects the current mount-validation model correctly
 - Python runtime proof passes

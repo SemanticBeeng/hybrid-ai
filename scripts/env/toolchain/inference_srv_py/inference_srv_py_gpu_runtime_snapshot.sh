@@ -10,18 +10,18 @@ hybrid_ai_python_gpu_runtime_snapshot_inner() {
   local output_path="${2:-}"
 
   # shellcheck disable=SC1090
-  source "$project_root/scripts/env/toolchain/python/python_env.sh"
+  source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference_env.sh"
   # shellcheck disable=SC1090
   source "$project_root/scripts/env/toolchain/inference/linux_gpu_contract.sh"
 
-  hybrid_ai_activate_python_env
+    inference_srv_py_activate_env
   hybrid_ai_linux_gpu_contract_check
   hybrid_ai_linux_gpu_apply_bridge_env
   export HYBRID_AI_LITERT_BACKEND="${HYBRID_AI_LITERT_BACKEND:-gpu}"
 
-  cd "$project_root/src/python"
+  cd "$project_root/src/inference_srv_py"
   python - "$label" "$output_path" <<'PY'
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ import platform
 import sys
 from pathlib import Path
 
-from hybrid_ai.bootstrap import load_bootstrap_state
+from inference_srv_py.bootstrap import load_bootstrap_state
 
 
 def collect() -> dict[str, object]:
@@ -101,5 +101,5 @@ fi
 
 exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
-  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/python/python_gpu_runtime_snapshot.sh" "$@"' \
+  bash -lc 'project_root="$1"; shift; "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh" "$@"' \
   bash "$project_root" "$@"

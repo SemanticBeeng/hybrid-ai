@@ -33,7 +33,7 @@ if [[ -x "$DETERMINATE_NIX_BIN" || -x "$NIX_WRAPPER_BIN" || -x "$FLOX_WRAPPER_BI
   [[ -S "$NIX_DAEMON_SOCKET" ]] || fail "Missing nix-daemon socket: $NIX_DAEMON_SOCKET"
 fi
 
-for forbidden in "$project_root/src/python/__pycache__" "$project_root/src/swift/.build"; do
+for forbidden in "$project_root/src/inference_srv_py/__pycache__" "$project_root/src/swift/.build"; do
   [[ ! -e "$forbidden" ]] || fail "Forbidden byproduct detected: $forbidden"
 done
 

@@ -23,8 +23,8 @@ For this repository, that means:
 This repository deliberately isolates developer tooling from the host machine.
 
 The normal command-line wrappers already do this:
-- `scripts/env/toolchain/python/python_run.sh`
-- `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
 - `scripts/env/toolchain/swift/swift_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 
@@ -68,7 +68,7 @@ Supporting environment files:
 - `scripts/env/toolchain/common.sh`
 - `scripts/env/toolchain/vscode_paths.sh`
 - `scripts/env/toolchain/nix/nix_flox_env.sh`
-- `scripts/env/toolchain/python/python_env.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 - `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `.flox/env/manifest.toml`
@@ -76,7 +76,7 @@ Supporting environment files:
 Design boundary:
 - `common.sh` is a compatibility aggregator for legacy/full-session shell setup, not the central manifest policy and not a default for Flox hooks.
 - `vscode_paths.sh` owns portable VS Code paths and binary resolution.
-- `python_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
+- `inference_srv_py_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
 - `swift_env.sh` owns Swiftly activation and sources the Swift build/cache path module internally.
 - `xdg_env.sh` owns project-local `HOME`/`XDG_*` setup and is sourced only from `env/base/manifest.toml`; module manifests include `env/base` instead of duplicating XDG setup.
 - Flox `[vars]` own static activation constants such as Nix/Flox daemon defaults, Python behavior flags, and Swiftly version/path constants.
@@ -93,7 +93,7 @@ following before the editor opens:
 4. Requires the nix daemon socket.
 5. Resolves Flox and ensures the root-attached fullstack environment is ready.
 6. Forces the portable VS Code user-data and extensions directories.
-7. Activates the root-attached fullstack environment, then sources `python_env.sh` and `swift_env.sh` inside that activation.
+7. Activates the root-attached fullstack environment, then sources `inference_srv_py_env.sh` and `swift_env.sh` inside that activation.
 8. Activates the managed Python venv and Swiftly toolchain before launching the real VS Code binary.
 
 As a result:
@@ -105,7 +105,7 @@ As a result:
 Important current split:
 - the editor process starts inside the composed Flox environment
 - the managed Python venv under `.flox/cache/python` is the canonical runtime for Python CLI, server, editor, and native-extension workflows
-- wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
+- wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` to activate that managed venv
 - Swift workflows source `scripts/env/toolchain/swift/swift_env.sh`, which activates Swiftly and applies Swift build/cache path policy
 
 ## 6. Required VS Code Settings Context
@@ -282,7 +282,7 @@ Meaning:
 Recovery:
 - close stale VS Code windows and relaunch with `scripts/env/start_vscode.sh`
 - run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `.flox/cache/python`
-- use `scripts/env/toolchain/python/python_run.sh` as the authoritative CLI runtime check if editor state is still unclear
+- use `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` as the authoritative CLI runtime check if editor state is still unclear
 
 ## 11. Relationship To The Other Docs
 
@@ -330,7 +330,7 @@ The launcher is responsible for:
 - validating the Nix daemon and `/nix` mount assumptions
 - ensuring the Flox environment is ready
 - launching the editor through the root-attached Flox environment
-- sourcing `python_env.sh` and `swift_env.sh` inside the activated launch shell before starting VS Code
+- sourcing `inference_srv_py_env.sh` and `swift_env.sh` inside the activated launch shell before starting VS Code
 
 The `--check` path confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
 

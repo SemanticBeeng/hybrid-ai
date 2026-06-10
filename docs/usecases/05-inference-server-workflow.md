@@ -7,11 +7,11 @@ Primary scripts:
 - `scripts/env/setup_gemma4_e4b.sh`
 - `scripts/env/run_inference_local_gpu_smoke.sh`
 - `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-- `scripts/env/toolchain/python/python_gpu_validate.sh`
-- `scripts/env/toolchain/python/python_gpu_smoke.sh`
-- `scripts/env/toolchain/python/python_server_run.sh`
-- `scripts/env/toolchain/python/python_server_gpu_run.sh`
-- `scripts/env/toolchain/python/python_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
 
 ## 1. Goal
 
@@ -50,7 +50,7 @@ The inference server is more constrained than a generic Python workflow.
 It must keep all of the following aligned:
 - the dedicated Flox Python module at `env/python`
 - the managed Python venv at `env/python/.flox/cache/python`
-- the Poetry dependency lock under `src/python`
+- the Poetry dependency lock under `src/inference_srv_py`
 - the pinned LiteRT-LM version written to `build/artifacts/litert-lm.version`
 - the pinned model metadata written under `volumes/models/litert-lm`
 - the pinned model file under `volumes/models/litert-lm/gemma4-e4b`
@@ -68,7 +68,7 @@ This workflow assumes:
 - Determinate Nix and Flox are installed and usable
 - the nix daemon socket exists at `/nix/var/nix/daemon-socket/socket`
 - the repository root is `/home/nkse/projects/hybrid-ai`
-- the Python dependency graph is managed by Poetry under `src/python`
+- the Python dependency graph is managed by Poetry under `src/inference_srv_py`
 - the CPU workflow is the currently promoted serving path on Linux
 - the GPU workflow is supported for the current NVIDIA plus Vulkan host class
 
@@ -78,9 +78,9 @@ Environment and wrappers:
 - `env/python/manifest.toml`
 - `scripts/env/toolchain/nix/flox_env_init.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
-- `scripts/env/toolchain/python/python_env.sh`
-- `scripts/env/toolchain/python/python_run.sh`
-- `scripts/env/toolchain/python/python_server_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
 - `scripts/env/toolchain/inference_env.sh`
 
 Pinned setup scripts:
@@ -88,11 +88,11 @@ Pinned setup scripts:
 - `scripts/env/setup_gemma4_e4b.sh`
 
 Python backend source:
-- `src/python/pyproject.toml`
-- `src/python/poetry.lock`
-- `src/python/hybrid_ai/bootstrap.py`
-- `src/python/hybrid_ai/backend.py`
-- `src/python/hybrid_ai/server.py`
+- `src/inference_srv_py/pyproject.toml`
+- `src/inference_srv_py/poetry.lock`
+- `src/inference_srv_py/inference_srv_py/bootstrap.py`
+- `src/inference_srv_py/inference_srv_py/backend.py`
+- `src/inference_srv_py/inference_srv_py/server.py`
 
 Pinned runtime and model artifacts:
 - `build/artifacts/litert-lm.version`
@@ -135,7 +135,7 @@ included environments.
 
 ### 5.2 LiteRT-LM Dependency Management
 
-LiteRT-LM is a Poetry-managed dependency under `src/python/pyproject.toml`.
+LiteRT-LM is a Poetry-managed dependency under `src/inference_srv_py/pyproject.toml`.
 
 `scripts/env/setup_litert_lm.sh` no longer performs an ad hoc `pip install`.
 Instead, it verifies that:
@@ -153,10 +153,10 @@ The script accepts either:
 
 ### 5.4 Backend Lifecycle
 
-`scripts/env/toolchain/python/python_server_run.sh`:
+`scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`:
 - activates `env/python`
 - activates the managed Python venv
-- runs `python -m hybrid_ai.server`
+- runs `python -m inference_srv_py.server`
 - appends output to `volumes/logs/python_server.log`
 
 The backend:
@@ -178,7 +178,7 @@ Current promotion status:
 
 Supported shell entrypoints:
 - `scripts/env/run_inference_local_gpu_smoke.sh`
-- `scripts/env/toolchain/python/python_gpu_smoke.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_smoke.sh`
 
 ## 6. Complete Workflow
 
@@ -211,7 +211,7 @@ What this resync does not do:
   `env/python/manifest.toml` or an included manifest, a resync will still leave
   it absent
 - it does not replace Python dependency management; Python packages still come
-  from `src/python/pyproject.toml` and `src/python/poetry.lock`
+  from `src/inference_srv_py/pyproject.toml` and `src/inference_srv_py/poetry.lock`
 - it does not update an already running backend process; that process must be
   restarted after the resync
 
@@ -223,8 +223,8 @@ If you want an interactive shell inside the dedicated Python Flox environment:
 cd /home/nkse/projects/hybrid-ai
 export PATH="/opt/bin/dev/nix/bin:$PATH"
 flox activate -d env/python
-source scripts/env/toolchain/python/python_env.sh
-hybrid_ai_activate_python_env
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
 ```
 
 This is optional. The wrappers below can activate the same environment without a
@@ -247,14 +247,14 @@ FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
 flox activate -d env/python
-source scripts/env/toolchain/python/python_env.sh
-hybrid_ai_activate_python_env
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
 
 ./scripts/env/setup_litert_lm.sh
-./scripts/env/toolchain/python/python_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/python/python_server_run.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
 ```
 
 Expected preflight results before `curl /ready`:
@@ -266,7 +266,7 @@ If either preflight check fails:
 - for missing `libvulkan.so.1`, verify `vulkan-loader` is declared in
   `env/python/manifest.toml` and rerun the Flox resync from [Section 6.1](#61-sync-the-dedicated-python-flox-environment)
 - for missing `litert_lm`, verify `litert-lm` is declared in
-  `src/python/pyproject.toml`, the lockfile is current, and rerun the Poetry sync
+  `src/inference_srv_py/pyproject.toml`, the lockfile is current, and rerun the Poetry sync
   path described in [Section 9.1](#91-litert_lm-missing-from-the-managed-venv)
 
 ### 6.3 Verify The LiteRT-LM Dependency
@@ -292,7 +292,7 @@ cd /home/nkse/projects/hybrid-ai
 
 What it does:
 - runs `nvidia-smi` to confirm the host driver sees a GPU
-- runs `python_gpu_validate.sh`
+- runs `inference_srv_py_gpu_validate.sh`
 - starts the GPU server with the current narrow serve bridge
 - polls `/ready`
 - fetches `/health`
@@ -328,7 +328,7 @@ Default local server:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-HYBRID_AI_LITERT_BACKEND=cpu ./scripts/env/toolchain/python/python_server_run.sh
+HYBRID_AI_LITERT_BACKEND=cpu ./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
 ```
 
 Explicit host and port:
@@ -336,7 +336,7 @@ Explicit host and port:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/python/python_server_run.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
 ```
 
 Linux GPU preflight:
@@ -356,7 +356,7 @@ Linux GPU managed-runtime validation:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/python/python_gpu_validate.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
 ```
 
 Expected result:
@@ -369,7 +369,7 @@ Linux GPU serve:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 \
-./scripts/env/toolchain/python/python_server_gpu_run.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh
 ```
 
 Expected result:
@@ -480,7 +480,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/python/python_run.sh -c "import sys; print(sys.executable)"
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import sys; print(sys.executable)"
 ```
 
 Expected result:
@@ -490,7 +490,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/python/python_run.sh -c "import litert_lm; print(litert_lm.__file__)"
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import litert_lm; print(litert_lm.__file__)"
 ```
 
 Expected result:
@@ -500,7 +500,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/python/python_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 ```
 
 Expected result:
@@ -524,7 +524,7 @@ Expected result:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-./scripts/env/toolchain/python/python_gpu_validate.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh
 ```
 
 Expected result:
@@ -533,15 +533,15 @@ Expected result:
 - no `LD_LIBRARY_PATH` mutation is required for the validated path
 
 Important note:
-- a passing `python_gpu_validate.sh` does not prove the long-lived live server process has every transitive userspace dependency needed by the resolved NVIDIA vendor library
+- a passing `inference_srv_py_gpu_validate.sh` does not prove the long-lived live server process has every transitive userspace dependency needed by the resolved NVIDIA vendor library
 - if live `/ready` still fails, inspect the troubleshooting path in [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
 
 ### 7.6 Promotion Boundary Summary
 
 Current Linux GPU boundary:
 - promoted: `scripts/env/toolchain/inference/linux_gpu_contract.sh`
-- promoted: `scripts/env/toolchain/python/python_gpu_validate.sh`
-- promoted: live GPU serving through `scripts/env/toolchain/python/python_server_gpu_run.sh`
+- promoted: `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+- promoted: live GPU serving through `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh`
 - promoted: end-to-end live verification through `scripts/env/run_inference_local_gpu_smoke.sh`
 
 Reason:
@@ -625,12 +625,12 @@ Recovery:
 ```bash
 cd /home/nkse/projects/hybrid-ai
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
-./scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/python/python_env.sh; hybrid_ai_activate_python_env; poetry -C src/python lock; poetry -C src/python sync --no-interaction'
+./scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh; inference_srv_py_activate_env; poetry -C src/inference_srv_py lock; poetry -C src/inference_srv_py sync --no-interaction'
 ```
 
 Why this happens:
 - `litert_lm` is a Python dependency, not a Flox native package
-- if it is missing from `src/python/pyproject.toml`, `poetry sync` will not keep
+- if it is missing from `src/inference_srv_py/pyproject.toml`, `poetry sync` will not keep
   it installed
 - if it was installed out of band, `poetry sync` can remove it because the lock
   file is the source of truth for the managed venv
@@ -652,7 +652,7 @@ Symptom:
 Recovery:
 - resync `env/python` so `vulkan-loader` is included
 - verify `ctypes.util.find_library('vulkan')` returns `libvulkan.so.1`
-- restart the backend through `scripts/env/toolchain/python/python_server_run.sh`
+- restart the backend through `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh`
 
 Why this happens:
 - `libvulkan.so.1` is provided by the Flox native environment, not by Poetry
@@ -665,8 +665,8 @@ Why this happens:
 ### 9.3 Live GPU `/ready` Fails With `Found 0 adapters` Even Though Validation Passes
 
 Symptom:
-- `./scripts/env/toolchain/python/python_gpu_validate.sh` passes
-- `python_server_gpu_run.sh` starts
+- `./scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh` passes
+- `inference_srv_py_server_gpu_run.sh` starts
 - live `/ready` still returns `503`
 - server log contains:
   - `Found 0 adapters`
@@ -695,8 +695,8 @@ FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 cd /home/nkse/projects/hybrid-ai
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_with.sh bash -lc '
-source scripts/env/toolchain/python/python_env.sh
-hybrid_ai_activate_python_env
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+inference_srv_py_activate_env
 python - <<'"'"'PY'"'"'
 import ctypes
 ctypes.CDLL("/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0")
@@ -718,10 +718,10 @@ cd /home/nkse/projects/hybrid-ai
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
-./scripts/env/toolchain/python/python_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh -c "import ctypes.util; print(ctypes.util.find_library('vulkan'))"
 
 HYBRID_AI_HOST=127.0.0.1 HYBRID_AI_PORT=8080 HYBRID_AI_LITERT_BACKEND=cpu \
-./scripts/env/toolchain/python/python_server_run.sh
+./scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh
 ```
 
 ### 9.3 Wrong Flox Environment Selected
