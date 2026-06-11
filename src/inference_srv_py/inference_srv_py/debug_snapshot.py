@@ -85,3 +85,55 @@ def write_runtime_snapshot(label: str, extra: Mapping[str, object] | None = None
     output_path = destination_dir / f"py-{_sanitize_label(label)}.json"
     output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return output_path
+
+
+def collect_snapshot(label: str) -> str:
+    """Collect a runtime snapshot and return JSON string (for CLI use)."""
+    state = load_bootstrap_state()
+
+    litert_path = None
+    litert_import_error = None
+    try:
+        import litert_lm  # type: ignore
+
+        litert_path = getattr(litert_lm, "__file__", None)
+    except Exception as exc:
+        litert_import_error = str(exc)
+
+    payload: dict[str, object] = {
+        "label": label,
+        "pid": os.getpid(),
+        "cwd": os.getcwd(),
+        "platform": platform.platform(),
+        "python_executable": sys.executable,
+        "python_prefix": sys.prefix,
+        "python_version": sys.version,
+        "libvulkan": ctypes.util.find_library("vulkan"),
+        "litert_lm_file": litert_path,
+        "litert_lm_import_error": litert_import_error,
+        "env": _env_subset(),
+        "bootstrap": {
+            "runtime_version": state.runtime_version,
+            "model_reference": state.model_reference,
+            "model_directory": str(state.model_directory),
+            "model_file": str(state.model_file) if state.model_file else None,
+            "issues": list(state.issues),
+        },
+    }
+    return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def main() -> None:
+    """CLI entry point: python -m inference_srv_py.debug_snapshot [label] [output_path]"""
+    label = sys.argv[1] if len(sys.argv) > 1 else "snapshot"
+    output_path = sys.argv[2] if len(sys.argv) > 2 else ""
+
+    body = collect_snapshot(label)
+    if output_path:
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(output_path).write_text(body + "\n", encoding="utf-8")
+    print(body)
+
+
+if __name__ == "__main__":
+    main()

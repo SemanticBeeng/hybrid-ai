@@ -459,6 +459,30 @@ Expected result:
 - the Swift test runner reports the `liveBackend*` tests as passing
 - no server restart is required because this workflow assumes the Python backend is already running
 
+#### GPU Integration Test
+
+After the GPU server is running (via `server_gpu_run.sh` from
+[Section 6.8](#68-start-the-cpu-or-gpu-inference-server) or
+[Section 6.11](#611-gpu-clean-shell-resync-and-server-start)):
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+HYBRID_AI_BACKEND_BASE_URL=http://127.0.0.1:8080 \
+./scripts/env/run_swift_backend_integration_tests.sh
+```
+
+Or if the GPU server is on a non-default port:
+
+```bash
+cd /home/nkse/projects/hybrid-ai
+HYBRID_AI_BACKEND_BASE_URL=http://127.0.0.1:18091 \
+./scripts/env/run_swift_backend_integration_tests.sh
+```
+
+Expected result:
+- the Swift test runner reports the `liveBackend*` tests as passing against the GPU backend
+- the same test assertions apply: normalized plain text responses, correct conversation lifecycle, proper error surfacing
+
 ### 6.10 Stop Any Running Inference Server
 
 Before starting a new server, ensure no existing instance is occupying the target port:
