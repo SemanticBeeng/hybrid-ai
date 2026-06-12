@@ -247,3 +247,41 @@ private func makeMockHost() -> String {
         #expect(description.contains("failed to initialize LiteRT-LM engine"))
     }
 }
+
+@Test func backendTransportSupportsShoppingAssistantTeeDisambiguationMultiTurn() async throws {
+    let host = makeMockHost()
+    let server = MockBackendServer()
+    let session = makeMockSession(host: host) { request in
+        try server.handle(request)
+    }
+    defer {
+        session.invalidateAndCancel()
+        MockBackendURLProtocol.unregister(host: host)
+    }
+
+    let runtime = BackendInferenceRuntime(baseURL: makeMockBaseURL(host: host), session: session)
+
+    try await runtime.prepare()
+    let conversation = try await runtime.createConversation(
+        systemPrompt: "You are a shopping assistant. Clarify ambiguous requests before recommending items."
+    )
+
+    let firstReply = try await conversation.send("I want to buy tee")
+    #expect(firstReply.role == .assistant)
+    #expect(!firstReply.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+    let secondReply = try await conversation.send("I mean tea")
+    #expect(secondReply.role == .assistant)
+    #expect(!secondReply.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+    let thirdReply = try await conversation.send("Actually t-shirt for my niece")
+    #expect(thirdReply.role == .assistant)
+    #expect(!thirdReply.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+    let ids = await runtime.listConversationIDs()
+    #expect(ids.contains(conversation.id))
+
+    await runtime.removeConversation(conversation.id)
+    let idsAfterDelete = await runtime.listConversationIDs()
+    #expect(!idsAfterDelete.contains(conversation.id))
+}
