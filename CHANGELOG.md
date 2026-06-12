@@ -2,6 +2,96 @@
 
 ## 2026-06-12
 
+### SWIFTLY_ROOT centralization
+
+Added `SWIFTLY_ROOT` to `local_env.sh` as single source of truth for the Swiftly installation root.
+
+#### scripts/local_env.sh
+- added `SWIFTLY_ROOT` export (default: `/opt/bin/dev/swiftly`)
+- placed after `NIX_ISOLATED_ROOT`, before the idempotent guard
+
+#### scripts/env/toolchain/swift/swiftly_common.sh
+- `hybrid_ai_swiftly_configure()` now requires `SWIFTLY_ROOT` be set (fails with descriptive error if not)
+- derived paths (`SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`) computed from `$SWIFTLY_ROOT`
+- auto-calls `hybrid_ai_swiftly_configure` when sourced (ensures derived paths are always set)
+
+#### scripts/env/toolchain/swift/swift_env.sh
+- removed redundant `hybrid_ai_swiftly_configure` call (now handled by `swiftly_common.sh` on source)
+
+#### env/swift/manifest.toml
+- removed hardcoded derived paths from `[vars]`
+- kept `SWIFTLY_ROOT`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, `GTK_A11Y`
+- added comment noting derived paths are computed in `swiftly_common.sh`
+
+#### Updated documentation
+- `docs/usecases/01-vscode-portable-project-env.md` — use `$SWIFTLY_BIN_DIR` instead of hardcoded path
+- `docs/usecases/03-swift-build-and-test.md` — updated session support section, use `$SWIFTLY_BIN_DIR`
+- `docs/usecases/04-isolation-verification.md` — use `$SWIFTLY_ROOT` in requirements
+- `docs/chat/swift_ui_cross_platform_roadmap.md` — use `$SWIFTLY_BIN_DIR` in checkpoint
+- `docs/chat/swiftly_632_migration_runbook.md` — updated architecture section, use `$SWIFTLY_ROOT`
+
+### PROJECT_ROOT centralization
+
+Added `PROJECT_ROOT` to `local_env.sh` as single source of truth for the project root path.
+
+#### scripts/local_env.sh
+- added `PROJECT_ROOT` export (default: `/home/nkse/projects/hybrid-ai`)
+- moved `PROJECT_ROOT` and `NIX_ISOLATED_ROOT` before the idempotent guard so re-sourcing always sets them
+- idempotent guard now only skips expensive binary resolution, not core path exports
+
+#### Updated 50 scripts
+- replaced `project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/..." && pwd)"` with `project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"`
+- eliminates redundant directory traversal on every script invocation
+
+### Shell script sourcing refactor
+
+Refactored scripts to source only the narrow concern modules they need instead of the `common.sh` aggregator.
+
+#### scripts/env/toolchain/shell_helpers.sh (NEW)
+- extracted `have_command()` and `run_as_root()` as generic utilities
+- idempotent via `_SHELL_HELPERS_SOURCED` guard
+- sourced by `nix_setup.sh` and `swiftly_install.sh`
+
+#### nix_setup.sh
+- now sources `shell_helpers.sh` for `have_command()` and `run_as_root()`
+- removed duplicate function definitions
+
+#### Scripts now source narrow modules directly
+| Script | Before | After |
+|--------|--------|-------|
+| `flox_with.sh` | `common.sh` | `nix_flox_env.sh` |
+| `flox_env_init.sh` | `common.sh` | `nix_flox_env.sh` |
+| `start_vscode.sh` | `common.sh` | `nix_flox_env.sh` + `vscode_paths.sh` |
+| `swifty_check.sh` | `common.sh` + `swift_env.sh` | `swift_env.sh` |
+| `swiftly_install.sh` | `nix_setup.sh` | `shell_helpers.sh` + `swiftly_common.sh` |
+| `nix_mount_manage.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `host_bootstrap.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_isolation_check.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `determinate_cycle_test.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `flox_install.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_determinate_install.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_fstab_manage.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `root_nix_remove.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `doctor.sh` | `common.sh` + `nix_setup.sh` | `xdg_env.sh` + `nix_setup.sh` |
+| `run_inference_remote.sh` | `common.sh` | (removed, not needed) |
+| `setup_litert_lm.sh` | `common.sh` | (removed, not needed) |
+| `toolchain_install.sh` | `common.sh` | (removed, not needed) |
+
+#### common.sh renamed to all_env.sh
+- renamed `scripts/env/toolchain/common.sh` → `scripts/env/toolchain/all_env.sh`
+- added detailed header comments documenting purpose and usage
+- clarified: NOT used by Flox activation, NOT used by wrapper scripts
+- only used by: `check_env.sh`, `project_cache_cleanup.sh`, ad-hoc interactive shells
+
+#### Documentation updated
+- `docs/usecases/01-vscode-portable-project-env.md` updated to reflect new sourcing patterns and rename
+- `docs/usecases/02-python-cli-and-server.md` updated
+- `docs/usecases/03-swift-build-and-test.md` updated
+- `docs/usecases/04-isolation-verification.md` updated
+- `docs/chat/devenv_portable_workflow.md` updated
+- `docs/chat/determinate_nix_flox_setup.md` updated
+- `docs/chat/swiftly_632_migration_runbook.md` updated
+
 ### Shell script declutter and simplification
 
 Comprehensive refactoring of `scripts/env/toolchain/nix/` to reduce complexity and eliminate redundant code.

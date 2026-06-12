@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
-source "$project_root/scripts/env/toolchain/common.sh"
+source "$project_root/scripts/env/toolchain/nix/nix_flox_env.sh"
 
 # Resolve manifest path for an environment directory.
 # Checks source manifest (env_dir/manifest.toml) first, then managed copy (.flox/env/).

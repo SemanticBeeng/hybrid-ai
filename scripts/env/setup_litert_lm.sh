@@ -2,7 +2,6 @@
 set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
-source "$project_root/scripts/env/toolchain/common.sh"
 
 # Override if upstream organization/repo changes.
 LITERT_LM_GH_REPO="${LITERT_LM_GH_REPO:-google-ai-edge/LiteRT-LM}"

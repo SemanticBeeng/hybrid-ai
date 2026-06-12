@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 hybrid_ai_swiftly_configure() {
-  : "${SWIFTLY_ROOT:=/opt/bin/dev/swiftly}"
+  : "${SWIFTLY_ROOT:?ERROR: SWIFTLY_ROOT not set. Source scripts/local_env.sh first.}"
   : "${SWIFTLY_HOME_DIR:=$SWIFTLY_ROOT/home}"
   : "${SWIFTLY_BIN_DIR:=$SWIFTLY_ROOT/bin}"
   : "${SWIFTLY_TOOLCHAINS_DIR:=$SWIFTLY_ROOT/toolchains}"

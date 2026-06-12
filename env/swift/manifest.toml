@@ -27,10 +27,10 @@ environments = [
 ]
 
 [vars]
+# SWIFTLY_ROOT is set in local_env.sh; manifest overrides for Flox activation.
+# Derived paths (SWIFTLY_HOME_DIR, SWIFTLY_BIN_DIR, SWIFTLY_TOOLCHAINS_DIR)
+# are computed from SWIFTLY_ROOT in swiftly_common.sh.
 SWIFTLY_ROOT = "/opt/bin/dev/swiftly"
-SWIFTLY_HOME_DIR = "/opt/bin/dev/swiftly/home"
-SWIFTLY_BIN_DIR = "/opt/bin/dev/swiftly/bin"
-SWIFTLY_TOOLCHAINS_DIR = "/opt/bin/dev/swiftly/toolchains"
 SWIFTLY_VERSION = "1.1.1"
 HYBRID_AI_SWIFT_VERSION = "6.3.2"
 GTK_A11Y = "none"

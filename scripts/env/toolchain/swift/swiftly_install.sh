@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
-source "$project_root/scripts/env/toolchain/common.sh"
+source "$project_root/scripts/env/toolchain/shell_helpers.sh"
 source "$project_root/scripts/env/toolchain/swift/swiftly_common.sh"
 
 SWIFTLY_ARCHIVE="$(hybrid_ai_swiftly_archive)"

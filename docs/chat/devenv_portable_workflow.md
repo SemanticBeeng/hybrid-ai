@@ -12,7 +12,7 @@ Design:
 - Use Flox-managed, composable environments as the primary dependency/runtime boundary.
 - Keep environment logic in repository files and shell wrappers (not in host machine defaults).
 - Split concerns into modules: base tooling, python, Swiftly-backed Swift activation, inference, orchestration.
-- Keep Flox manifest hooks narrow: module manifests source only the concern modules they need. `scripts/env/toolchain/common.sh` remains a compatibility aggregator for broad external-shell/launcher setup, not the central policy file.
+- Keep Flox manifest hooks narrow: module manifests source only the concern modules they need. `scripts/env/toolchain/all_env.sh` remains a comprehensive aggregator for ad-hoc external-shell setup, not the central policy file.
 - Provide graceful degradation on macOS where Linux-specific Nix store layering primitives are unavailable or constrained.
 
 ### 1.2 Modular architecture with Python + Swift + inference engines
@@ -219,7 +219,7 @@ Policy:
 - Portable user-data defaults to `$HOST_HOME/appdata/.vscode/data`, with the settings file at `$HOST_HOME/appdata/.vscode/data/User/settings.json`.
 - Python extension interpreter path resolves to `python` from the managed Flox venv activated by `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`.
 - Swift extension tools resolve to `swift` from `/opt/bin/dev/swiftly/bin` after `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly.
-- The VS Code launcher uses `scripts/env/toolchain/common.sh` only as a compatibility/helper aggregator, sources `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, and then sources `inference_srv_py_env.sh` plus `swift_env.sh` inside the activated root Flox launch shell before starting the editor.
+- The VS Code launcher sources `scripts/env/toolchain/nix/nix_flox_env.sh` for Flox defaults and `scripts/env/toolchain/vscode_paths.sh` for portable editor paths, then sources `inference_srv_py_env.sh` plus `swift_env.sh` inside the activated root Flox launch shell before starting the editor.
 
 Verification requirements:
 - Confirm `scripts/env/start_vscode.sh --print-env` reports the managed Flox venv `python`, Swiftly `swift`, SwiftPM `6.3.2`, Swiftly `clang`, `sourcekit-lsp`, and `lldb`.
@@ -448,7 +448,7 @@ Pending prerequisites before full execution:
 
 Important note:
 - The current `.flox/env/manifest.toml` composes the module manifests via Flox `[include]`. Keep project-specific overrides in the root top-level manifest and keep shared toolchain logic in the module-local manifests.
-- Flox manifest hooks source narrow concern modules directly instead of sourcing `scripts/env/toolchain/common.sh`; `common.sh` is a compatibility aggregator for broad external-shell/launcher setup, not the central environment policy.
+- Flox manifest hooks source narrow concern modules directly instead of sourcing `scripts/env/toolchain/all_env.sh`; `all_env.sh` is a comprehensive aggregator for ad-hoc external-shell setup, not the central environment policy.
 - `env/base/manifest.toml` is the single owner of `xdg_env.sh`; module manifests include `env/base` rather than duplicating `HOME`/`XDG_*` setup.
 - Static activation values now live in Flox `[vars]`: base sets Nix/Flox daemon defaults, Python sets packaging/runtime flags, and Swift sets Swiftly constants. Scripts retain fallbacks only for host-side setup or execution outside an activated Flox shell.
 - The repository no longer carries dormant repo-local `nix/` scaffolding; the live workflow is driven by `env/*/manifest.toml`, repository wrappers, and the host-level Determinate Nix install documented in the runbook.

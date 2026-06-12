@@ -131,7 +131,7 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
   # creation: xdg_env.sh, swift_paths.sh, and inference_env.sh.
   hash -r
   # shellcheck disable=SC1090
-  source "$project_root/scripts/env/toolchain/common.sh"
+  source "$project_root/scripts/env/toolchain/all_env.sh"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

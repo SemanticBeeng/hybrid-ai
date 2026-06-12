@@ -3,7 +3,7 @@ set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 # shellcheck disable=SC1090
-source "$project_root/scripts/env/toolchain/common.sh"
+source "$project_root/scripts/env/toolchain/nix/nix_flox_env.sh"
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/vscode_paths.sh"
 

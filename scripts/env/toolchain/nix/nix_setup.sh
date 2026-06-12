@@ -10,6 +10,9 @@
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
+# shellcheck disable=SC1090
+source "$project_root/scripts/env/toolchain/shell_helpers.sh"
+
 # Infrastructure paths (used by setup and validation scripts only).
 : "${NIX_MOUNT_POINT:=/nix}"
 : "${NIX_CONF_DIR:=/etc/nix}"
@@ -22,25 +25,6 @@ export NIX_INSTALLER_WRAPPER_BIN="${NIX_INSTALLER_WRAPPER_BIN:-$NIX_ISOLATED_ROO
 export FLOX_WRAPPER_BIN="${FLOX_WRAPPER_BIN:-$NIX_ISOLATED_ROOT/bin/flox}"
 export FLOX_PROFILE="${FLOX_PROFILE:-$NIX_MOUNT_POINT/var/nix/profiles/flox}"
 export NIX_ISOLATED_ROOT NIX_MOUNT_POINT NIX_CONF_DIR
-
-have_command() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-run_as_root() {
-  if [[ "$(id -u)" -eq 0 ]]; then
-    "$@"
-    return
-  fi
-
-  if have_command sudo; then
-    sudo -n "$@"
-    return
-  fi
-
-  echo "ERROR: root privileges are required for: $*" >&2
-  return 1
-}
 
 nix_mount_source() {
   if have_command findmnt; then

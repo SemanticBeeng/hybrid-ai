@@ -28,15 +28,19 @@ The wrapper ensures that:
 ## 3. Scope And Assumptions
 
 This workflow assumes:
+- `scripts/local_env.sh` has been sourced at shell startup (sets `PROJECT_ROOT`, `NIX_ISOLATED_ROOT`, `FLOX_BIN`)
 - Determinate Nix and Flox are working for the repository
 - the nix daemon socket exists
 - the root `.flox` environment has already been initialized and synced
-- Swiftly is installed under `/opt/bin/dev/swiftly`
+- Swiftly is installed under `$SWIFTLY_ROOT`
 - `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly and validates Swift `6.3.2`
 - GTK/libadwaita development packages are installed through `env/swift/manifest.toml` for the Linux UI proof
 - the Swift package exists under `src/swift`
 
 ## 4. Files Involved
+
+Core environment:
+- `scripts/local_env.sh`
 
 Runtime wrappers:
 - `scripts/modules/swift/run.sh`
@@ -49,10 +53,12 @@ Runtime wrappers:
 - `scripts/env/toolchain/swift/swifty_check.sh`
 
 Session support:
-- `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Swift activation.
+- `scripts/env/toolchain/all_env.sh` remains available as a comprehensive aggregator for broad external-shell setup, but it is not sourced by Swift wrappers.
 - Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
-- `env/swift/manifest.toml` uses Flox `[vars]` for static Swiftly constants: `SWIFTLY_ROOT`, `SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, and the default `GTK_A11Y` value.
-- Normal Swift wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
+- `scripts/local_env.sh` sets `SWIFTLY_ROOT` with a default of `/opt/bin/dev/swiftly`.
+- `env/swift/manifest.toml` uses Flox `[vars]` for static Swiftly constants: `SWIFTLY_ROOT`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, and the default `GTK_A11Y` value.
+- Derived paths (`SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`) are computed from `$SWIFTLY_ROOT` in `swiftly_common.sh`.
+- Swift wrappers use `$PROJECT_ROOT` from `local_env.sh`; they do not require a pre-sourced `all_env.sh` shell.
 - `scripts/env/toolchain/swift/swift_env.sh` sources the Swift path/cache module internally, so callers do not need to source `swift_paths.sh` directly.
 
 Swift package files:
@@ -107,7 +113,7 @@ GTK/libadwaita package ownership after the UI proof:
 - some transitive `pkg-config` warnings can be non-fatal if the final UI build succeeds
 
 Swift ownership after the Swiftly migration:
-- `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, and `lldb` resolve from `/opt/bin/dev/swiftly/bin`
+- `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, and `lldb` resolve from `$SWIFTLY_BIN_DIR`
 - `CC` and `CXX` are set to the real Swiftly toolchain `clang`/`clang++` binaries to avoid Swiftly proxy recursion during C target compilation
 - Swift runtime/import libraries resolve from the Swiftly `6.3.2` toolchain
 - Flox/Nix still provide the surrounding shell and non-Swift native build-time paths

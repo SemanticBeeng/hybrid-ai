@@ -394,7 +394,7 @@ execution to the repository wrappers:
 
 #### Host-Derived `LD_LIBRARY_PATH` Was The Wrong Fix Layer
 
-- Earlier iterations tried to export `LD_LIBRARY_PATH` from host `g++` inside `scripts/env/toolchain/common.sh`.
+- Earlier iterations tried to export `LD_LIBRARY_PATH` from host `g++` inside `scripts/env/toolchain/all_env.sh`.
 - That polluted shell runtime linking and contributed to wrapper failures.
 - The working model is now: declare the native runtime in Flox (`libgcc` in the active composed environment) instead of deriving runtime library paths from the host compiler.
 - After this change, NumPy imports successfully through both the wrapper path and the activated-shell path.

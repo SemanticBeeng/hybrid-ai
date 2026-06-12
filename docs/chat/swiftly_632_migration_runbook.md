@@ -11,7 +11,7 @@ The project should stop using Nix/Flox Swift packages for the active Swift toolc
 Use:
 - Flox for Python, common CLI tools, activation hooks, cache isolation, and native host dependencies.
 - Swiftly for Swift 6.3.2, SwiftPM, XCTest/Testing, clang, lldb, SourceKit-LSP, and Swift toolchain internals.
-- `/opt/bin/dev/swiftly` as the persistent host-level Swiftly backing directory, analogous to `/opt/bin/dev/nix`.
+- `$SWIFTLY_ROOT` as the persistent host-level Swiftly backing directory, analogous to `$NIX_ISOLATED_ROOT`.
 
 The Nix flake is not required for the core workflow once Swiftly is integrated. It should be removed or treated only as a temporary fallback until the migration is complete.
 
@@ -29,7 +29,7 @@ Swiftly is the official Swift.org toolchain manager and supports Swift 6.3.2 dir
 
 ### 3.1 Host-Level Persistent Swiftly Layout
 
-Canonical Swiftly physical backing path:
+Canonical Swiftly physical backing path (default value of `$SWIFTLY_ROOT`):
 
 ```bash
 /opt/bin/dev/swiftly
@@ -38,18 +38,19 @@ Canonical Swiftly physical backing path:
 Suggested directory layout:
 
 ```text
-/opt/bin/dev/swiftly/
+$SWIFTLY_ROOT/
   home/          # SWIFTLY_HOME_DIR
   bin/           # SWIFTLY_BIN_DIR, swiftly-managed shims/binaries
-  downloads/     # optional download/cache area if needed later
+  toolchains/    # SWIFTLY_TOOLCHAINS_DIR, installed toolchains
 ```
 
-Recommended environment variables:
+Environment variables (set in `scripts/local_env.sh`, derived paths computed in `swiftly_common.sh`):
 
 ```bash
 export SWIFTLY_ROOT=/opt/bin/dev/swiftly
-export SWIFTLY_HOME_DIR=/opt/bin/dev/swiftly/home
-export SWIFTLY_BIN_DIR=/opt/bin/dev/swiftly/bin
+export SWIFTLY_HOME_DIR=$SWIFTLY_ROOT/home
+export SWIFTLY_BIN_DIR=$SWIFTLY_ROOT/bin
+export SWIFTLY_TOOLCHAINS_DIR=$SWIFTLY_ROOT/toolchains
 ```
 
 `SWIFTLY_BIN_DIR` must appear before Flox/Nix paths when resolving Swift tools.
@@ -209,7 +210,7 @@ Expected result:
 
 Execution note:
 - Removed Nix Swift package entries from `env/swift/manifest.toml` and the top-level composed manifest.
-- Flox Swift hooks now source the narrow Swift runtime helper, `scripts/env/toolchain/swift/swift_env.sh`; they do not source the broad `common.sh` aggregator or the internal `swift_paths.sh` helper directly.
+- Flox Swift hooks now source the narrow Swift runtime helper, `scripts/env/toolchain/swift/swift_env.sh`; they do not source the broad `all_env.sh` aggregator or the internal `swift_paths.sh` helper directly.
 - Re-synced Flox state with `scripts/env/toolchain/nix/flox_env_init.sh`.
 - Refreshed composed includes with `flox include upgrade -d .`.
 - `flox list -d .` no longer reports `swift`, `swiftpm`, `XCTest`, or `clang` packages from Nix.

@@ -9,8 +9,8 @@ Scope: Build on the verified Swiftly-backed Swift baseline and plan a Swift UI a
 The current Swift baseline builds and tests cleanly.
 
 Verified on 2026-06-04:
-- `swift` resolves to `/opt/bin/dev/swiftly/bin/swift`
-- `clang` resolves to `/opt/bin/dev/swiftly/bin/clang`
+- `swift` resolves to `$SWIFTLY_BIN_DIR/swift`
+- `clang` resolves to `$SWIFTLY_BIN_DIR/clang`
 - Swift version is `6.3.2`
 - Swift build path is `build/swift`
 - Swift tests pass with Swift `Testing`

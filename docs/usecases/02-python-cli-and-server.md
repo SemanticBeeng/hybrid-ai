@@ -39,12 +39,16 @@ Without the Flox activation model, these failures become likely:
 ## 3. Scope And Assumptions
 
 This workflow assumes:
+- `scripts/local_env.sh` has been sourced at shell startup (sets `PROJECT_ROOT`, `NIX_ISOLATED_ROOT`, `FLOX_BIN`)
 - Determinate Nix and Flox are already installed according to the runbook
 - the nix daemon socket exists and normal-user Flox access is working
 - the root `.flox` environment has already been initialized and synced
 - the Python module source exists under `src/inference_srv_py`
 
 ## 4. Files Involved
+
+Core environment:
+- `scripts/local_env.sh`
 
 Runtime wrappers:
 - `scripts/modules/inference_srv_py/enter.sh`
@@ -54,10 +58,10 @@ Runtime wrappers:
 - `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 
 Session support:
-- `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Python activation.
+- `scripts/env/toolchain/all_env.sh` remains available as a comprehensive aggregator for broad external-shell setup, but it is not sourced by Python wrappers.
 - Python manifests and wrappers use `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as their narrow runtime source of truth.
 - `env/python/manifest.toml` uses Flox `[vars]` for static Python behavior flags: `PYTHONDONTWRITEBYTECODE`, `PIP_DISABLE_PIP_VERSION_CHECK`, and `POETRY_VIRTUALENVS_CREATE`.
-- Normal Python wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
+- Python wrappers use `$PROJECT_ROOT` from `local_env.sh`; they do not require a pre-sourced `all_env.sh` shell.
 
 Python source:
 - `src/inference_srv_py/pyproject.toml`

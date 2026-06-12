@@ -2,7 +2,6 @@
 set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
-source "$project_root/scripts/env/toolchain/common.sh"
 
 : "${REMOTE_INFERENCE_URL:?Set REMOTE_INFERENCE_URL in your project-local secret loader.}"
 : "${REMOTE_INFERENCE_TOKEN:?Set REMOTE_INFERENCE_TOKEN in your project-local secret loader.}"

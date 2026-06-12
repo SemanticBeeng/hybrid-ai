@@ -49,7 +49,7 @@ Key requirements:
 - all intended writable paths remain under the repository or the isolated Nix backing path
 - Python uses the managed Flox venv under `.flox/cache/python`
 - Python caches and bytecode stay under `.flox/cache/`
-- Swift uses Swiftly-managed Swift `6.3.2` under `/opt/bin/dev/swiftly`, activated from inside the Flox environment
+- Swift uses Swiftly-managed Swift `6.3.2` under `$SWIFTLY_ROOT`, activated from inside the Flox environment
 - Swift build outputs stay under `build/swift`
 - Swift native build-time dependency resolution sees Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` before host OS defaults
 - Swift runtime dynamic library resolution stays isolated from incompatible Flox/Nix shell settings
@@ -165,7 +165,7 @@ Intended purpose:
 
 Current status:
 - this script prints the broad compatibility/isolation view used by repository wrappers
-- it sources `scripts/env/toolchain/common.sh`, which is a compatibility aggregator and not the central Flox manifest policy
+- it sources `scripts/env/toolchain/all_env.sh`, which is a comprehensive aggregator and not the central Flox manifest policy
 - static Nix/Flox defaults such as `NIX_ISOLATED_ROOT`, `NIX_MOUNT_POINT`, `NIX_CONF_DIR`, `NIX_REMOTE`, and `FLOX_DISABLE_METRICS` are declared in `env/base/manifest.toml` `[vars]`, with script fallbacks for host-side setup commands run outside Flox
 - it does not claim to prove Python or Swift runtime state by itself
 

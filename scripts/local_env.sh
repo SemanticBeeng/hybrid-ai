@@ -7,6 +7,7 @@
 # Exports:
 #   PROJECT_ROOT      - Absolute path to the project root directory
 #   NIX_ISOLATED_ROOT - Physical backing path for /nix mount (default: /opt/bin/dev/nix)
+#   SWIFTLY_ROOT      - Swiftly installation root (default: /opt/bin/dev/swiftly)
 #   NIX_BIN           - Resolved path to nix binary
 #   FLOX_BIN          - Resolved path to flox binary
 
@@ -18,6 +19,10 @@ export PROJECT_ROOT
 # Physical backing path for the Nix store bind mount.
 : "${NIX_ISOLATED_ROOT:=/opt/bin/dev/nix}"
 export NIX_ISOLATED_ROOT
+
+# Swiftly installation root (Swift version manager).
+: "${SWIFTLY_ROOT:=/opt/bin/dev/swiftly}"
+export SWIFTLY_ROOT
 
 # Idempotent: skip expensive binary resolution if already sourced.
 [[ -n "${_LOCAL_ENV_SOURCED:-}" ]] && return 0

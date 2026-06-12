@@ -2,7 +2,6 @@
 set -euo pipefail
 
 project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
-source "$project_root/scripts/env/toolchain/common.sh"
 source "$project_root/scripts/env/toolchain/swift/swift_env.sh"
 
 hybrid_ai_activate_swift_env
