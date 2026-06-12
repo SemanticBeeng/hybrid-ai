@@ -44,8 +44,9 @@ starting VS Code.
 
 This workflow assumes:
 - Determinate Nix is installed using the repository's manual-daemon bind-mounted host model
-- the `/nix` mount is active and backed by `/opt/bin/dev/nix`
+- the `/nix` mount is active and backed by `$NIX_ISOLATED_ROOT` (default: `/opt/bin/dev/nix`)
 - the nix daemon socket exists at `/nix/var/nix/daemon-socket/socket`
+- `scripts/local_env.sh` has been sourced at shell startup (sets `NIX_ISOLATED_ROOT`, `NIX_BIN`, `FLOX_BIN`)
 - Flox is installed and the root-attached managed environment under `.flox` has already been initialized
 - VS Code is installed in portable mode
 - the portable VS Code user-data root is under `$HOME/appdata/.vscode/data`
@@ -55,6 +56,7 @@ This workflow does not attempt to install VS Code itself.
 ## 4. Files Involved
 
 Core runtime files:
+- `scripts/local_env.sh`
 - `scripts/env/start_vscode.sh`
 - `.vscode/settings.json`
 - `.vscode/tasks.json`

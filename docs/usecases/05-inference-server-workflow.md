@@ -1,6 +1,6 @@
 # Use Case 05: Inference Server Workflow
 
-Date: 2026-06-09
+Date: 2026-06-12
 Status: Implemented for CPU serving and for Linux GPU serving on the supported NVIDIA plus Vulkan host class
 Primary scripts:
 - `scripts/env/setup_litert_lm.sh`
@@ -71,10 +71,12 @@ This workflow assumes:
 - the Python dependency graph is managed by Poetry under `src/inference_srv_py`
 - the CPU workflow is the currently promoted serving path on Linux
 - the GPU workflow is supported for the current NVIDIA plus Vulkan host class
+- `scripts/local_env.sh` has been sourced once at shell startup (sets `NIX_ISOLATED_ROOT`, `NIX_BIN`, `FLOX_BIN`)
 
 ## 4. Files Involved
 
 Environment and wrappers:
+- `scripts/local_env.sh`
 - `env/python/manifest.toml`
 - `env/inference-litert-linux-gpu/manifest.toml`
 - `scripts/env/toolchain/nix/flox_env_init.sh`
@@ -335,7 +337,7 @@ cd /home/nkse/projects/hybrid-ai
 
 What it does:
 - runs `nvidia-smi` to confirm the host driver sees a GPU
-- runs `inference_srv_py_gpu_validate.sh`
+- runs `gpu_validate.sh`
 - starts the GPU server with the current narrow serve bridge
 - polls `/ready`
 - fetches `/health`
@@ -511,10 +513,10 @@ state, or after manifest changes to `env/inference-litert-linux-gpu/manifest.tom
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-export PATH="/opt/bin/dev/nix/bin:$PATH"
+source scripts/local_env.sh
 
 # 1. Re-lock the GPU env after manifest changes
-flox edit -d env/inference-litert-linux-gpu -f env/inference-litert-linux-gpu/manifest.toml
+"$FLOX_BIN" edit -d env/inference-litert-linux-gpu -f env/inference-litert-linux-gpu/manifest.toml
 
 # 2. Reinstall litert_lm in the new venv (venv is recreated after re-lock)
 FLOX_ENV_DIR=$PWD/env/inference-litert-linux-gpu \
@@ -558,8 +560,8 @@ If you want an interactive shell inside the dedicated Python Flox environment:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-export PATH="/opt/bin/dev/nix/bin:$PATH"
-flox activate -d env/python
+source scripts/local_env.sh
+"$FLOX_BIN" activate -d env/python
 source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
 inference_srv_py_activate_env
 ```
@@ -570,6 +572,9 @@ manual shell setup.
 Important:
 - `flox activate -d env/python` activates the current realized environment, but it
   does not rebuild a stale `env/python/.flox/env/manifest.lock`
+- depending on the entrypoint, the resolved Python interpreter may be under either
+  `env/python/.flox/cache/python/bin/python` or `.flox/cache/python/bin/python`; both
+  are valid if the process is using the repo-managed Flox Python runtime
 - if `env/python/manifest.toml` changed, rerun [Section 6.1](#61-sync-the-dedicated-python-flox-environment) before starting the server
 - if the server was already running before the resync, stop it and start it again so the new runtime libraries are picked up
 - if `curl /ready` fails from a shell that already has `env/python` active, do not assume activation is enough; first resync the Flox env, then restart the server process
@@ -578,12 +583,12 @@ Recommended activation-to-ready preflight sequence:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
-export PATH="/opt/bin/dev/nix/bin:$PATH"
+source scripts/local_env.sh
 
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
-flox activate -d env/python
+"$FLOX_BIN" activate -d env/python
 source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
 inference_srv_py_activate_env
 
@@ -616,7 +621,8 @@ cd /home/nkse/projects/hybrid-ai
 ```
 
 Expected result:
-- the interpreter path points into `env/python/.flox/cache/python/bin/python`
+- the interpreter path points into either `env/python/.flox/cache/python/bin/python`
+  or `.flox/cache/python/bin/python`
 
 ### 7.2 Verify The LiteRT-LM Module Path
 
@@ -626,7 +632,8 @@ cd /home/nkse/projects/hybrid-ai
 ```
 
 Expected result:
-- the module path points into `env/python/.flox/cache/python/lib/python3.11/site-packages`
+- the module path points into either `env/python/.flox/cache/python/lib/python3.11/site-packages`
+  or `.flox/cache/python/lib/python3.11/site-packages`
 
 ### 7.3 Verify Vulkan Loader Resolution
 
@@ -665,7 +672,7 @@ Expected result:
 - no `LD_LIBRARY_PATH` mutation is required for the validated path
 
 Important note:
-- a passing `inference_srv_py_gpu_validate.sh` does not prove the long-lived live server process has every transitive userspace dependency needed by the resolved NVIDIA vendor library
+- a passing `gpu_validate.sh` does not prove the long-lived live server process has every transitive userspace dependency needed by the resolved NVIDIA vendor library
 - if live `/ready` still fails, inspect the troubleshooting path in [docs/chat/linux_gpu_runtime_portability_runbook.md](docs/chat/linux_gpu_runtime_portability_runbook.md)
 
 ### 7.6 Promotion Boundary Summary
@@ -737,7 +744,8 @@ Expected result:
 
 When this workflow is correct:
 - the server runs from the dedicated Python Flox environment at `env/python`
-- the managed venv is rooted at `env/python/.flox/cache/python`
+- the managed venv is rooted at either `env/python/.flox/cache/python` or
+  `.flox/cache/python` (entrypoint-dependent, both repo-managed)
 - `litert-lm==0.13.1` is present as a Poetry-managed dependency
 - the pinned Gemma model file exists under `volumes/models/litert-lm/gemma4-e4b`
 - `/ready` returns `200` with `"ready": true`
@@ -800,7 +808,7 @@ Why this happens:
 
 Symptom:
 - `./scripts/modules/inference_srv_py/gpu_validate.sh` passes
-- `inference_srv_py_server_gpu_run.sh` starts
+- `server_gpu_run.sh` starts
 - live `/ready` still returns `503`
 - server log contains:
   - `Found 0 adapters`
@@ -866,11 +874,7 @@ Symptom:
 Recovery:
 - use the Python wrappers from this document
 - avoid assuming a repo-root Flox shell is equivalent to `env/python`
-- if you must override the target env explicitly, set:
-
-```bash
-HYBRID_AI_PYTHON_FLOX_ENV_DIR=/home/nkse/projects/hybrid-ai/env/python
-```
+- scripts now use explicit inline `FLOX_ENV_DIR` at exec point — no global env var override needed
 
 ### 9.4 Model Metadata Exists But `.litertlm` File Is Missing
 

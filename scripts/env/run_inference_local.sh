@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 PROMPT="${1:-Hello from hybrid-ai}"
 MODEL="${MODEL:-${HYBRID_AI_LITERT_MODEL:-gemma4:e4b}}"
 MODEL_FILE="${HYBRID_AI_LITERT_MODEL_FILE:-$project_root/volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm}"

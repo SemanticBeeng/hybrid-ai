@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/project_paths.sh"

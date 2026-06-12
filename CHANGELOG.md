@@ -1,5 +1,98 @@
 # Changelog
 
+## 2026-06-12
+
+### Shell script declutter and simplification
+
+Comprehensive refactoring of `scripts/env/toolchain/nix/` to reduce complexity and eliminate redundant code.
+
+#### nix_flox_env.sh (206 → 28 lines, 86% reduction)
+- removed `hybrid_ai_ensure_flox_env_ready()` — moved to `doctor.sh` as `_ensure_flox_env_ready()` for one-time validation
+- removed `hybrid_ai_require_flox_env()` — moved to `doctor.sh` as `_require_flox_env()`
+- removed `require_flox_bin()` — replaced with inline `command -v flox` since PATH already includes `$NIX_ISOLATED_ROOT/bin`
+- removed `resolve_flox_bin()` — redundant helper eliminated
+- removed `have_command()` — now local to `nix_setup.sh`
+- removed `hybrid_ai_flox_tool_env()` — XDG vars already exported by `xdg_env.sh`, wrapper was redundant
+- removed `hybrid_ai_flox_manifest_path_for()` — moved to `flox_env_init.sh` as `_flox_manifest_path_for()` (only consumer)
+- removed `hybrid_ai_default_flox_env_dir()` — inlined as `: "${FLOX_ENV_DIR:=$project_root}"`
+- moved infrastructure variables (`DETERMINATE_NIX_BIN`, `NIX_DAEMON_*`, `NIX_WRAPPER_BIN`, etc.) to `nix_setup.sh`
+- file now contains only: PATH setup, safety check, and `FLOX_*` defaults
+
+#### nix_setup.sh (NEW, 111 lines)
+- created as infrastructure setup file for setup/admin scripts only
+- contains all infrastructure functions: `run_as_root()`, `nix_mount_*()`, `is_nix_*()`, `ensure_nix_bind_mount()`, `use_nix_daemon()`, `require_nix_daemon_socket()`
+- contains infrastructure variables: `DETERMINATE_NIX_BIN`, `NIX_DAEMON_PROFILE_SCRIPT`, `NIX_DAEMON_SOCKET`, `NIX_WRAPPER_BIN`, `FLOX_WRAPPER_BIN`, etc.
+- NOT sourced by activation scripts (`flox_with.sh`, `start_vscode.sh`, `flox_env_init.sh`)
+
+#### doctor.sh (expanded validation)
+- now contains `_ensure_flox_env_ready()`, `_require_flox_bin()`, `_require_flox_env()` — private validation helpers
+- added `ensure_nix_bind_mount()` and `require_nix_daemon_socket()` calls for infrastructure verification
+- all defensive checks now run once via `doctor.sh` rather than on every script invocation
+
+#### flox_with.sh, start_vscode.sh, flox_env_init.sh (simplified)
+- removed `use_nix_daemon`, `ensure_nix_bind_mount`, `require_nix_daemon_socket` calls — infrastructure validation now in `doctor.sh`
+- removed `hybrid_ai_require_flox_env` calls — validation now in `doctor.sh`
+- replaced `require_flox_bin` with `command -v flox`
+
+#### Architecture change
+- **Before**: Infrastructure validation ran on every `flox_with.sh` / `start_vscode.sh` invocation (subprocess spawn overhead)
+- **After**: Infrastructure validation runs once via `doctor.sh`; activation scripts are minimal
+- Clear separation: `nix_flox_env.sh` for project scripts, `nix_setup.sh` for admin/setup scripts
+
+### FLOX_ENV_DIR simplification
+
+Removed global env var indirection in favor of explicit inline assignment at exec point.
+
+#### Removed HYBRID_AI_*_FLOX_ENV_DIR variables
+- removed `HYBRID_AI_PYTHON_FLOX_ENV_DIR` — scripts now use direct path `$project_root/env/python`
+- removed `HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR` — scripts now use direct path `$project_root/env/inference-litert-linux-gpu`
+
+#### Removed FLOX_MANIFEST_PATH from activation
+- removed from `nix_flox_env.sh` — `flox_with.sh` ignores it; `flox activate -d` derives manifest internally
+- removed from inference script execs — redundant
+- `flox_env_init.sh` now derives `FLOX_MANIFEST_PATH` from `FLOX_ENV_DIR` using `_flox_manifest_path_for()`
+
+#### Canonical pattern
+```bash
+flox_env_dir="$project_root/env/<env-name>"
+exec env FLOX_ENV_DIR="$flox_env_dir" flox_with.sh ...
+```
+
+#### Affected scripts
+- `server_gpu_run.sh`, `gpu_validate.sh`, `gpu_runtime_snapshot.sh` — now use `env/inference-litert-linux-gpu`
+- `server_run.sh`, `run.sh` — now use `env/python`
+- `nix_flox_env.sh` — reduced to 25 lines (PATH, FLOX_ENV_DIR, FLOX_ENV_NAME, FLOX_DISABLE_METRICS)
+
+### Centralized Nix/Flox binary paths
+
+Introduced `scripts/local_env.sh` as single source of truth for binary paths.
+**Must be sourced once at shell startup** (e.g., in `.bashrc` or flox hook) — scripts assume these variables are already set.
+
+#### scripts/local_env.sh (NEW)
+- exports `NIX_ISOLATED_ROOT` — physical backing path for /nix mount (default: `/opt/bin/dev/nix`)
+- exports `NIX_BIN` — resolved path to `nix` binary (PATH or fallback to `$NIX_ISOLATED_ROOT/bin/nix`)
+- exports `FLOX_BIN` — resolved path to `flox` binary (PATH or fallback to `$NIX_ISOLATED_ROOT/bin/flox`)
+- idempotent sourcing via `_LOCAL_ENV_SOURCED` guard
+
+#### Removed patterns
+- removed explicit `source "$project_root/scripts/local_env.sh"` from all scripts — now assumed pre-sourced
+- removed `command -v flox 2>/dev/null || echo /opt/bin/dev/nix/bin/flox` — now use `$FLOX_BIN`
+- removed `command -v flox 2>/dev/null || true` + error check — now use `$FLOX_BIN`
+- removed duplicate `: "${NIX_ISOLATED_ROOT:=/opt/bin/dev/nix}"` — now set by `local_env.sh`
+
+#### Updated scripts
+- `nix_flox_env.sh` — verifies `NIX_ISOLATED_ROOT` is set, errors if not
+- `flox_with.sh`, `flox_env_init.sh`, `start_vscode.sh` — use `${FLOX_BIN:-}` with error if unset
+- `doctor.sh` — `_require_flox_bin()` uses `${FLOX_BIN:-}`
+- `fingerprint.sh` — uses `${FLOX_BIN:-}` and `${NIX_BIN:-}` for version output
+- `server_gpu_run.sh` — uses `${FLOX_BIN:-}` for LD_AUDIT recovery
+
+#### Updated documentation
+- `docs/usecases/05-inference-server-workflow.md` — added `local_env.sh` to assumptions and files; replaced hardcoded PATH exports with `source scripts/local_env.sh` and `$FLOX_BIN`
+- `docs/usecases/01-vscode-portable-project-env.md` — added `local_env.sh` to assumptions and files; changed `/opt/bin/dev/nix` to `$NIX_ISOLATED_ROOT`
+- `docs/chat/determinate_nix_flox_setup.md` — added Section 3.9 "Shell Startup With local_env.sh"; changed hardcoded paths to `$NIX_ISOLATED_ROOT` and `$SWIFTLY_HOME_DIR` in verification expectations
+- `docs/chat/devenv_portable_workflow.md` — added `local_env.sh` sourcing to isolation design description
+
 ## 2026-06-10
 
 ### GPU server launcher simplification

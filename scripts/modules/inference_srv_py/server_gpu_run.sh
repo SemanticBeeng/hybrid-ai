@@ -3,9 +3,9 @@
 # Activates the inference-litert-linux-gpu Flox env and exec's the inner script.
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 LOG_PATH="$project_root/volumes/logs/python_server.log"
-runtime_env_dir="${HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR:-$project_root/env/inference-litert-linux-gpu}"
+flox_env_dir="$project_root/env/inference-litert-linux-gpu"
 
 mkdir -p "$(dirname "$LOG_PATH")"
 
@@ -17,19 +17,17 @@ fi
 # Recover LD_AUDIT from root env when launching from an external shell.
 loader_env=()
 if [[ -z "${LD_AUDIT:-}" ]]; then
-  flox_bin="$(command -v flox 2>/dev/null || echo /opt/bin/dev/nix/bin/flox)"
-  if [[ -x "$flox_bin" ]]; then
+  if [[ -n "${FLOX_BIN:-}" && -x "$FLOX_BIN" ]]; then
     while IFS='=' read -r key value; do
       [[ -n "$key" ]] && loader_env+=("$key=$value")
-    done < <("$flox_bin" activate -d "$project_root" -- env 2>/dev/null \
+    done < <("$FLOX_BIN" activate -d "$project_root" -- env 2>/dev/null \
       | grep -E '^(LD_AUDIT|GLIBC_TUNABLES)=' || true)
   fi
 fi
 
 exec env -u FLOX_ENV -u VIRTUAL_ENV -u VIRTUAL_ENV_PROMPT \
   "${loader_env[@]}" \
-  FLOX_ENV_DIR="$runtime_env_dir" \
-  FLOX_MANIFEST_PATH="$runtime_env_dir/manifest.toml" \
+  FLOX_ENV_DIR="$flox_env_dir" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
   bash -lc 'exec "$1/scripts/modules/inference_srv_py/server_gpu_inner.sh" "${@:2}"' \
   bash "$project_root" "$@"

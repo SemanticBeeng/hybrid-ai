@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 source "$project_root/scripts/env/toolchain/common.sh"
 
-use_nix_daemon
-ensure_nix_bind_mount
-require_nix_daemon_socket
+# Resolve manifest path for an environment directory.
+# Checks source manifest (env_dir/manifest.toml) first, then managed copy (.flox/env/).
+_flox_manifest_path_for() {
+  local env_dir="$1"
+  if [[ -f "$env_dir/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/manifest.toml"
+  elif [[ -f "$env_dir/.flox/env/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/.flox/env/manifest.toml"
+  else
+    return 1
+  fi
+}
 
-FLOX_BIN="$(require_flox_bin || true)"
-if [[ -z "$FLOX_BIN" ]]; then
+if [[ -z "${FLOX_BIN:-}" ]]; then
   echo "Run scripts/env/toolchain/nix/flox_install.sh first." >&2
   exit 1
 fi
@@ -18,15 +26,15 @@ FLOX_ENV_DIR="$(realpath -m "$FLOX_ENV_DIR")"
 export FLOX_ENV_DIR
 export FLOX_ENV_NAME="$(basename "$FLOX_ENV_DIR")"
 
-if [[ -n "${FLOX_MANIFEST_PATH:-}" ]]; then
-  FLOX_MANIFEST_PATH="$(realpath -m "$FLOX_MANIFEST_PATH")"
-  export FLOX_MANIFEST_PATH
+# Derive FLOX_MANIFEST_PATH from FLOX_ENV_DIR if not set.
+if [[ -z "${FLOX_MANIFEST_PATH:-}" ]]; then
+  FLOX_MANIFEST_PATH="$(_flox_manifest_path_for "$FLOX_ENV_DIR" || true)"
 fi
-
-if [[ ! -f "$FLOX_MANIFEST_PATH" ]]; then
-  echo "ERROR: Flox manifest not found at $FLOX_MANIFEST_PATH" >&2
+if [[ -z "$FLOX_MANIFEST_PATH" || ! -f "$FLOX_MANIFEST_PATH" ]]; then
+  echo "ERROR: Flox manifest not found under $FLOX_ENV_DIR" >&2
   exit 1
 fi
+export FLOX_MANIFEST_PATH
 
 resolve_included_env_dirs() {
   local manifest_dir="$1"
@@ -47,7 +55,7 @@ sync_single_env() {
   local env_name="$2"
   local manifest_path=""
 
-  manifest_path="$(hybrid_ai_flox_manifest_path_for "$env_dir" || true)"
+  manifest_path="$(_flox_manifest_path_for "$env_dir" || true)"
 
   if [[ -z "$manifest_path" ]]; then
     echo "ERROR: Flox manifest not found under $env_dir" >&2
@@ -62,10 +70,10 @@ sync_single_env() {
   fi
 
   if [[ ! -f "$env_dir/.flox/env.json" && ! -f "$env_dir/.flox/env/manifest.toml" ]]; then
-    hybrid_ai_flox_tool_env "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
+    "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
   fi
 
-  hybrid_ai_flox_tool_env "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
+  "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
 }
 
 declare -A synced_envs=()
@@ -82,7 +90,7 @@ sync_env_recursive() {
   fi
   synced_envs["$env_dir"]=1
 
-  manifest_path="$(hybrid_ai_flox_manifest_path_for "$env_dir" || true)"
+  manifest_path="$(_flox_manifest_path_for "$env_dir" || true)"
   if [[ -z "$manifest_path" ]]; then
     echo "ERROR: Flox manifest not found under $env_dir" >&2
     exit 1

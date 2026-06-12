@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 # Compatibility aggregator. Prefer sourcing the narrower concern files directly
 # when a script only needs one subsystem.

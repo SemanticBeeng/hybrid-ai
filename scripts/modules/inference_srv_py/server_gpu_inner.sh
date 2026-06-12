@@ -3,7 +3,7 @@
 # The Flox profile has already set litert env vars; ensure venv is active.
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 # Ensure venv is active (profile activation can be unreliable across shell modes).
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then

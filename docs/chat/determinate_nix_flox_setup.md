@@ -9,7 +9,7 @@ This document is the operational companion to the portable workflow design.
 
 It covers:
 - the canonical Determinate Nix and Flox install procedure
-- bind-mount persistence for `/nix -> /opt/bin/dev/nix`
+- bind-mount persistence for `/nix -> $NIX_ISOLATED_ROOT`
 - verification and cleanup steps
 - practical learnings and pitfalls observed during live execution
 
@@ -19,8 +19,8 @@ For the higher-level environment design, module layout, and portability goals, s
 
 The host model used by this repository is:
 - logical Nix path: `/nix`
-- physical backing path: `/opt/bin/dev/nix`
-- mount model: bind mount `/opt/bin/dev/nix` onto `/nix`
+- physical backing path: `$NIX_ISOLATED_ROOT`
+- mount model: bind mount `$NIX_ISOLATED_ROOT` onto `/nix`
 - installer mode: Determinate Nix on Linux with `install linux --no-start-daemon`
 - daemon model: the host Determinate Nix runtime must provide the daemon socket; project scripts validate it but do not start host services automatically
 - Flox model: Flox installed on top of the Determinate Nix install and used through normal-user repository wrappers with `NIX_REMOTE=daemon`
@@ -36,8 +36,8 @@ Key constraints:
 
 1. Confirm `sudo` works for the current user.
 2. Confirm no incompatible root-backed Nix install is present.
-3. Confirm `/opt/bin/dev/nix` is the intended physical backing path.
-4. Confirm `/nix` is either absent, empty, or already bind-mounted from `/opt/bin/dev/nix`.
+3. Confirm `$NIX_ISOLATED_ROOT` is the intended physical backing path.
+4. Confirm `/nix` is either absent, empty, or already bind-mounted from `$NIX_ISOLATED_ROOT`.
 
 Important behavior:
 - the repository root-required helpers use `sudo -n`, not an interactive password prompt
@@ -55,9 +55,9 @@ scripts/env/toolchain/nix/host_bootstrap.sh
 ```
 
 What it does:
-- creates the physical backing tree under `/opt/bin/dev/nix`
+- creates the physical backing tree under `$NIX_ISOLATED_ROOT`
 - creates `/nix` as the logical mountpoint
-- bind-mounts `/opt/bin/dev/nix` onto `/nix`
+- bind-mounts `$NIX_ISOLATED_ROOT` onto `/nix`
 - ensures `/etc/nix` exists for the Determinate installer
 
 ### 3.3 Install Determinate Nix
@@ -73,15 +73,15 @@ What it does:
 - runs `install linux --no-confirm --no-modify-profile --diagnostic-endpoint="" --no-start-daemon`
 - installs the real Determinate installer at `/nix/nix-installer`
 - installs the Determinate Nix runtime under `/nix`
-- creates convenience wrappers under `/opt/bin/dev/nix/bin`
+- creates convenience wrappers under `$NIX_ISOLATED_ROOT/bin`
 
 Installed paths of interest:
 - real installer: `/nix/nix-installer`
 - receipt: `/nix/receipt.json`
 - daemon profile script: `/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh`
 - daemon socket after the daemon is running: `/nix/var/nix/daemon-socket/socket`
-- repo wrapper for `nix`: `/opt/bin/dev/nix/bin/nix`
-- repo wrapper for `nix-installer`: `/opt/bin/dev/nix/bin/nix-installer`
+- repo wrapper for `nix`: `$NIX_ISOLATED_ROOT/bin/nix`
+- repo wrapper for `nix-installer`: `$NIX_ISOLATED_ROOT/bin/nix-installer`
 
 ### 3.4 Install Flox
 
@@ -94,7 +94,7 @@ scripts/env/toolchain/nix/flox_install.sh
 What it does:
 - installs Flox via the Determinate-provided Nix command set
 - installs Flox into `/nix/var/nix/profiles/flox`
-- creates a convenience wrapper at `/opt/bin/dev/nix/bin/flox`
+- creates a convenience wrapper at `$NIX_ISOLATED_ROOT/bin/flox`
 - recreates the `nix` wrapper automatically if the reinstall removed it
 
 ### 3.5 Validate or Manually Start the Nix Daemon
@@ -177,13 +177,29 @@ Expected outcomes:
 - the shared isolation layer reports project-local `HOME` and `XDG_*` paths
 - the Python runtime verifier reports the managed Flox venv under `.flox/cache/python`
 - the Swift runtime verifier reports the Swiftly-managed Swift toolchain and `build/swift` paths inside the Flox project environment
-- `/nix` is bind-mounted from `/opt/bin/dev/nix`
+- `/nix` is bind-mounted from `$NIX_ISOLATED_ROOT` (default: `/opt/bin/dev/nix`)
 - `/nix/nix-installer` exists
 - `/nix/receipt.json` exists
 - the daemon socket is present
 - Python resolves to the managed Flox venv under `.flox/cache/python`
 - NumPy native extensions load successfully from the Flox-managed runtime (`6.0` proof)
-- `swift` resolves to `/opt/bin/dev/swiftly/bin` inside the Flox environment
+- `swift` resolves to `$SWIFTLY_HOME_DIR/bin` inside the Flox environment
+
+### 3.9 Shell Startup With local_env.sh
+
+After installation, source `scripts/local_env.sh` once at shell startup (e.g., in `.bashrc` or flox hook).
+This sets canonical environment variables for Nix/Flox binary resolution:
+
+```bash
+source /path/to/hybrid-ai/scripts/local_env.sh
+```
+
+Exports:
+- `NIX_ISOLATED_ROOT` — physical backing path for `/nix` mount (default: `/opt/bin/dev/nix`)
+- `NIX_BIN` — resolved path to `nix` binary
+- `FLOX_BIN` — resolved path to `flox` binary
+
+All project scripts assume these variables are already set. If a script runs without `local_env.sh` sourced, it will error with: `"ERROR: NIX_ISOLATED_ROOT not set. Source scripts/local_env.sh first."`
 
 ## 4. Bind-Mount Persistence
 
@@ -228,7 +244,7 @@ CONFIRM_REMOVE_ROOT_NIX=YES scripts/env/toolchain/nix/root_nix_remove.sh
 Use this for:
 - legacy root-backed `/nix` installs
 - stale `/etc/nix` and related profile hooks
-- leftover root-managed Nix artifacts that are not part of the bind-mounted `/opt/bin/dev/nix` workflow
+- leftover root-managed Nix artifacts that are not part of the bind-mounted `$NIX_ISOLATED_ROOT` workflow
 
 ### 5.2 Check Bind-Mount State
 
@@ -482,7 +498,7 @@ Pitfall note:
 
 - The daemon-capable reinstall restored the base Determinate Nix profile but removed the Flox profile and convenience wrappers.
 - If `scripts/env/toolchain/nix/flox_with.sh` fails with `flox is required but not installed or not in PATH`, reinstall Flox before debugging the wrapper layer.
-- `scripts/env/toolchain/nix/flox_install.sh` now recreates the `nix` wrapper automatically when the base Nix binary exists but `/opt/bin/dev/nix/bin/nix` was removed during reinstall.
+- `scripts/env/toolchain/nix/flox_install.sh` now recreates the `nix` wrapper automatically when the base Nix binary exists but `$NIX_ISOLATED_ROOT/bin/nix` was removed during reinstall.
 
 Recovery sequence:
 
@@ -503,7 +519,7 @@ scripts/env/toolchain/nix/flox_with.sh python --version
 - Before assuming Nix is installed, always inspect:
   - `/nix/nix-installer`
   - `/nix/receipt.json`
-  - `/opt/bin/dev/nix/bin/nix`
+  - `$NIX_ISOLATED_ROOT/bin/nix`
 
 #### Legacy nix-portable State Can Leave Read-Only Trees
 

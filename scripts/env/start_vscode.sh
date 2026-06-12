@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/common.sh"
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/vscode_paths.sh"
 
-use_nix_daemon
-ensure_nix_bind_mount
-require_nix_daemon_socket
-
 FLOX_ENV_DIR="${FLOX_ENV_DIR:-$project_root}"
-FLOX_ENV_INIT_SCRIPT="${FLOX_ENV_INIT_SCRIPT:-$project_root/scripts/env/toolchain/nix/flox_env_init.sh}"
 
 usage() {
   cat <<'EOF'
@@ -35,15 +30,10 @@ Modes:
 EOF
 }
 
-hybrid_ai_require_flox_env "$FLOX_ENV_DIR"
-
-FLOX_BIN="$(resolve_flox_bin || true)"
-if [[ -z "$FLOX_BIN" ]]; then
-  echo "ERROR: flox is required but was not found on PATH or at $FLOX_WRAPPER_BIN" >&2
+if [[ -z "${FLOX_BIN:-}" ]]; then
+  echo "ERROR: flox is required but was not found. Run scripts/env/toolchain/doctor.sh" >&2
   exit 1
 fi
-
-hybrid_ai_ensure_flox_env_ready "$FLOX_ENV_DIR" "$FLOX_ENV_INIT_SCRIPT"
 
 hybrid_ai_ensure_vscode_dirs
 

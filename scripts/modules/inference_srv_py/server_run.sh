@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 LOG_PATH="$project_root/volumes/logs/python_server.log"
-python_env_dir="${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/python}"
-python_manifest_path="$python_env_dir/manifest.toml"
+flox_env_dir="$project_root/env/python"
 
 mkdir -p "$(dirname "$LOG_PATH")"
-if [[ "${FLOX_ENV:-}" == "$python_env_dir"/.flox/run/* ]]; then
+if [[ "${FLOX_ENV:-}" == "$flox_env_dir"/.flox/run/* ]]; then
 	# shellcheck disable=SC1090
 	source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"
 	inference_srv_py_activate_env
@@ -15,4 +14,4 @@ if [[ "${FLOX_ENV:-}" == "$python_env_dir"/.flox/run/* ]]; then
 	exec python -m inference_srv_py.server "$@" 2>&1 | tee -a "$LOG_PATH"
 fi
 
-exec env FLOX_ENV_DIR="$python_env_dir" FLOX_MANIFEST_PATH="$python_manifest_path" "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc 'project_root="$1"; shift; source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"; inference_srv_py_activate_env; cd "$project_root/src/inference_srv_py"; exec python -m inference_srv_py.server "$@"' bash "$project_root" "$@" 2>&1 | tee -a "$LOG_PATH"
+exec env FLOX_ENV_DIR="$flox_env_dir" "$project_root/scripts/env/toolchain/nix/flox_with.sh" bash -lc 'project_root="$1"; shift; source "$project_root/scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh"; inference_srv_py_activate_env; cd "$project_root/src/inference_srv_py"; exec python -m inference_srv_py.server "$@"' bash "$project_root" "$@" 2>&1 | tee -a "$LOG_PATH"

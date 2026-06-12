@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 hybrid_ai_linux_gpu_note() {
   printf '%s\n' "$1"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 inference_srv_py_unset_host_python_env() {
   # Prevent an already-active host virtualenv from leaking into repository Python workflows.

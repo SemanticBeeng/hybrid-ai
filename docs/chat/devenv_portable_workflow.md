@@ -79,9 +79,10 @@ Requirement summary:
 - Resettable upper layer.
 
 Design:
-- A single isolated root variable: NIX_ISOLATED_ROOT=/opt/bin/dev/nix.
+- A single isolated root variable: `NIX_ISOLATED_ROOT` (default: `/opt/bin/dev/nix`).
 - Determinate Nix keeps `/nix` as the logical store path, but `/nix` is only a bind-mounted mountpoint backed by `$NIX_ISOLATED_ROOT`.
 - Persistent Nix/Flox state lives under `$NIX_ISOLATED_ROOT`; the root filesystem may contain `/nix` only as an empty mountpoint plus mount metadata.
+- `scripts/local_env.sh` is sourced once at shell startup to set `NIX_ISOLATED_ROOT`, `NIX_BIN`, and `FLOX_BIN`; all project scripts assume these variables are already set.
 - Wrapper scripts enforce and validate required vars before executing tools.
 - Cleanup and reset scripts target upper writable layer only.
 
@@ -206,7 +207,7 @@ Suggested Nix config (conceptual):
 - Acceptable use:
   - Disposable experiments, CI-only sandboxes, or narrow build-isolation tests where the entire workflow is intentionally launched through `nix --store <chroot-root>`.
 - Repository policy:
-  - The canonical developer workflow uses a bind-mounted `/nix` backed by `/opt/bin/dev/nix`, not a chroot store.
+  - The canonical developer workflow uses a bind-mounted `/nix` backed by `$NIX_ISOLATED_ROOT`, not a chroot store.
 
 ## 5. VS Code Portable + Copilot Isolation Model
 
@@ -268,7 +269,7 @@ Deliverables:
 Phase 1: Host prerequisites and bootstrap
 1. Install Determinate Nix on Linux and macOS hosts.
 2. Install Flox CLI.
-3. Create bootstrap script that prepares `/opt/bin/dev/nix`, mounts it onto `/nix`, and writes local Nix config for isolated operation.
+3. Create bootstrap script that prepares `$NIX_ISOLATED_ROOT`, mounts it onto `/nix`, and writes local Nix config for isolated operation.
 4. Verify the root filesystem contains no persistent Nix payload outside the `/nix` mountpoint and related minimal config files.
 
 Deliverables:
@@ -386,7 +387,7 @@ Recommended immediate scaffold:
 
 Required pass conditions:
 - No writes to real user home during bootstrap, build, run, test, or editor usage.
-- No persistent Nix store data on the host root partition; `/nix` must be a bind mount backed by `/opt/bin/dev/nix`.
+- No persistent Nix store data on the host root partition; `/nix` must be a bind mount backed by `$NIX_ISOLATED_ROOT`.
 - Python execution resolves to the Flox-managed venv under `.flox/cache/python`.
 - Swift execution resolves to Swiftly under `/opt/bin/dev/swiftly/bin`.
 - Copilot-generated run/debug actions execute via wrappers and inherit explicit vars.
@@ -473,11 +474,11 @@ This portable workflow document intentionally stays focused on architecture, rep
 
 ### 14.1 Manual-Daemon Multi-User Host Model
 
-This repository now runs on a daemon-capable multi-user Determinate Nix install where `/nix` stays bind-mounted from `/opt/bin/dev/nix`, but daemon startup is left to the operator instead of being handled by a service manager.
+This repository now runs on a daemon-capable multi-user Determinate Nix install where `/nix` stays bind-mounted from `$NIX_ISOLATED_ROOT`, but daemon startup is left to the operator instead of being handled by a service manager.
 
 Current canonical state:
 - Determinate Nix installed in daemon-capable mode with `--no-start-daemon`
-- logical store path remains `/nix`, physically backed by `/opt/bin/dev/nix`
+- logical store path remains `/nix`, physically backed by `$NIX_ISOLATED_ROOT`
 - the host Determinate Nix runtime is expected to expose `/nix/var/nix/daemon-socket/socket`
 - normal-user wrappers source `nix-daemon.sh` and use `NIX_REMOTE=daemon`
 - if the socket is absent, start the daemon manually with `sudo /nix/var/nix/profiles/default/bin/nix-daemon`; project scripts do not start host services automatically
@@ -485,18 +486,18 @@ Current canonical state:
 
 Migration record for this workspace:
 
-1. The `/nix -> /opt/bin/dev/nix` bind mount was preserved unchanged.
+1. The `/nix -> $NIX_ISOLATED_ROOT` bind mount was preserved unchanged.
 2. Pre-migration state was captured in `build/artifacts/manual-daemon-migration-preflight.txt`.
 3. The old daemonless `install linux --init none` install was uninstalled while the bind mount remained active.
 4. Determinate Nix was reinstalled with `--no-start-daemon`, restoring `/nix/nix-installer`, `/nix/receipt.json`, and the default multi-user profile layout.
-5. Flox was reinstalled and the convenience wrappers under `/opt/bin/dev/nix/bin` were restored.
+5. Flox was reinstalled and the convenience wrappers under `$NIX_ISOLATED_ROOT/bin` were restored.
 6. The user-facing wrappers were switched to daemon mode and validated as a normal user.
 
 Current operating sequence:
 
 1. Keep the bind mount active.
   - `/nix` remains the logical store root.
-  - `/opt/bin/dev/nix` remains the physical backing path.
+  - `$NIX_ISOLATED_ROOT` remains the physical backing path.
 
 2. Ensure the host Nix runtime is reachable before using normal-user tooling.
   - Preferred check: confirm `/nix/var/nix/daemon-socket/socket` exists.

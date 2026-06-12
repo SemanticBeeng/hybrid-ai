@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-runtime_env_dir="${HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR:-${HYBRID_AI_PYTHON_FLOX_ENV_DIR:-$project_root/env/inference-litert-linux-gpu}}"
-runtime_manifest_path="$runtime_env_dir/manifest.toml"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
+flox_env_dir="$project_root/env/inference-litert-linux-gpu"
 
 hybrid_ai_python_gpu_validate_inner() {
   # shellcheck disable=SC1090
@@ -22,12 +21,12 @@ hybrid_ai_python_gpu_validate_inner() {
   exec python -m inference_srv_py.gpu_validation "$@"
 }
 
-if [[ "${FLOX_ENV:-}" == "$runtime_env_dir"/.flox/run/* ]]; then
+if [[ "${FLOX_ENV:-}" == "$flox_env_dir"/.flox/run/* ]]; then
   hybrid_ai_python_gpu_validate_inner "$@"
   exit 0
 fi
 
-exec env FLOX_ENV_DIR="$runtime_env_dir" FLOX_MANIFEST_PATH="$runtime_manifest_path" \
+exec env FLOX_ENV_DIR="$flox_env_dir" \
   "$project_root/scripts/env/toolchain/nix/flox_with.sh" \
   bash -lc 'project_root="$1"; shift; "$project_root/scripts/modules/inference_srv_py/gpu_validate.sh" "$@"' \
   bash "$project_root" "$@"

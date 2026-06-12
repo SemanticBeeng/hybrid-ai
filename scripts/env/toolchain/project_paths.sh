@@ -4,7 +4,7 @@ hybrid_ai_assert_under_project() {
   local p="$1"
   local project_root
 
-  project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
   case "$p" in
     "$project_root"/*) ;;

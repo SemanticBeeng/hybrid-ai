@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 SWIFT_PACKAGE_DIR="$project_root/src/swift"
 HYBRID_AI_SWIFT_UI_PRODUCT="${HYBRID_AI_SWIFT_UI_PRODUCT:-hybrid-ai-mobile-chat}"
 

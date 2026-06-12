@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 host="${HYBRID_AI_HOST:-127.0.0.1}"
 port="${HYBRID_AI_PORT:-18090}"
 server_url="http://${host}:${port}"

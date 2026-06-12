@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 if ! declare -F hybrid_ai_assert_under_project >/dev/null 2>&1; then
   # shellcheck disable=SC1090
