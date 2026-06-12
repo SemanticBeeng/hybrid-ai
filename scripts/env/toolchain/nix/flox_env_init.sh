@@ -1,33 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$project_root/scripts/env/toolchain/common.sh"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
+source "$project_root/scripts/env/toolchain/nix/nix_flox_env.sh"
 
-use_nix_daemon
-ensure_nix_bind_mount
-require_nix_daemon_socket
+# Resolve manifest path for an environment directory.
+# Checks source manifest (env_dir/manifest.toml) first, then managed copy (.flox/env/).
+_flox_manifest_path_for() {
+  local env_dir="$1"
+  if [[ -f "$env_dir/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/manifest.toml"
+  elif [[ -f "$env_dir/.flox/env/manifest.toml" ]]; then
+    printf '%s\n' "$env_dir/.flox/env/manifest.toml"
+  else
+    return 1
+  fi
+}
 
-FLOX_BIN="$(require_flox_bin || true)"
-if [[ -z "$FLOX_BIN" ]]; then
+if [[ -z "${FLOX_BIN:-}" ]]; then
   echo "Run scripts/env/toolchain/nix/flox_install.sh first." >&2
   exit 1
 fi
 
-if [[ ! -f "$FLOX_MANIFEST_PATH" ]]; then
-  echo "ERROR: Flox manifest not found at $FLOX_MANIFEST_PATH" >&2
+FLOX_ENV_DIR="$(realpath -m "$FLOX_ENV_DIR")"
+export FLOX_ENV_DIR
+export FLOX_ENV_NAME="$(basename "$FLOX_ENV_DIR")"
+
+# Derive FLOX_MANIFEST_PATH from FLOX_ENV_DIR if not set.
+if [[ -z "${FLOX_MANIFEST_PATH:-}" ]]; then
+  FLOX_MANIFEST_PATH="$(_flox_manifest_path_for "$FLOX_ENV_DIR" || true)"
+fi
+if [[ -z "$FLOX_MANIFEST_PATH" || ! -f "$FLOX_MANIFEST_PATH" ]]; then
+  echo "ERROR: Flox manifest not found under $FLOX_ENV_DIR" >&2
   exit 1
 fi
+export FLOX_MANIFEST_PATH
 
 resolve_included_env_dirs() {
-  local manifest_dir
-  manifest_dir="$FLOX_ENV_DIR"
+  local manifest_dir="$1"
+  local manifest_path="$2"
 
   awk '
     match($0, /dir[[:space:]]*=[[:space:]]*"([^"]+)"/, parts) {
       print parts[1]
     }
-  ' "$FLOX_MANIFEST_PATH" | while IFS= read -r relative_dir; do
+  ' "$manifest_path" | while IFS= read -r relative_dir; do
     [[ -n "$relative_dir" ]] || continue
     realpath -m "$manifest_dir/$relative_dir"
   done
@@ -38,7 +55,7 @@ sync_single_env() {
   local env_name="$2"
   local manifest_path=""
 
-  manifest_path="$(hybrid_ai_flox_manifest_path_for "$env_dir" || true)"
+  manifest_path="$(_flox_manifest_path_for "$env_dir" || true)"
 
   if [[ -z "$manifest_path" ]]; then
     echo "ERROR: Flox manifest not found under $env_dir" >&2
@@ -53,10 +70,40 @@ sync_single_env() {
   fi
 
   if [[ ! -f "$env_dir/.flox/env.json" && ! -f "$env_dir/.flox/env/manifest.toml" ]]; then
-    hybrid_ai_flox_tool_env "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
+    "$FLOX_BIN" init -d "$env_dir" -n "$env_name" --no-auto-setup
   fi
 
-  hybrid_ai_flox_tool_env "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
+  "$FLOX_BIN" edit -d "$env_dir" -f "$manifest_path"
+}
+
+declare -A synced_envs=()
+
+sync_env_recursive() {
+  local env_dir="$(realpath -m "$1")"
+  local env_name="$2"
+  local manifest_path=""
+  local included_env_dir=""
+  local -a included_env_dirs=()
+
+  if [[ -n "${synced_envs[$env_dir]:-}" ]]; then
+    return
+  fi
+  synced_envs["$env_dir"]=1
+
+  manifest_path="$(_flox_manifest_path_for "$env_dir" || true)"
+  if [[ -z "$manifest_path" ]]; then
+    echo "ERROR: Flox manifest not found under $env_dir" >&2
+    exit 1
+  fi
+
+  mapfile -t included_env_dirs < <(resolve_included_env_dirs "$env_dir" "$manifest_path")
+
+  for included_env_dir in "${included_env_dirs[@]}"; do
+    [[ -n "$included_env_dir" ]] || continue
+    sync_env_recursive "$included_env_dir" "$(basename "$included_env_dir")"
+  done
+
+  sync_single_env "$env_dir" "$env_name"
 }
 
 for flox_dir in "$XDG_CONFIG_HOME/flox" "$XDG_CACHE_HOME/flox" "$XDG_DATA_HOME/flox"; do
@@ -68,16 +115,6 @@ for flox_dir in "$XDG_CONFIG_HOME/flox" "$XDG_CACHE_HOME/flox" "$XDG_DATA_HOME/f
   fi
 done
 
-while IFS= read -r included_env_dir; do
-  [[ -n "$included_env_dir" ]] || continue
-  sync_single_env "$included_env_dir" "$(basename "$included_env_dir")"
-done < <(resolve_included_env_dirs)
-
-sync_single_env "$FLOX_ENV_DIR" "$FLOX_ENV_NAME"
-
-if [[ -n "$(resolve_included_env_dirs)" ]]; then
-  hybrid_ai_flox_tool_env "$FLOX_BIN" include upgrade -d "$FLOX_ENV_DIR"
-  sync_single_env "$FLOX_ENV_DIR" "$FLOX_ENV_NAME"
-fi
+sync_env_recursive "$FLOX_ENV_DIR" "$FLOX_ENV_NAME"
 
 echo "Initialized and synced Flox environment at: $FLOX_ENV_DIR"

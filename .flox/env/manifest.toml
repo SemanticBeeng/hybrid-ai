@@ -10,5 +10,4 @@ environments = [
 	{ dir = "env/base" },
 	{ dir = "env/python" },
 	{ dir = "env/swift" },
-	{ dir = "env/inference" },
 ]

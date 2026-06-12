@@ -4,13 +4,17 @@ import PackageDescription
 
 var products: [Product] = [
     .library(name: "HybridAI", targets: ["HybridAI"]),
+    .library(name: "HybridAIBackend", targets: ["HybridAIBackend"]),
+    .library(name: "HybridAIAppleLiteRT", targets: ["HybridAIAppleLiteRT"]),
     .executable(name: "hybrid-ai-cli", targets: ["HybridAICLI"])
 ]
 
 var targets: [Target] = [
     .target(name: "HybridAI"),
+    .target(name: "HybridAIBackend", dependencies: ["HybridAI"]),
+    .target(name: "HybridAIAppleLiteRT", dependencies: ["HybridAI"]),
     .executableTarget(name: "HybridAICLI", dependencies: ["HybridAI"]),
-    .testTarget(name: "HybridAITests", dependencies: ["HybridAI"])
+    .testTarget(name: "HybridAITests", dependencies: ["HybridAI", "HybridAIBackend"])
 ]
 
 #if os(Linux)

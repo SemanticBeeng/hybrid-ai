@@ -23,9 +23,9 @@ For this repository, that means:
 This repository deliberately isolates developer tooling from the host machine.
 
 The normal command-line wrappers already do this:
-- `scripts/env/toolchain/python/python_run.sh`
-- `scripts/env/toolchain/python/python_server_run.sh`
-- `scripts/env/toolchain/swift/swift_run.sh`
+- `scripts/modules/inference_srv_py/run.sh`
+- `scripts/modules/inference_srv_py/server_run.sh`
+- `scripts/modules/swift/run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 
 However, editor extensions do not automatically inherit those wrappers just
@@ -44,8 +44,9 @@ starting VS Code.
 
 This workflow assumes:
 - Determinate Nix is installed using the repository's manual-daemon bind-mounted host model
-- the `/nix` mount is active and backed by `/opt/bin/dev/nix`
+- the `/nix` mount is active and backed by `$NIX_ISOLATED_ROOT` (default: `/opt/bin/dev/nix`)
 - the nix daemon socket exists at `/nix/var/nix/daemon-socket/socket`
+- `scripts/local_env.sh` has been sourced at shell startup (sets `NIX_ISOLATED_ROOT`, `NIX_BIN`, `FLOX_BIN`)
 - Flox is installed and the root-attached managed environment under `.flox` has already been initialized
 - VS Code is installed in portable mode
 - the portable VS Code user-data root is under `$HOME/appdata/.vscode/data`
@@ -55,6 +56,7 @@ This workflow does not attempt to install VS Code itself.
 ## 4. Files Involved
 
 Core runtime files:
+- `scripts/local_env.sh`
 - `scripts/env/start_vscode.sh`
 - `.vscode/settings.json`
 - `.vscode/tasks.json`
@@ -65,22 +67,23 @@ Portable VS Code state:
 - `$HOME/appdata/.vscode/data/extensions`
 
 Supporting environment files:
-- `scripts/env/toolchain/common.sh`
+- `scripts/env/toolchain/shell_helpers.sh`
 - `scripts/env/toolchain/vscode_paths.sh`
 - `scripts/env/toolchain/nix/nix_flox_env.sh`
-- `scripts/env/toolchain/python/python_env.sh`
+- `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`
 - `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `.flox/env/manifest.toml`
 
 Design boundary:
-- `common.sh` is a compatibility aggregator for legacy/full-session shell setup, not the central manifest policy and not a default for Flox hooks.
+- `shell_helpers.sh` provides generic shell utilities (`have_command()`, `run_as_root()`) shared across toolchains.
+- `all_env.sh` is a comprehensive aggregator for ad-hoc interactive shells; it is not sourced by narrow wrappers like `start_vscode.sh` or `flox_with.sh`.
 - `vscode_paths.sh` owns portable VS Code paths and binary resolution.
-- `python_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
+- `inference_srv_py_env.sh` owns Python venv setup, host-venv cleanup, cache paths, dependency sync, and activation.
 - `swift_env.sh` owns Swiftly activation and sources the Swift build/cache path module internally.
 - `xdg_env.sh` owns project-local `HOME`/`XDG_*` setup and is sourced only from `env/base/manifest.toml`; module manifests include `env/base` instead of duplicating XDG setup.
 - Flox `[vars]` own static activation constants such as Nix/Flox daemon defaults, Python behavior flags, and Swiftly version/path constants.
-- Flox manifests source the narrow concern modules they need instead of sourcing `common.sh`.
+- Flox manifests source the narrow concern modules they need instead of sourcing `all_env.sh`.
 
 ## 5. Effective Behavior
 
@@ -88,24 +91,22 @@ When `scripts/env/start_vscode.sh` is used, the workflow does all of the
 following before the editor opens:
 
 1. Resolves the real host home directory from the user account instead of trusting an already-overridden `HOME`.
-2. Sources `scripts/env/toolchain/common.sh` only as a launcher compatibility aggregator for shared helper functions and defaults.
-3. Enforces the active bind-mounted Determinate Nix layout.
-4. Requires the nix daemon socket.
-5. Resolves Flox and ensures the root-attached fullstack environment is ready.
-6. Forces the portable VS Code user-data and extensions directories.
-7. Activates the root-attached fullstack environment, then sources `python_env.sh` and `swift_env.sh` inside that activation.
-8. Activates the managed Python venv and Swiftly toolchain before launching the real VS Code binary.
+2. Sources `scripts/env/toolchain/nix/nix_flox_env.sh` for Flox activation defaults and `vscode_paths.sh` for portable editor paths.
+3. Resolves Flox and ensures the root-attached fullstack environment is ready.
+4. Forces the portable VS Code user-data and extensions directories.
+5. Activates the root-attached fullstack environment, then sources `inference_srv_py_env.sh` and `swift_env.sh` inside that activation.
+6. Activates the managed Python venv and Swiftly toolchain before launching the real VS Code binary.
 
 As a result:
 - `python` inside the editor environment comes from `.flox/cache/python`
-- `swift` inside the editor environment comes from `/opt/bin/dev/swiftly/bin` after Swiftly activation
+- `swift` inside the editor environment comes from `$SWIFTLY_BIN_DIR` after Swiftly activation
 - integrated terminals still inherit the repository workspace terminal environment settings
 - Python and Swift extension paths remain pinned by `.vscode/settings.json`
 
 Important current split:
 - the editor process starts inside the composed Flox environment
 - the managed Python venv under `.flox/cache/python` is the canonical runtime for Python CLI, server, editor, and native-extension workflows
-- wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/python/python_env.sh` to activate that managed venv
+- wrapper-based Python commands, activated Flox shells, and the VS Code launcher source `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` to activate that managed venv
 - Swift workflows source `scripts/env/toolchain/swift/swift_env.sh`, which activates Swiftly and applies Swift build/cache path policy
 
 ## 6. Required VS Code Settings Context
@@ -189,7 +190,7 @@ After the editor opens:
 
 1. Run the task `vscode:print-env`.
 2. Confirm the printed `python_bin` and `python_executable` point into `.flox/cache/python`.
-3. Confirm `swift_bin` points into `/opt/bin/dev/swiftly/bin`.
+3. Confirm `swift_bin` points into `$SWIFTLY_BIN_DIR`.
 4. Confirm `vscode_user_data_dir` and `vscode_extensions_dir` point at the portable root under `$HOME/appdata/.vscode/data`.
 
 ### 8.3 Verify Workspace-Level Tool Pinning
@@ -282,7 +283,7 @@ Meaning:
 Recovery:
 - close stale VS Code windows and relaunch with `scripts/env/start_vscode.sh`
 - run `scripts/env/start_vscode.sh --print-env` and confirm `python_executable` points into `.flox/cache/python`
-- use `scripts/env/toolchain/python/python_run.sh` as the authoritative CLI runtime check if editor state is still unclear
+- use `scripts/modules/inference_srv_py/run.sh` as the authoritative CLI runtime check if editor state is still unclear
 
 ## 11. Relationship To The Other Docs
 
@@ -309,30 +310,31 @@ Known limitation:
 
 # Design Work
 
-## Q: If `start_vscode.sh` is canonical, what role does `common.sh` still have?
+## Q: If `start_vscode.sh` is canonical, what role does `all_env.sh` still have?
 
 Current assumptions:
 
 1. `scripts/env/start_vscode.sh` is the canonical entrypoint when using VS Code and GitHub Copilot.
 2. The root-attached Flox environment is the canonical fullstack activation boundary.
-3. `scripts/env/toolchain/common.sh` remains available for compatibility and broad external-shell setup, but it is not the central policy file and scripts should not depend on it having been pre-sourced.
+3. `scripts/env/toolchain/all_env.sh` remains available for ad-hoc interactive shell setup, but it is not the central policy file and scripts should not depend on it having been pre-sourced.
 
 Under that model, the following conclusions hold.
 
 ### 1. `start_vscode.sh` activates the root Flox environment and then sources narrow runtime helpers
 
-`scripts/env/start_vscode.sh` sources compatibility helpers, validates host Nix/Flox prerequisites, and then launches VS Code through the root-attached composed Flox environment.
+`scripts/env/start_vscode.sh` sources `nix_flox_env.sh` for Flox defaults and `vscode_paths.sh` for portable editor paths, then launches VS Code through the root-attached composed Flox environment.
 
 The launcher is responsible for:
 
-- loading compatibility helper functions/defaults needed by the launcher
-- loading VS Code portable path defaults
-- validating the Nix daemon and `/nix` mount assumptions
+- loading Flox environment defaults from `nix_flox_env.sh`
+- loading VS Code portable path defaults from `vscode_paths.sh`
 - ensuring the Flox environment is ready
 - launching the editor through the root-attached Flox environment
-- sourcing `python_env.sh` and `swift_env.sh` inside the activated launch shell before starting VS Code
+- sourcing `inference_srv_py_env.sh` and `swift_env.sh` inside the activated launch shell before starting VS Code
 
-The `--check` path confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
+`scripts/env/start_vscode.sh` validates launch prerequisites and confirms that the effective editor environment contains the project-local XDG/HOME paths, the Flox-managed Python runtime, and the Swiftly-managed Swift toolchain.
+
+Note: Infrastructure validation (Nix mount, daemon socket) is now performed by `doctor.sh`, not by every script invocation.
 
 ### 2. VS Code terminals and Copilot inherit that environment
 
@@ -346,12 +348,12 @@ Important caveats:
 - already-open integrated terminals do not retroactively inherit environment changes
 - after changing environment scripts, restart VS Code or create a new terminal
 
-### 3. External shells may source `common.sh`, but scripts should remain boundary-explicit
+### 3. External shells may source `all_env.sh`, but scripts source narrow modules directly
 
-For an ad hoc interactive shell, it is still acceptable to source the compatibility aggregator:
+For an ad hoc interactive shell that needs everything, source the comprehensive aggregator:
 
 ```bash
-source scripts/env/toolchain/common.sh
+source scripts/env/toolchain/all_env.sh
 ```
 
 After that, child processes inherit exported variables from the broad compatibility setup, including XDG/HOME isolation, Nix/Flox path defaults, Swift build/cache paths, and inference/model/cache paths.
@@ -360,9 +362,13 @@ Important distinction:
 
 - exported variables are inherited by child scripts
 - shell functions are not normally inherited by child scripts unless explicitly exported with `export -f`
-- repository wrappers are written to compute their own local `project_root` and source the narrow helper they need, so a pre-sourced `common.sh` session is not required for normal workflows
+- repository wrappers use `$PROJECT_ROOT` from `local_env.sh` and source the narrow helper they need directly
+- `start_vscode.sh` sources `nix_flox_env.sh` + `vscode_paths.sh`
+- `flox_with.sh` sources `nix_flox_env.sh`
+- `swifty_check.sh` sources `swift_env.sh`
+- Nix setup scripts source `nix_setup.sh` (which sources `shell_helpers.sh`)
 
-Therefore, scripts should keep sourcing their specific concern module or wrapper boundary instead of assuming `common.sh` has already run.
+Therefore, scripts source their specific concern module directly instead of relying on `all_env.sh`.
 
 ### 4. Directory creation and isolation verification can be sufficient once at session start
 
@@ -371,16 +377,13 @@ Mostly yes, for a stable session.
 Root Flox activation creates the project-local directory structure through the module manifests and concern helpers:
 
 - `env/base/manifest.toml` sources `xdg_env.sh`, which creates project-local XDG and HOME directories
-- `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` include `env/base`
+- `env/python/manifest.toml` and `env/swift/manifest.toml` include `env/base`
 - `swift_env.sh` sources the Swift path module, which creates Swift build/cache directories
 - `inference_env.sh` creates model/cache/log/artifact/dependency directories
 
-`scripts/env/start_vscode.sh` performs the startup isolation checks needed for the editor session:
+`scripts/env/start_vscode.sh` validates the Flox environment is activatable.
 
-- checks the Nix daemon profile
-- checks the `/nix` mount
-- checks the Nix daemon socket
-- ensures the Flox environment is activatable or syncs stale state
+Note: Nix infrastructure checks (daemon profile, `/nix` mount, daemon socket) are performed by `doctor.sh`, not by `start_vscode.sh`. Run `doctor.sh` for full validation.
 
 For normal VS Code usage, doing this once at editor startup is sufficient.
 
@@ -396,13 +399,14 @@ This supports a session-initialization model:
 
 - `scripts/env/start_vscode.sh` is the canonical VS Code/Copilot session initializer
 - `flox activate` from the repository root is the canonical interactive fullstack shell
-- direct module activation uses `flox activate -d env/python`, `flox activate -d env/swift`, or `flox activate -d env/inference`
-- external shells may source `scripts/env/toolchain/common.sh` for broad compatibility, but normal wrappers should not require that
-- scripts that require helper functions should source the specific concern module they use, or a wrapper that owns that boundary
+- direct module activation uses `flox activate -d env/python`, `flox activate -d env/swift`, or `flox activate -d env/inference-litert-linux-gpu`
+- external shells may source `scripts/env/toolchain/all_env.sh` for broad interactive setup, but wrappers source narrow modules directly
+- scripts that require helper functions source the specific concern module they use
+- `shell_helpers.sh` provides generic utilities (`have_command()`, `run_as_root()`) shared across toolchains
 
 The guiding rule becomes:
 
-> Flox manifests and wrappers source narrow concern modules directly. `common.sh` is a compatibility aggregator, not the central source of truth.
+> Flox manifests and wrappers source narrow concern modules directly. `all_env.sh` is a comprehensive aggregator for ad-hoc shells, not the central source of truth.
 
 ## Q: What is the root-attached Flox environment migration model?
 
@@ -411,13 +415,13 @@ The target model is **Model A: root fullstack plus module environments**.
 In that model:
 
 - `.flox/env/manifest.toml` is the canonical fullstack developer environment attached to the repository root
-- `env/base/manifest.toml`, `env/python/manifest.toml`, `env/swift/manifest.toml`, and `env/inference/manifest.toml` remain reusable module environments
+- `env/base/manifest.toml`, `env/python/manifest.toml`, and `env/swift/manifest.toml` remain reusable module environments
 - activating from the repository root with `flox activate` makes the repository root the activation working directory and the canonical Flox environment directory
 - module environments can still be activated directly with `flox activate -d env/python`, `flox activate -d env/swift`, and similar commands
 - static environment constants live in Flox `[vars]`; scripts only retain dynamic values that depend on the checkout path, `FLOX_ENV_CACHE`, host account discovery, or runtime probing
 
 This follows the same broad pattern used by many `flox/floxenvs` examples: attach the primary project environment to the project root, use `[include]` for reusable layers, keep manifest hooks project-relative, and use `$FLOX_ENV_CACHE/<module>` for generated runtime state.
 
-The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, `env/swift`, and `env/inference` remain as reusable module environments.
+The previous canonical fullstack environment under `env/hybrid-ai` has been retired. The root-attached environment is now the only canonical fullstack activation boundary; `env/base`, `env/python`, and `env/swift` remain as reusable module environments.
 
 With the root-attached environment validated, manifest-level root recovery is no longer part of the canonical fullstack activation path. Standalone wrapper scripts may still derive a lowercase local `project_root` from their own location when they need to run from outside the repository root.

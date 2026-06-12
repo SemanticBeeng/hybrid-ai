@@ -2,7 +2,7 @@
 
 Date: 2026-06-05
 Status: Implemented
-Primary scripts: `scripts/env/toolchain/swift/swift_run.sh`, `scripts/env/toolchain/swift/swift_ui_run.sh`
+Primary scripts: `scripts/modules/swift/run.sh`, `scripts/modules/swift/ui_run.sh`
 
 ## 1. Goal
 
@@ -28,31 +28,37 @@ The wrapper ensures that:
 ## 3. Scope And Assumptions
 
 This workflow assumes:
+- `scripts/local_env.sh` has been sourced at shell startup (sets `PROJECT_ROOT`, `NIX_ISOLATED_ROOT`, `FLOX_BIN`)
 - Determinate Nix and Flox are working for the repository
 - the nix daemon socket exists
 - the root `.flox` environment has already been initialized and synced
-- Swiftly is installed under `/opt/bin/dev/swiftly`
+- Swiftly is installed under `$SWIFTLY_ROOT`
 - `scripts/env/toolchain/swift/swift_env.sh` activates Swiftly and validates Swift `6.3.2`
 - GTK/libadwaita development packages are installed through `env/swift/manifest.toml` for the Linux UI proof
 - the Swift package exists under `src/swift`
 
 ## 4. Files Involved
 
+Core environment:
+- `scripts/local_env.sh`
+
 Runtime wrappers:
-- `scripts/env/toolchain/swift/swift_run.sh`
-- `scripts/env/toolchain/swift/swift_ui_run.sh`
+- `scripts/modules/swift/run.sh`
+- `scripts/modules/swift/ui_run.sh`
 - `scripts/env/toolchain/nix/flox_with.sh`
 - `scripts/env/toolchain/swift/swift_env.sh`
 - `scripts/env/toolchain/swift/gtk_ui_runtime.sh`
 - `scripts/env/toolchain/swift/swiftly_common.sh`
-- `scripts/env/toolchain/swift/swift_env_check.sh`
+- `scripts/modules/swift/env_check.sh`
 - `scripts/env/toolchain/swift/swifty_check.sh`
 
 Session support:
-- `scripts/env/toolchain/common.sh` remains available as a compatibility aggregator for broad external-shell setup, but it is not central to Swift activation.
+- `scripts/env/toolchain/all_env.sh` remains available as a comprehensive aggregator for broad external-shell setup, but it is not sourced by Swift wrappers.
 - Swift manifests and wrappers use `scripts/env/toolchain/swift/swift_env.sh` as their narrow runtime source of truth.
-- `env/swift/manifest.toml` uses Flox `[vars]` for static Swiftly constants: `SWIFTLY_ROOT`, `SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, and the default `GTK_A11Y` value.
-- Normal Swift wrappers compute their own local `project_root`; they do not require a pre-sourced `common.sh` shell.
+- `scripts/local_env.sh` sets `SWIFTLY_ROOT` with a default of `/opt/bin/dev/swiftly`.
+- `env/swift/manifest.toml` uses Flox `[vars]` for static Swiftly constants: `SWIFTLY_ROOT`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, and the default `GTK_A11Y` value.
+- Derived paths (`SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`) are computed from `$SWIFTLY_ROOT` in `swiftly_common.sh`.
+- Swift wrappers use `$PROJECT_ROOT` from `local_env.sh`; they do not require a pre-sourced `all_env.sh` shell.
 - `scripts/env/toolchain/swift/swift_env.sh` sources the Swift path/cache module internally, so callers do not need to source `swift_paths.sh` directly.
 
 Swift package files:
@@ -77,7 +83,7 @@ These paths remain in shell helpers rather than Flox `[vars]` because they are c
 
 ## 5. Effective Runtime Behavior
 
-`scripts/env/toolchain/swift/swift_run.sh` does the following:
+`scripts/modules/swift/run.sh` does the following:
 - defaults to `swift build` when no explicit arguments are provided
 - launches through `scripts/env/toolchain/nix/flox_with.sh`
 - sources `scripts/env/toolchain/swift/swift_env.sh`
@@ -88,7 +94,7 @@ These paths remain in shell helpers rather than Flox `[vars]` because they are c
 This means every wrapper-based Swift command uses the repository-local build
 directory even if the caller forgets to provide one.
 
-`scripts/env/toolchain/swift/swift_ui_run.sh` is the dedicated Linux GTK/libadwaita UI wrapper.
+`scripts/modules/swift/ui_run.sh` is the dedicated Linux GTK/libadwaita UI wrapper.
 It does the following:
 - defaults to `swift build --product hybrid-ai-mobile-chat` when no explicit arguments are provided
 - launches through `scripts/env/toolchain/nix/flox_with.sh`
@@ -107,11 +113,11 @@ GTK/libadwaita package ownership after the UI proof:
 - some transitive `pkg-config` warnings can be non-fatal if the final UI build succeeds
 
 Swift ownership after the Swiftly migration:
-- `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, and `lldb` resolve from `/opt/bin/dev/swiftly/bin`
+- `swift`, `swiftc`, SwiftPM, `clang`, `sourcekit-lsp`, and `lldb` resolve from `$SWIFTLY_BIN_DIR`
 - `CC` and `CXX` are set to the real Swiftly toolchain `clang`/`clang++` binaries to avoid Swiftly proxy recursion during C target compilation
 - Swift runtime/import libraries resolve from the Swiftly `6.3.2` toolchain
 - Flox/Nix still provide the surrounding shell and non-Swift native build-time paths
-- `LD_LIBRARY_PATH` is sanitized or unset for Swiftly tools so they do not load incompatible Flox/Nix runtime libraries
+- Swift activation keeps the official toolchain isolated from incompatible Flox/Nix runtime libraries
 
 Current Swift package shape:
 - package name: `HybridAI`
@@ -136,13 +142,13 @@ Current test behavior:
 Run the default wrapper behavior:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh
+scripts/modules/swift/run.sh
 ```
 
 This is equivalent to running:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh build
+scripts/modules/swift/run.sh build
 ```
 
 ### 6.2 Test
@@ -150,7 +156,7 @@ scripts/env/toolchain/swift/swift_run.sh build
 Run the Swift test suite:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh test
+scripts/modules/swift/run.sh test
 ```
 
 ### 6.3 Resolve Package State Explicitly
@@ -158,7 +164,7 @@ scripts/env/toolchain/swift/swift_run.sh test
 If you want an explicit package resolution step:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh package resolve
+scripts/modules/swift/run.sh package resolve
 ```
 
 This wrapper form is preferred over running `swift package resolve` directly
@@ -167,7 +173,7 @@ from `src/swift`, because direct SwiftPM commands can recreate `src/swift/.build
 ### 6.4 Show The Active Swift Toolchain
 
 ```bash
-scripts/env/toolchain/swift/swift_env_check.sh
+scripts/modules/swift/env_check.sh
 ```
 
 For a compact direct check:
@@ -181,7 +187,7 @@ scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/sw
 Use the dedicated UI wrapper instead of the generic Swift wrapper:
 
 ```bash
-scripts/env/toolchain/swift/swift_ui_run.sh build --product hybrid-ai-mobile-chat
+scripts/modules/swift/ui_run.sh build --product hybrid-ai-mobile-chat
 ```
 
 The UI wrapper is preferred because SwiftPM must receive GTK C and linker flags
@@ -190,13 +196,13 @@ as explicit `-Xcc` and `-Xlinker` arguments.
 ### 6.6 Run The Linux GTK/libadwaita UI Proof
 
 ```bash
-scripts/env/toolchain/swift/swift_ui_run.sh run hybrid-ai-mobile-chat
+scripts/modules/swift/ui_run.sh run hybrid-ai-mobile-chat
 ```
 
 For runtime diagnostics:
 
 ```bash
-HYBRID_AI_SWIFT_UI_PRINT_RUNTIME=1 scripts/env/toolchain/swift/swift_ui_run.sh run hybrid-ai-mobile-chat
+HYBRID_AI_SWIFT_UI_PRINT_RUNTIME=1 scripts/modules/swift/ui_run.sh run hybrid-ai-mobile-chat
 ```
 
 Expected diagnostics include:
@@ -209,7 +215,7 @@ Expected diagnostics include:
 ### 7.1 Verify The Swift Binary Path
 
 ```bash
-scripts/env/toolchain/swift/swift_env_check.sh
+scripts/modules/swift/env_check.sh
 ```
 
 Expected result:
@@ -220,19 +226,19 @@ Expected result:
 ### 7.2 Verify Native Build-Time And Runtime Search Paths
 
 ```bash
-scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"; printf "LD_LIBRARY_PATH=%s\n" "${LD_LIBRARY_PATH:-unset}"'
+scripts/env/toolchain/nix/flox_with.sh bash -lc 'source scripts/env/toolchain/swift/swift_env.sh; hybrid_ai_activate_swift_env; printf "CPATH=%s\n" "${CPATH:-unset}"; printf "LIBRARY_PATH=%s\n" "${LIBRARY_PATH:-unset}"; printf "PKG_CONFIG_PATH=%s\n" "${PKG_CONFIG_PATH:-unset}"'
 ```
 
 Expected result:
 - `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH` expose Flox/Nix native build-time paths before host OS defaults
-- `LD_LIBRARY_PATH` is unset or sanitized for Swiftly tools
+- Swift activation remains isolated from incompatible Flox/Nix runtime libraries
 
 ### 7.3 Verify Build Output Location
 
 Run a build:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh build
+scripts/modules/swift/run.sh build
 ```
 
 Then inspect the repository:
@@ -249,7 +255,7 @@ Expected result:
 ### 7.4 Verify Tests
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh test
+scripts/modules/swift/run.sh test
 ```
 
 Expected result:
@@ -261,7 +267,7 @@ Expected result:
 After building, run the executable through SwiftPM:
 
 ```bash
-scripts/env/toolchain/swift/swift_run.sh run hybrid-ai-cli
+scripts/modules/swift/run.sh run hybrid-ai-cli
 ```
 
 Expected output today:
@@ -292,7 +298,7 @@ Expected result:
 ### 7.7 Verify The Linux UI Build
 
 ```bash
-scripts/env/toolchain/swift/swift_ui_run.sh build --product hybrid-ai-mobile-chat
+scripts/modules/swift/ui_run.sh build --product hybrid-ai-mobile-chat
 ```
 
 Expected result:
@@ -303,7 +309,7 @@ Expected result:
 ### 7.8 Verify The Linux UI Runtime Loader Path
 
 ```bash
-HYBRID_AI_SWIFT_UI_PRINT_RUNTIME=1 scripts/env/toolchain/swift/swift_ui_run.sh run hybrid-ai-mobile-chat
+HYBRID_AI_SWIFT_UI_PRINT_RUNTIME=1 scripts/modules/swift/ui_run.sh run hybrid-ai-mobile-chat
 ```
 
 Expected result:
@@ -316,7 +322,7 @@ Expected result:
 When this workflow is working correctly:
 - Swift builds run with the Swiftly-managed Swift `6.3.2` toolchain
 - Flox/Nix native build-time dependency paths are available before host OS defaults
-- Swift runtime `LD_LIBRARY_PATH` is sanitized or unset
+- Swift runtime resolution stays isolated from incompatible Flox/Nix shell settings
 - all SwiftPM artifacts stay under `build/swift`
 - shell and editor task behavior match
 - no source-adjacent `.build` directory appears as a byproduct of normal wrapper use
@@ -325,19 +331,18 @@ When this workflow is working correctly:
 - the GTK/libadwaita UI runtime is launched through a matching Nix glibc loader to avoid mixing host `libc` with Nix/Flox GTK libraries
 
 Verified on 2026-06-05:
-- `bash -n scripts/env/toolchain/swift/swift_env.sh`, `bash -n scripts/env/toolchain/swift/gtk_ui_runtime.sh`, and `bash -n scripts/env/toolchain/swift/swift_ui_run.sh` passed
+- `bash -n scripts/env/toolchain/swift/swift_env.sh`, `bash -n scripts/env/toolchain/swift/gtk_ui_runtime.sh`, and `bash -n scripts/modules/swift/ui_run.sh` passed
 - `scripts/env/toolchain/nix/flox_env_init.sh` synced the composed Flox environment
-- `scripts/env/toolchain/swift/swift_run.sh build` passed
-- `scripts/env/toolchain/swift/swift_run.sh test` passed
-- `scripts/env/toolchain/swift/swift_ui_run.sh build --product hybrid-ai-mobile-chat` passed
+- `scripts/modules/swift/run.sh build` passed
+- `scripts/modules/swift/run.sh test` passed
+- `scripts/modules/swift/ui_run.sh build --product hybrid-ai-mobile-chat` passed
 - `test ! -e src/swift/.build` passed after wrapper-based generic and UI builds
 
 Verified on 2026-06-04:
 - `scripts/env/toolchain/swift/swifty_check.sh` reported Swiftly under `/opt/bin/dev/swiftly` with Swift `6.3.2` and SwiftPM `6.3.2`
-- `scripts/env/toolchain/swift/swift_env_check.sh` reported `swift_bin=/opt/bin/dev/swiftly/bin/swift` and `clang_bin=/opt/bin/dev/swiftly/bin/clang`
+- `scripts/modules/swift/env_check.sh` reported `swift_bin=/opt/bin/dev/swiftly/bin/swift` and `clang_bin=/opt/bin/dev/swiftly/bin/clang`
 - native build-time paths exposed Flox/Nix `CPATH`, `LIBRARY_PATH`, and `PKG_CONFIG_PATH`
-- `LD_LIBRARY_PATH=unset` after Swift activation
-- `scripts/env/toolchain/swift/swift_run.sh package resolve`, `build`, `test`, and `run hybrid-ai-cli` passed
+- `scripts/modules/swift/run.sh package resolve`, `build`, `test`, and `run hybrid-ai-cli` passed
 - `test ! -e src/swift/.build` passed after wrapper-based build/run/test
 - `scripts/env/toolchain/doctor.sh` passed
 
@@ -361,11 +366,11 @@ Recovery:
 ### 9.2 Wrong Swift Toolchain
 
 Symptom:
-- `scripts/env/toolchain/swift/swift_env_check.sh` indicates a host toolchain, Nix Swift wrapper, or any Swift version other than `6.3.2`
+- `scripts/modules/swift/env_check.sh` indicates a host toolchain, Nix Swift wrapper, or any Swift version other than `6.3.2`
 
 Recovery:
 - verify Swiftly with `scripts/env/toolchain/swift/swifty_check.sh`
-- rerun through `scripts/env/toolchain/swift/swift_run.sh`
+- rerun through `scripts/modules/swift/run.sh`
 - if the editor is involved, relaunch it via `scripts/env/start_vscode.sh`
 
 ### 9.3 Source Tree `.build` Directory Appears
@@ -378,16 +383,16 @@ Meaning:
 
 Recovery:
 - remove the unintended `.build` directory if appropriate
-- rerun all build and test commands through `scripts/env/toolchain/swift/swift_run.sh`
+- rerun all build and test commands through `scripts/modules/swift/run.sh`
 
 ### 9.4 Build Or Test Failures
 
 Symptom:
-- `scripts/env/toolchain/swift/swift_run.sh build` or `scripts/env/toolchain/swift/swift_run.sh test` fails
+- `scripts/modules/swift/run.sh build` or `scripts/modules/swift/run.sh test` fails
 
 Checks:
 - verify the active Flox environment is healthy
-- verify Swiftly activation with `scripts/env/toolchain/swift/swift_env_check.sh`
+- verify Swiftly activation with `scripts/modules/swift/env_check.sh`
 - verify the daemon socket exists
 - inspect recent changes in `src/swift/Package.swift`, sources, or tests
 
@@ -400,8 +405,8 @@ Meaning:
 - Swiftly was run without the repository Swift activation helper, so Flox/Nix `LD_LIBRARY_PATH` entries leaked into the official Swift toolchain process
 
 Recovery:
-- run through `scripts/env/toolchain/swift/swift_run.sh` or source `scripts/env/toolchain/swift/swift_env.sh` and call `hybrid_ai_activate_swift_env`
-- use `scripts/env/toolchain/swift/swift_env_check.sh` to confirm the sanitized environment
+- run through `scripts/modules/swift/run.sh` or source `scripts/env/toolchain/swift/swift_env.sh` and call `hybrid_ai_activate_swift_env`
+- use `scripts/modules/swift/env_check.sh` to confirm the managed Swiftly toolchain is active
 
 ### 9.6 GTK/libadwaita UI Target Is Missing
 
@@ -413,8 +418,8 @@ Meaning:
 - the generic Swift wrapper was used, or `HYBRID_AI_ENABLE_GTK_UI=1` was not set
 
 Recovery:
-- use `scripts/env/toolchain/swift/swift_ui_run.sh build --product hybrid-ai-mobile-chat`
-- do not use `scripts/env/toolchain/swift/swift_run.sh` for GTK/libadwaita UI builds
+- use `scripts/modules/swift/ui_run.sh build --product hybrid-ai-mobile-chat`
+- do not use `scripts/modules/swift/run.sh` for GTK/libadwaita UI builds
 
 ### 9.7 GTK Headers Are Missing During UI Build
 
@@ -439,7 +444,7 @@ Meaning:
 
 Recovery:
 - do not run `build/swift/.../hybrid-ai-mobile-chat` directly
-- run through `scripts/env/toolchain/swift/swift_ui_run.sh run hybrid-ai-mobile-chat`
+- run through `scripts/modules/swift/ui_run.sh run hybrid-ai-mobile-chat`
 - enable diagnostics with `HYBRID_AI_SWIFT_UI_PRINT_RUNTIME=1`
 
 ### 9.9 Non-Fatal Transitive pkg-config Warnings

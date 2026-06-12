@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 # shellcheck disable=SC1090
 source "$project_root/scripts/env/toolchain/project_paths.sh"
@@ -131,7 +131,7 @@ if [[ "$DRY_RUN" -eq 0 ]]; then
   # creation: xdg_env.sh, swift_paths.sh, and inference_env.sh.
   hash -r
   # shellcheck disable=SC1090
-  source "$project_root/scripts/env/toolchain/common.sh"
+  source "$project_root/scripts/env/toolchain/all_env.sh"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

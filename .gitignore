@@ -2,9 +2,9 @@ build/*
 !build/.gitkeep
 build/home/.nix-portable/
 volumes/*
-!volumes/.gitkeep
-!volumes/models/
-!volumes/models/**
+# !volumes/.gitkeep
+# !volumes/models/
+# !volumes/models/**
 deps/*
 !deps/.gitkeep
 env/*/.flox/

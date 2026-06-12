@@ -1,5 +1,7 @@
 # Development Workflow Use Cases
 
+Clarification: in this repository, `usecases` currently means environment setup and environment utilization workflows. These are not the same thing as application functional use cases.
+
 This folder contains one Markdown file per concrete development workflow.
 
 Each use-case document should describe:
@@ -15,8 +17,7 @@ Current use cases:
 - `02-python-cli-and-server.md`: run the Python CLI entrypoint and the Python development server through the Flox-managed Python venv, either from an activated Flox shell or via repository wrappers
 - `03-swift-build-and-test.md`: run Swift build and test workflows through the Flox-managed repository wrapper and Swiftly activation path, with artifacts forced under `build/swift`
 - `04-isolation-verification.md`: verify runtime isolation, host-level verification tooling consistency, and the target state where all formal isolation checks pass
+- `05-inference-server-workflow.md`: run the full Linux inference server workflow through the dedicated Python Flox environment, including dependency verification, pinned model bootstrap, promoted Linux GPU serve verification through the repo-level smoke wrapper, and Swift live integration checks against normalized assistant-text responses
 
 Planned future use cases:
-- Inference local workflow
-- Inference remote workflow
 - Cross-machine bootstrap and editor handoff workflow

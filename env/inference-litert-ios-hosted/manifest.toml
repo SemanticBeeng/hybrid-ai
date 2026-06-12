@@ -1,0 +1,37 @@
+version = 1
+
+[install]
+python.pkg-path = "python311"
+python.systems = ["aarch64-darwin"]
+poetry.pkg-path = "poetry"
+poetry.systems = ["aarch64-darwin"]
+uv.pkg-path = "uv"
+uv.systems = ["aarch64-darwin"]
+cmake.pkg-path = "cmake"
+cmake.systems = ["aarch64-darwin"]
+
+[include]
+environments = [
+	{ dir = "../inference-litert-base" },
+]
+
+[vars]
+HYBRID_AI_APPLE_RUNTIME_HOST = "ios-hosted"
+PYTHONDONTWRITEBYTECODE = "1"
+PIP_DISABLE_PIP_VERSION_CHECK = "1"
+POETRY_VIRTUALENVS_CREATE = "false"
+
+[hook]
+on-activate = '''
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_ios_hosted_env
+'''
+
+[profile]
+common = '''
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_ios_hosted_env
+'''
+
+[options]
+systems = ["aarch64-darwin"]

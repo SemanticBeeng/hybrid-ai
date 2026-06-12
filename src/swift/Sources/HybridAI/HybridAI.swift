@@ -4,4 +4,8 @@ public struct HybridAI {
     public func status() -> String {
         "hybrid-ai swift module ready"
     }
+
+    public func makePreviewAppModel() -> ChatAppModel {
+        ChatAppModel(runtime: PreviewInferenceRuntime())
+    }
 }

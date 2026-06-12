@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "inference-srv-py"
+version = "0.1.0"
+description = "Python inference server module"
+authors = ["hybrid-ai team"]
+packages = [{ include = "inference_srv_py" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+litert-lm = "0.13.1"
+numpy = "^2.4.6"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,50 @@
+version = 1
+
+[install]
+vulkan-loader.pkg-path = "vulkan-loader"
+vulkan-loader.systems = ["x86_64-linux"]
+vulkan-tools.pkg-path = "vulkan-tools"
+vulkan-tools.systems = ["x86_64-linux"]
+xorg-libx11.pkg-path = "xorg.libX11"
+xorg-libx11.systems = ["x86_64-linux"]
+linux-nvidia-x11.pkg-path = "linuxPackages.nvidia_x11"
+linux-nvidia-x11.systems = ["x86_64-linux"]
+
+# Optional fallback: keep commented unless a future GPU workflow requires explicit
+# X11/XCB runtime closure in this env (for example, non-headless rendering paths).
+# xorg-libxext.pkg-path = "xorg.libXext"
+# xorg-libxext.systems = ["x86_64-linux"]
+# xorg-libxcb.pkg-path = "xorg.libxcb"
+# xorg-libxcb.systems = ["x86_64-linux"]
+# xorg-libxau.pkg-path = "xorg.libXau"
+# xorg-libxau.systems = ["x86_64-linux"]
+# xorg-libxdmcp.pkg-path = "xorg.libXdmcp"
+# xorg-libxdmcp.systems = ["x86_64-linux"]
+
+[include]
+environments = [
+	{ dir = "../python" },
+]
+
+[vars]
+HYBRID_AI_INFERENCE_ENGINE = "litert-lm"
+HYBRID_AI_LITERT_BACKEND = "gpu"
+
+[hook]
+on-activate = '''
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_linux_gpu_env
+inference_srv_py_setup_env
+'''
+
+[profile]
+common = '''
+source scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_linux_gpu_env
+inference_srv_py_activate_env
+'''
+
+[options]
+systems = ["x86_64-linux"]

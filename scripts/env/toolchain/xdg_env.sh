@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 if ! declare -F hybrid_ai_assert_under_project >/dev/null 2>&1; then
   # shellcheck disable=SC1090
@@ -15,10 +15,4 @@ export XDG_STATE_HOME="$project_root/build/xdg/state"
 # Use an isolated HOME for tools that hardcode HOME lookups.
 export HOME="$project_root/build/home"
 
-mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$HOME"
-
-hybrid_ai_assert_under_project "$XDG_CONFIG_HOME"
-hybrid_ai_assert_under_project "$XDG_CACHE_HOME"
-hybrid_ai_assert_under_project "$XDG_DATA_HOME"
-hybrid_ai_assert_under_project "$XDG_STATE_HOME"
-hybrid_ai_assert_under_project "$HOME"
+hybrid_ai_ensure_dirs_under_project "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME" "$HOME"

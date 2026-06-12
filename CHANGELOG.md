@@ -1,10 +1,294 @@
 # Changelog
 
+## 2026-06-12
+
+### Linux GPU smoke test execution and post-prune recovery workflow
+
+Verified complete GPU inference workflow and documented post-prune-caches recovery path.
+
+#### Section 6.7 Linux GPU End-To-End Smoke execution
+- ✅ Executed `scripts/env/run_inference_local_gpu_smoke.sh` with full validation
+- ✅ GPU host contract check passed (device nodes, Vulkan ICD, vendor libraries)
+- ✅ Managed GPU validation passed all phases (library resolution, Vulkan tooling, ICD loadability, Python import, backend selection, bootstrap-state)
+- ✅ GPU WebGPU backend initialization successful
+- ✅ Server readiness check returned `backend=gpu`
+- ✅ Conversation lifecycle (create/send/delete) validated against running GPU backend
+- ✅ Swift live integration tests passed (3/3 tests, 0 failures)
+
+#### docs/usecases/05-inference-server-workflow.md (post-prune enhancements)
+
+**Added Section 6.0: Post-Prune-Caches State (When Required)**
+- Documented which artifacts are removed by `prune_caches.sh` (Flox envs, Python venvs, build metadata)
+- Documented which artifacts are preserved (manifests, models, model metadata)
+- Added mandatory step ordering with emphasis on `setup_litert_lm.sh` execution after Flox resync
+- Added explicit warning: skipping `setup_litert_lm.sh` causes `ModuleNotFoundError: No module named 'litert_lm'`
+
+**Enhanced Section 6.1: Python Flox Sync**
+- Added `prune_caches.sh` to trigger conditions
+- Added bold note: "This resync is mandatory because the realized Flox environment at `env/python/.flox/` has been deleted"
+- Documented typical post-prune scenario: `env/python/.flox/` is regenerated
+
+**Enhanced Section 6.8: Start CPU or GPU Server**
+- Added mandatory statement: "This is mandatory after running `prune_caches.sh`"
+- Added explicit `./scripts/env/setup_litert_lm.sh` command in server startup section
+- Clarified GPU env sync requirement for GPU server after cache prune
+
+**Enhanced Section 3: Scope And Assumptions**
+- Added cache cleanup scenario awareness
+- Added direct link to Section 6.0 for post-prune recovery guidance
+
+#### env/inference-litert-linux-gpu/manifest.toml
+
+- Added `linuxPackages.nvidia_x11` to GPU-specific environment (correctly scoped, not in base Python env)
+- This package provides libnvidia-glsi and related NVIDIA userspace libraries via Nix closure
+- Resolved "libnvidia-glsi.so.580.126.09: cannot open shared object file" error from earlier GPU smoke attempt
+- Verified in managed GPU runtime (`flox_with.sh` context) that `libGLX_nvidia.so.0` links to `libXext`, `libxcb`, `libXau`, and `libXdmcp`
+- Verified those Xorg libraries are present at runtime even after removing explicit manifest entries, indicating they are currently satisfied transitively
+- Added commented optional fallback entries for `xorg.libXext`, `xorg.libxcb`, `xorg.libXau`, and `xorg.libXdmcp` so future GPU rendering workflows can re-enable them quickly if needed
+
+#### Current workflow validation state
+
+- GPU smoke test (Section 6.7) fully functional on supported Linux host (NVIDIA + Vulkan)
+- CPU smoke test (Section 6.4-6.6) already validated
+- Swift live integration tests pass against both CPU and GPU backends
+- Post-prune recovery documented and validated through complete workflow re-execution
+
+### SWIFTLY_ROOT centralization
+
+Added `SWIFTLY_ROOT` to `local_env.sh` as single source of truth for the Swiftly installation root.
+
+#### scripts/local_env.sh
+- added `SWIFTLY_ROOT` export (default: `/opt/bin/dev/swiftly`)
+- placed after `NIX_ISOLATED_ROOT`, before the idempotent guard
+
+#### scripts/env/toolchain/swift/swiftly_common.sh
+- `hybrid_ai_swiftly_configure()` now requires `SWIFTLY_ROOT` be set (fails with descriptive error if not)
+- derived paths (`SWIFTLY_HOME_DIR`, `SWIFTLY_BIN_DIR`, `SWIFTLY_TOOLCHAINS_DIR`) computed from `$SWIFTLY_ROOT`
+- auto-calls `hybrid_ai_swiftly_configure` when sourced (ensures derived paths are always set)
+
+#### scripts/env/toolchain/swift/swift_env.sh
+- removed redundant `hybrid_ai_swiftly_configure` call (now handled by `swiftly_common.sh` on source)
+
+#### env/swift/manifest.toml
+- removed hardcoded derived paths from `[vars]`
+- kept `SWIFTLY_ROOT`, `SWIFTLY_VERSION`, `HYBRID_AI_SWIFT_VERSION`, `GTK_A11Y`
+- added comment noting derived paths are computed in `swiftly_common.sh`
+
+#### Updated documentation
+- `docs/usecases/01-vscode-portable-project-env.md` — use `$SWIFTLY_BIN_DIR` instead of hardcoded path
+- `docs/usecases/03-swift-build-and-test.md` — updated session support section, use `$SWIFTLY_BIN_DIR`
+- `docs/usecases/04-isolation-verification.md` — use `$SWIFTLY_ROOT` in requirements
+- `docs/chat/swift_ui_cross_platform_roadmap.md` — use `$SWIFTLY_BIN_DIR` in checkpoint
+- `docs/chat/swiftly_632_migration_runbook.md` — updated architecture section, use `$SWIFTLY_ROOT`
+
+### PROJECT_ROOT centralization
+
+Added `PROJECT_ROOT` to `local_env.sh` as single source of truth for the project root path.
+
+#### scripts/local_env.sh
+- added `PROJECT_ROOT` export (default: `/home/nkse/projects/hybrid-ai`)
+- moved `PROJECT_ROOT` and `NIX_ISOLATED_ROOT` before the idempotent guard so re-sourcing always sets them
+- idempotent guard now only skips expensive binary resolution, not core path exports
+
+#### Updated 50 scripts
+- replaced `project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/..." && pwd)"` with `project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"`
+- eliminates redundant directory traversal on every script invocation
+
+### Shell script sourcing refactor
+
+Refactored scripts to source only the narrow concern modules they need instead of the `common.sh` aggregator.
+
+#### scripts/env/toolchain/shell_helpers.sh (NEW)
+- extracted `have_command()` and `run_as_root()` as generic utilities
+- idempotent via `_SHELL_HELPERS_SOURCED` guard
+- sourced by `nix_setup.sh` and `swiftly_install.sh`
+
+#### nix_setup.sh
+- now sources `shell_helpers.sh` for `have_command()` and `run_as_root()`
+- removed duplicate function definitions
+
+#### Scripts now source narrow modules directly
+| Script | Before | After |
+|--------|--------|-------|
+| `flox_with.sh` | `common.sh` | `nix_flox_env.sh` |
+| `flox_env_init.sh` | `common.sh` | `nix_flox_env.sh` |
+| `start_vscode.sh` | `common.sh` | `nix_flox_env.sh` + `vscode_paths.sh` |
+| `swifty_check.sh` | `common.sh` + `swift_env.sh` | `swift_env.sh` |
+| `swiftly_install.sh` | `nix_setup.sh` | `shell_helpers.sh` + `swiftly_common.sh` |
+| `nix_mount_manage.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `host_bootstrap.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_isolation_check.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `determinate_cycle_test.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `flox_install.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_determinate_install.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `nix_fstab_manage.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `root_nix_remove.sh` | `common.sh` + `nix_setup.sh` | `nix_setup.sh` |
+| `doctor.sh` | `common.sh` + `nix_setup.sh` | `xdg_env.sh` + `nix_setup.sh` |
+| `run_inference_remote.sh` | `common.sh` | (removed, not needed) |
+| `setup_litert_lm.sh` | `common.sh` | (removed, not needed) |
+| `toolchain_install.sh` | `common.sh` | (removed, not needed) |
+
+#### common.sh renamed to all_env.sh
+- renamed `scripts/env/toolchain/common.sh` → `scripts/env/toolchain/all_env.sh`
+- added detailed header comments documenting purpose and usage
+- clarified: NOT used by Flox activation, NOT used by wrapper scripts
+- only used by: `check_env.sh`, `project_cache_cleanup.sh`, ad-hoc interactive shells
+
+#### Documentation updated
+- `docs/usecases/01-vscode-portable-project-env.md` updated to reflect new sourcing patterns and rename
+- `docs/usecases/02-python-cli-and-server.md` updated
+- `docs/usecases/03-swift-build-and-test.md` updated
+- `docs/usecases/04-isolation-verification.md` updated
+- `docs/chat/devenv_portable_workflow.md` updated
+- `docs/chat/determinate_nix_flox_setup.md` updated
+- `docs/chat/swiftly_632_migration_runbook.md` updated
+
+### Shell script declutter and simplification
+
+Comprehensive refactoring of `scripts/env/toolchain/nix/` to reduce complexity and eliminate redundant code.
+
+#### nix_flox_env.sh (206 → 28 lines, 86% reduction)
+- removed `hybrid_ai_ensure_flox_env_ready()` — moved to `doctor.sh` as `_ensure_flox_env_ready()` for one-time validation
+- removed `hybrid_ai_require_flox_env()` — moved to `doctor.sh` as `_require_flox_env()`
+- removed `require_flox_bin()` — replaced with inline `command -v flox` since PATH already includes `$NIX_ISOLATED_ROOT/bin`
+- removed `resolve_flox_bin()` — redundant helper eliminated
+- removed `have_command()` — now local to `nix_setup.sh`
+- removed `hybrid_ai_flox_tool_env()` — XDG vars already exported by `xdg_env.sh`, wrapper was redundant
+- removed `hybrid_ai_flox_manifest_path_for()` — moved to `flox_env_init.sh` as `_flox_manifest_path_for()` (only consumer)
+- removed `hybrid_ai_default_flox_env_dir()` — inlined as `: "${FLOX_ENV_DIR:=$project_root}"`
+- moved infrastructure variables (`DETERMINATE_NIX_BIN`, `NIX_DAEMON_*`, `NIX_WRAPPER_BIN`, etc.) to `nix_setup.sh`
+- file now contains only: PATH setup, safety check, and `FLOX_*` defaults
+
+#### nix_setup.sh (NEW, 111 lines)
+- created as infrastructure setup file for setup/admin scripts only
+- contains all infrastructure functions: `run_as_root()`, `nix_mount_*()`, `is_nix_*()`, `ensure_nix_bind_mount()`, `use_nix_daemon()`, `require_nix_daemon_socket()`
+- contains infrastructure variables: `DETERMINATE_NIX_BIN`, `NIX_DAEMON_PROFILE_SCRIPT`, `NIX_DAEMON_SOCKET`, `NIX_WRAPPER_BIN`, `FLOX_WRAPPER_BIN`, etc.
+- NOT sourced by activation scripts (`flox_with.sh`, `start_vscode.sh`, `flox_env_init.sh`)
+
+#### doctor.sh (expanded validation)
+- now contains `_ensure_flox_env_ready()`, `_require_flox_bin()`, `_require_flox_env()` — private validation helpers
+- added `ensure_nix_bind_mount()` and `require_nix_daemon_socket()` calls for infrastructure verification
+- all defensive checks now run once via `doctor.sh` rather than on every script invocation
+
+#### flox_with.sh, start_vscode.sh, flox_env_init.sh (simplified)
+- removed `use_nix_daemon`, `ensure_nix_bind_mount`, `require_nix_daemon_socket` calls — infrastructure validation now in `doctor.sh`
+- removed `hybrid_ai_require_flox_env` calls — validation now in `doctor.sh`
+- replaced `require_flox_bin` with `command -v flox`
+
+#### Architecture change
+- **Before**: Infrastructure validation ran on every `flox_with.sh` / `start_vscode.sh` invocation (subprocess spawn overhead)
+- **After**: Infrastructure validation runs once via `doctor.sh`; activation scripts are minimal
+- Clear separation: `nix_flox_env.sh` for project scripts, `nix_setup.sh` for admin/setup scripts
+
+### FLOX_ENV_DIR simplification
+
+Removed global env var indirection in favor of explicit inline assignment at exec point.
+
+#### Removed HYBRID_AI_*_FLOX_ENV_DIR variables
+- removed `HYBRID_AI_PYTHON_FLOX_ENV_DIR` — scripts now use direct path `$project_root/env/python`
+- removed `HYBRID_AI_LITERT_LINUX_GPU_FLOX_ENV_DIR` — scripts now use direct path `$project_root/env/inference-litert-linux-gpu`
+
+#### Removed FLOX_MANIFEST_PATH from activation
+- removed from `nix_flox_env.sh` — `flox_with.sh` ignores it; `flox activate -d` derives manifest internally
+- removed from inference script execs — redundant
+- `flox_env_init.sh` now derives `FLOX_MANIFEST_PATH` from `FLOX_ENV_DIR` using `_flox_manifest_path_for()`
+
+#### Canonical pattern
+```bash
+flox_env_dir="$project_root/env/<env-name>"
+exec env FLOX_ENV_DIR="$flox_env_dir" flox_with.sh ...
+```
+
+#### Affected scripts
+- `server_gpu_run.sh`, `gpu_validate.sh`, `gpu_runtime_snapshot.sh` — now use `env/inference-litert-linux-gpu`
+- `server_run.sh`, `run.sh` — now use `env/python`
+- `nix_flox_env.sh` — reduced to 25 lines (PATH, FLOX_ENV_DIR, FLOX_ENV_NAME, FLOX_DISABLE_METRICS)
+
+### Centralized Nix/Flox binary paths
+
+Introduced `scripts/local_env.sh` as single source of truth for binary paths.
+**Must be sourced once at shell startup** (e.g., in `.bashrc` or flox hook) — scripts assume these variables are already set.
+
+#### scripts/local_env.sh (NEW)
+- exports `NIX_ISOLATED_ROOT` — physical backing path for /nix mount (default: `/opt/bin/dev/nix`)
+- exports `NIX_BIN` — resolved path to `nix` binary (PATH or fallback to `$NIX_ISOLATED_ROOT/bin/nix`)
+- exports `FLOX_BIN` — resolved path to `flox` binary (PATH or fallback to `$NIX_ISOLATED_ROOT/bin/flox`)
+- idempotent sourcing via `_LOCAL_ENV_SOURCED` guard
+
+#### Removed patterns
+- removed explicit `source "$project_root/scripts/local_env.sh"` from all scripts — now assumed pre-sourced
+- removed `command -v flox 2>/dev/null || echo /opt/bin/dev/nix/bin/flox` — now use `$FLOX_BIN`
+- removed `command -v flox 2>/dev/null || true` + error check — now use `$FLOX_BIN`
+- removed duplicate `: "${NIX_ISOLATED_ROOT:=/opt/bin/dev/nix}"` — now set by `local_env.sh`
+
+#### Updated scripts
+- `nix_flox_env.sh` — verifies `NIX_ISOLATED_ROOT` is set, errors if not
+- `flox_with.sh`, `flox_env_init.sh`, `start_vscode.sh` — use `${FLOX_BIN:-}` with error if unset
+- `doctor.sh` — `_require_flox_bin()` uses `${FLOX_BIN:-}`
+- `fingerprint.sh` — uses `${FLOX_BIN:-}` and `${NIX_BIN:-}` for version output
+- `server_gpu_run.sh` — uses `${FLOX_BIN:-}` for LD_AUDIT recovery
+
+#### Updated documentation
+- `docs/usecases/05-inference-server-workflow.md` — added `local_env.sh` to assumptions and files; replaced hardcoded PATH exports with `source scripts/local_env.sh` and `$FLOX_BIN`
+- `docs/usecases/01-vscode-portable-project-env.md` — added `local_env.sh` to assumptions and files; changed `/opt/bin/dev/nix` to `$NIX_ISOLATED_ROOT`
+- `docs/chat/determinate_nix_flox_setup.md` — added Section 3.9 "Shell Startup With local_env.sh"; changed hardcoded paths to `$NIX_ISOLATED_ROOT` and `$SWIFTLY_HOME_DIR` in verification expectations
+- `docs/chat/devenv_portable_workflow.md` — added `local_env.sh` sourcing to isolation design description
+
+## 2026-06-10
+
+### GPU server launcher simplification
+- deleted `env/inference/` — only added curl/jq/git already provided by `env/base`
+- removed `env/inference` include from root manifest, `inference-litert-base`, and `inference-litert-linux-gpu`
+- `inference-litert-base` now includes `../base` directly
+- replaced the self-recursive `server_gpu_run.sh` (90+ lines with embedded functions) with a linear two-file design:
+  - `server_gpu_run.sh` — 30-line outer entry point that recovers `LD_AUDIT` from root env when missing, then activates GPU env and exec's inner
+  - `server_gpu_inner.sh` — 25-line inner script that ensures venv, runs contract check, applies bridge env, exec's python
+- removed `hybrid_ai_python_server_restore_flox_loader_state()` — no longer needed as a separate function; LD_AUDIT recovery moved to outer script as an 8-line inline block
+- removed `hybrid_ai_linux_gpu_scrub_runtime_env()` (30 lines) from `linux_gpu_contract.sh` — defensive unsetting of vars that cannot leak through the clean Flox activation boundary
+- removed `gpu_validate.sh` call from server launch path (kept as standalone diagnostic tool)
+- gated snapshot machinery behind `HYBRID_AI_GPU_DEBUG` env var instead of always evaluating it
+- re-locked root, `inference-litert-base`, and `inference-litert-linux-gpu` Flox environments after manifest changes
+- validated: server starts from fully clean external shell (all loader vars unset), returns `{"ready": true, "backend": "gpu", "issues": []}`
+
+## 2026-06-09
+
+### Linux GPU inference boundary and diagnostics
+- implemented Linux GPU host-contract preflight in `scripts/env/toolchain/inference/linux_gpu_contract.sh` and promoted it as part of the supported GPU rehearsal boundary
+- implemented managed Linux GPU validation in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`, including phased checks for Vulkan loader resolution, LiteRT-LM import, backend selection, engine creation, conversation creation, and backend readiness
+- implemented `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_gpu_run.sh` as the Linux GPU launcher wrapper for the promoted supported host class
+- added GPU runtime snapshot tooling in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_runtime_snapshot.sh` and snapshot diff tooling in `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_snapshot_diff.sh`
+- added in-process Python debug snapshots in `src/inference_srv_py/inference_srv_py/debug_snapshot.py` and wired them into `src/inference_srv_py/inference_srv_py/server.py` and `src/inference_srv_py/inference_srv_py/backend.py` so the live server process can be compared against the promoted validation path
+- tightened `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` to deduplicate `PATH` and `LD_LIBRARY_PATH` entries during nested wrapper activation so runtime snapshots are stable and easier to compare
+
+### Linux GPU current status
+- Linux GPU is now promoted through `preflight`, `validate`, and live `serve` for the current supported NVIDIA plus Vulkan host class
+- the promoted GPU gate is `scripts/env/toolchain/inference_srv_py/inference_srv_py_gpu_validate.sh`
+- the promoted Linux GPU serve bridge is a narrow absolute-path vendor-library prewarm in `src/inference_srv_py/inference_srv_py/backend.py`, not broad `LD_LIBRARY_PATH` mutation
+- a repo-local end-to-end shell smoke path now verifies `/ready`, `/health`, conversation creation, and message round-trip through `scripts/env/run_inference_local_gpu_smoke.sh`
+- the backend now normalizes structured LiteRT response payloads to plain assistant text before returning HTTP JSON responses
+- the GPU smoke wrapper now refuses occupied ports and cleans up the whole background server process group so repeated local runs do not silently talk to stale listeners
+- after live-process snapshots exposed missing transitive X11/XCB dependencies for `/usr/lib/x86_64-linux-gnu/libGLX_nvidia.so.0`, `env/python/manifest.toml` was extended with the required X11 runtime libraries so the long-lived GPU server process can load the NVIDIA vendor library inside the managed runtime
+
+### Linux GPU re-evaluation outcome
+- rejected broad host dynamic-linker mutation through `LD_LIBRARY_PATH` as the normal Linux GPU fix layer because it caused Python instability and violated the intended narrow bridge model
+- preserved the existing Python Flox environment at `env/python` as the single Python server runtime boundary rather than introducing a separate GPU runtime environment
+- documented the current promotion boundary and Linux GPU lifecycle status in:
+	- `docs/usecases/05-inference-server-workflow.md`
+	- `docs/chat/linux_gpu_runtime_portability_runbook.md`
+	- `docs/design-domain/13-dd-linux-backend-runtime-adapter.md`
+	- `docs/design-domain/14-dd-linux-backend-runtime-and-conversation-lifecycle.md`
+	- `docs/design-domain/04-dd-backend-transport-and-error-boundary.md`
+
+### Most likely remaining cause
+- wrapper-level runtime assembly is no longer the leading suspect; validate and serve-launch snapshots are effectively identical apart from process metadata
+- the request-thread investigation showed that live success depends on loading the resolved NVIDIA vendor library by absolute path before LiteRT-LM engine creation in the server process
+- the prewarm is now promoted as the supported narrow Linux serve bridge for the current NVIDIA plus Vulkan host class, while remaining explicitly vendor-scoped rather than treated as a generic cross-vendor abstraction
+
 ## 2026-06-05
 
 ### Toolchain source-boundary cleanup
 - clarified the environment design so Flox manifests source narrow concern modules directly while `scripts/env/toolchain/common.sh` remains the full-session compatibility aggregator for external shells and launcher bootstrap
-- folded the former Python path/host-venv cleanup concern into `scripts/env/toolchain/python/python_env.sh`, making it the single Python source of truth for host virtualenv cleanup, managed venv setup, dependency sync, cache paths, and runtime activation
+- folded the former Python path/host-venv cleanup concern into `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`, making it the single Python source of truth for host virtualenv cleanup, managed venv setup, dependency sync, cache paths, and runtime activation
 - made `scripts/env/toolchain/swift/swift_env.sh` source Swift build/cache path setup internally, so manifests and callers no longer need to source `swift_paths.sh` directly
 - documented `scripts/env/toolchain/vscode_paths.sh` as the VS Code portable path owner and updated runbooks to reflect that `scripts/env/start_vscode.sh` now activates the managed Python venv and Swiftly toolchain before launching VS Code
 - updated use-case docs and setup runbooks to describe the cleaned module boundaries and current Python/Swift/VS Code activation model
@@ -89,20 +373,20 @@
 - added `docs/usecases/03-swift-build-and-test.md` for Swift build and test execution through the Flox-managed wrapper path
 
 ### Python Flox alignment
-- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/python/python_env.sh`, with hooks creating and syncing the managed venv under the Flox environment cache
+- moved Python environment setup into the Flox manifests via `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh`, with hooks creating and syncing the managed venv under the Flox environment cache
 - added Flox profile activation for the Python venv in both the Python module and fullstack manifests
 - removed the host-derived `LD_LIBRARY_PATH` mutation from `scripts/env/toolchain/common.sh` and replaced it with Flox-managed runtime activation from the Python helper
-- simplified `scripts/env/toolchain/python/python_run.sh` and `scripts/env/toolchain/python/python_server_run.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
+- simplified `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` and `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` so they use the active Flox environment directly and only fall back to wrapper activation when needed
 - declared `libgcc` in the active composed Flox environment and verified NumPy imports correctly from the managed venv (`6.0` sum proof)
 - resolved the earlier wrapper/runtime failure caused by pre-activation host library path pollution
 
 ### Detailed Python workflow changes
-- added `scripts/env/toolchain/python/python_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
+- added `scripts/env/toolchain/inference_srv_py/inference_srv_py_env.sh` as the shared source of truth for creating, syncing, and activating the Flox-managed Python venv plus Python cache paths
 - updated `env/python/manifest.toml` so the Python module now declares `python311`, `poetry`, `uv`, and `libgcc`, boots the managed venv from its hook, and activates it from Flox shell profiles
 - updated the then-current top-level composed manifest so it also bootstrapped and activated the managed Python venv and explicitly exposed `libgcc` in the active runtime
 - updated `scripts/env/toolchain/common.sh` to remove Python-specific cache and venv policy from the shared bootstrap and to stop exporting `LD_LIBRARY_PATH` from host `g++`
 - updated `scripts/env/toolchain/nix/flox_with.sh` so no-argument mode enters a native `flox activate` shell instead of forcing `bash --noprofile --norc`
-- updated `scripts/env/toolchain/python/python_run.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
-- updated `scripts/env/toolchain/python/python_server_run.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
+- updated `scripts/env/toolchain/inference_srv_py/inference_srv_py_run.sh` so it activates the managed venv directly when already inside Flox and otherwise activates Flox first, then sources the same Python helper in command mode
+- updated `scripts/env/toolchain/inference_srv_py/inference_srv_py_server_run.sh` with the same managed-venv activation pattern used by the Python CLI wrapper
 - kept direct shell usage valid through the canonical Flox activation path while preserving wrappers for non-activated shells and tasks
 - verified wrapper bootstrap from a clean shell, direct Flox activation with managed venv activation, and NumPy native-extension loading through both paths

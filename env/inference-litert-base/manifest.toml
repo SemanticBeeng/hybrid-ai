@@ -1,0 +1,21 @@
+version = 1
+
+[include]
+environments = [
+	{ dir = "../base" },
+]
+
+[vars]
+HYBRID_AI_INFERENCE_ENGINE = "litert-lm"
+
+[hook]
+on-activate = '''
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_base_env
+'''
+
+[profile]
+common = '''
+source scripts/env/toolchain/inference/litert_env.sh
+hybrid_ai_activate_litert_base_env
+'''

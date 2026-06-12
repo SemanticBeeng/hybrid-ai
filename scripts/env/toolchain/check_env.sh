@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-source "$project_root/scripts/env/toolchain/common.sh"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
+source "$project_root/scripts/env/toolchain/all_env.sh"
 
 printf "project_root=%s\n" "$project_root"
 printf "NIX_ISOLATED_ROOT=%s\n" "$NIX_ISOLATED_ROOT"

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$project_root/scripts/env/toolchain/common.sh"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
+source "$project_root/scripts/env/toolchain/nix/nix_setup.sh"
 
 if [[ "$NIX_ISOLATED_ROOT" != "/opt/bin/dev/nix" ]]; then
   echo "WARN: NIX_ISOLATED_ROOT is '$NIX_ISOLATED_ROOT', expected '/opt/bin/dev/nix'." >&2

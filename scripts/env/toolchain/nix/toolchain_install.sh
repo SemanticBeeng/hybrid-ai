@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
-source "$project_root/scripts/env/toolchain/common.sh"
+project_root="${PROJECT_ROOT:?ERROR: PROJECT_ROOT not set. Source scripts/local_env.sh first.}"
 
 cat <<EOF
 INFO: scripts/env/toolchain/nix/toolchain_install.sh is a convenience/resume helper.
