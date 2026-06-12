@@ -2,6 +2,57 @@
 
 ## 2026-06-12
 
+### Linux GPU smoke test execution and post-prune recovery workflow
+
+Verified complete GPU inference workflow and documented post-prune-caches recovery path.
+
+#### Section 6.7 Linux GPU End-To-End Smoke execution
+- ✅ Executed `scripts/env/run_inference_local_gpu_smoke.sh` with full validation
+- ✅ GPU host contract check passed (device nodes, Vulkan ICD, vendor libraries)
+- ✅ Managed GPU validation passed all phases (library resolution, Vulkan tooling, ICD loadability, Python import, backend selection, bootstrap-state)
+- ✅ GPU WebGPU backend initialization successful
+- ✅ Server readiness check returned `backend=gpu`
+- ✅ Conversation lifecycle (create/send/delete) validated against running GPU backend
+- ✅ Swift live integration tests passed (3/3 tests, 0 failures)
+
+#### docs/usecases/05-inference-server-workflow.md (post-prune enhancements)
+
+**Added Section 6.0: Post-Prune-Caches State (When Required)**
+- Documented which artifacts are removed by `prune_caches.sh` (Flox envs, Python venvs, build metadata)
+- Documented which artifacts are preserved (manifests, models, model metadata)
+- Added mandatory step ordering with emphasis on `setup_litert_lm.sh` execution after Flox resync
+- Added explicit warning: skipping `setup_litert_lm.sh` causes `ModuleNotFoundError: No module named 'litert_lm'`
+
+**Enhanced Section 6.1: Python Flox Sync**
+- Added `prune_caches.sh` to trigger conditions
+- Added bold note: "This resync is mandatory because the realized Flox environment at `env/python/.flox/` has been deleted"
+- Documented typical post-prune scenario: `env/python/.flox/` is regenerated
+
+**Enhanced Section 6.8: Start CPU or GPU Server**
+- Added mandatory statement: "This is mandatory after running `prune_caches.sh`"
+- Added explicit `./scripts/env/setup_litert_lm.sh` command in server startup section
+- Clarified GPU env sync requirement for GPU server after cache prune
+
+**Enhanced Section 3: Scope And Assumptions**
+- Added cache cleanup scenario awareness
+- Added direct link to Section 6.0 for post-prune recovery guidance
+
+#### env/inference-litert-linux-gpu/manifest.toml
+
+- Added `linuxPackages.nvidia_x11` to GPU-specific environment (correctly scoped, not in base Python env)
+- This package provides libnvidia-glsi and related NVIDIA userspace libraries via Nix closure
+- Resolved "libnvidia-glsi.so.580.126.09: cannot open shared object file" error from earlier GPU smoke attempt
+- Verified in managed GPU runtime (`flox_with.sh` context) that `libGLX_nvidia.so.0` links to `libXext`, `libxcb`, `libXau`, and `libXdmcp`
+- Verified those Xorg libraries are present at runtime even after removing explicit manifest entries, indicating they are currently satisfied transitively
+- Added commented optional fallback entries for `xorg.libXext`, `xorg.libxcb`, `xorg.libXau`, and `xorg.libXdmcp` so future GPU rendering workflows can re-enable them quickly if needed
+
+#### Current workflow validation state
+
+- GPU smoke test (Section 6.7) fully functional on supported Linux host (NVIDIA + Vulkan)
+- CPU smoke test (Section 6.4-6.6) already validated
+- Swift live integration tests pass against both CPU and GPU backends
+- Post-prune recovery documented and validated through complete workflow re-execution
+
 ### SWIFTLY_ROOT centralization
 
 Added `SWIFTLY_ROOT` to `local_env.sh` as single source of truth for the Swiftly installation root.

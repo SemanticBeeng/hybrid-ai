@@ -73,6 +73,8 @@ This workflow assumes:
 - the GPU workflow is supported for the current NVIDIA plus Vulkan host class
 - `scripts/local_env.sh` has been sourced once at shell startup (sets `NIX_ISOLATED_ROOT`, `NIX_BIN`, `FLOX_BIN`)
 
+**Note on cache cleanup:** This workflow is designed to recover completely after running `scripts/clean/prune_caches.sh`. That script removes all realized Flox environments and build artifacts while preserving environment manifests and model files. After pruning, start from [Section 6.0](#60-post-prune-caches-state-when-required) to understand which artifacts require regeneration.
+
 ## 4. Files Involved
 
 Environment and wrappers:
@@ -192,9 +194,33 @@ Supported shell entrypoints:
 
 ## 6. Complete Workflow
 
+### 6.0 Post-Prune-Caches State (When Required)
+
+If you have just run `scripts/clean/prune_caches.sh`, the following artifacts have been removed and must be regenerated:
+
+- All Flox realized environments under `.flox/` and `env/*/.flox/`
+- The Python venv at `env/python/.flox/cache/python` and `env/inference-litert-linux-gpu/.flox/cache/python`
+- Build metadata at `build/artifacts/litert-lm.version`
+
+The following artifacts are **preserved** by `prune_caches.sh` and do not need re-bootstrap:
+
+- Environment manifests at `env/*/manifest.toml`
+- Pinned model files at `volumes/models/litert-lm/gemma4-e4b/gemma-4-E4B-it.litertlm`
+- Model metadata under `volumes/models/litert-lm/`
+
+**Post-prune recovery path (mandatory steps in order):**
+1. Run [Section 6.1](#61-sync-the-dedicated-python-flox-environment) to re-sync both CPU and GPU Flox environments
+2. Run [Section 6.2](#62-verify-the-litert-lm-dependency) to run `setup_litert_lm.sh` and verify Poetry dependencies in the new venv
+3. Skip [Section 6.3](#63-bootstrap-the-pinned-gemma-4-e4b-model) if the model file still exists; otherwise re-download
+4. Proceed with [Section 6.4+](#64-readiness-smoke-test) to validate the server
+
+**Important:** `setup_litert_lm.sh` is mandatory after Flox resync because the Python venv is regenerated and must have Poetry dependencies re-installed. If you skip this step, the server will fail with `ModuleNotFoundError: No module named 'litert_lm'`.
+
+If model files were also removed (via `--include-logs` or manual deletion), re-bootstrap using the URL from [Section 6.3](#63-bootstrap-the-pinned-gemma-4-e4b-model).
+
 ### 6.1 Sync The Dedicated Python Flox Environment
 
-Run this after changes to `env/python/manifest.toml` or if Flox reports a stale
+Run this after changes to `env/python/manifest.toml`, after running `prune_caches.sh`, or if Flox reports a stale
 manifest/lock mismatch:
 
 ```bash
@@ -203,6 +229,8 @@ FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 ```
 
+**After `prune_caches.sh`:** This resync is mandatory because the realized Flox environment at `env/python/.flox/` has been deleted.
+
 Also run this if the backend reports a missing native library such as
 `libvulkan.so.1` even though the package was already added to the manifest. In
 that case, the usual cause is a stale realized Flox environment under
@@ -210,7 +238,7 @@ that case, the usual cause is a stale realized Flox environment under
 
 What this resync does:
 - validates that the target Flox manifest exists
-- initializes `env/python/.flox/` if it has not been created yet
+- initializes `env/python/.flox/` if it has not been created yet (typical post-prune)
 - syncs included environments first, such as `env/base`
 - refreshes the realized environment metadata under `env/python/.flox/env/`
 - refreshes the realized runtime under `env/python/.flox/run/`
@@ -358,7 +386,7 @@ Useful overrides:
 ### 6.8 Start The CPU Or GPU Inference Server
 
 The server wrappers activate Flox internally, but the environment must be synced
-first. If not already done:
+first. This is mandatory after running `prune_caches.sh`. If not already done:
 
 ```bash
 cd /home/nkse/projects/hybrid-ai
@@ -367,10 +395,13 @@ cd /home/nkse/projects/hybrid-ai
 FLOX_ENV_DIR=$PWD/env/python FLOX_MANIFEST_PATH=$PWD/env/python/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
 
-# Sync GPU env (GPU path)
+# Sync GPU env (GPU path) — required if running GPU server after cache prune
 FLOX_ENV_DIR=$PWD/env/inference-litert-linux-gpu \
 FLOX_MANIFEST_PATH=$PWD/env/inference-litert-linux-gpu/manifest.toml \
 ./scripts/env/toolchain/nix/flox_env_init.sh
+
+# After Flox resync, verify LiteRT-LM dependency (see Section 6.2)
+./scripts/env/setup_litert_lm.sh
 ```
 
 Default local server:
