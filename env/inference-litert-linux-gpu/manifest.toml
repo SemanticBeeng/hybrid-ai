@@ -15,6 +15,8 @@ xorg-libxau.pkg-path = "xorg.libXau"
 xorg-libxau.systems = ["x86_64-linux"]
 xorg-libxdmcp.pkg-path = "xorg.libXdmcp"
 xorg-libxdmcp.systems = ["x86_64-linux"]
+linux-nvidia-x11.pkg-path = "linuxPackages.nvidia_x11"
+linux-nvidia-x11.systems = ["x86_64-linux"]
 
 [include]
 environments = [
